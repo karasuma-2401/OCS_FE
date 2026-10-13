@@ -1,0 +1,7 @@
+services:
+  frontend:
+    image: ghcr.io/${IMAGE_OWNER}/ocs-frontend:${IMAGE_TAG}
+    container_name: ocs-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
