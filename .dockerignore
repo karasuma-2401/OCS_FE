@@ -3,6 +3,9 @@
 .expo
 .env
 dist
+artifacts
 release
+desktop/**/bin
+desktop/**/obj
 node_modules
 npm-debug.log*

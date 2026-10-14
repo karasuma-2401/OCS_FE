@@ -1,20 +1,25 @@
 # OCS Frontend
 
-Ứng dụng client cho **OCS - Old Clothes Store**, dùng chung React Native codebase cho iOS, Android, web và desktop Windows.
+Repository giao diện cho **OCS - Old Clothes Store**, gồm hai ứng dụng độc lập trong cùng một repository:
+
+- Ứng dụng khách hàng dùng React Native/React Native Web cho Android, iOS và website.
+- Ứng dụng nội bộ dùng WPF cho quản lý cửa hàng và POS trên Windows.
 
 ## Công nghệ
 
-- Expo SDK 57, React Native 0.86 và TypeScript strict.
+- Expo SDK 57, React Native 0.86, React Native Web và TypeScript strict cho ứng dụng khách hàng.
 - Expo Router cho routing theo file trong `src/app`.
-- Electron cho ứng dụng desktop Windows.
-- SQLite: `expo-sqlite` trên mobile và module `node:sqlite` tích hợp trong Electron 44.
-- ESLint, Expo Doctor, Docker, GitHub Actions và electron-builder.
+- WPF, C# và .NET 10 cho ứng dụng quản lý/POS trên Windows.
+- ESLint, Expo Doctor, Docker và GitHub Actions.
 
-Desktop chỉ expose các hàm nghiệp vụ được định nghĩa rõ qua preload bridge; renderer không được truy cập Node.js, Electron IPC thô hoặc câu lệnh SQL trực tiếp.
+Theo phạm vi hiện tại, Mobile/Website hoạt động trực tuyến qua Backend API. SQLite offline, Outbox và Sync Service của WPF POS chưa được hiện thực trong repository này.
 
 ## Chạy local
 
-Yêu cầu Node.js 24 và npm 11.
+Yêu cầu:
+
+- Node.js 24 và npm 11 cho Mobile/Web.
+- .NET SDK 10 và Windows cho WPF.
 
 ```powershell
 Copy-Item .env.example .env
@@ -28,10 +33,13 @@ npm start           # Expo dev server
 npm run android     # Android
 npm run ios         # iOS (cần macOS/Xcode hoặc dùng Expo Go)
 npm run web         # Trình duyệt
-npm run desktop     # Expo web + Electron desktop
 ```
 
-Database desktop được tạo tại thư mục `userData` riêng của ứng dụng. Database mobile được tạo trong sandbox của app.
+Chạy ứng dụng WPF trên Windows:
+
+```powershell
+dotnet run --project desktop/OCS.Desktop/OCS.Desktop.csproj
+```
 
 ## Kiểm tra và build
 
@@ -40,11 +48,12 @@ npm run lint
 npm run typecheck
 npx expo-doctor
 npm run build:web
-npm run build:desktop
 docker build --tag ocs-frontend:local .
+dotnet format desktop/OCS.Desktop/OCS.Desktop.csproj --verify-no-changes
+dotnet build desktop/OCS.Desktop/OCS.Desktop.csproj --configuration Release
 ```
 
-`build:desktop` tạo Windows NSIS installer trong `release/`. Bản phát hành hiện chưa ký số; cần bổ sung chứng thư code signing trước khi phân phối production.
+Workflow phát hành WPF tạo gói `win-x64` phụ thuộc .NET Desktop Runtime 10. MSIX/MSI, code signing và cơ chế cập nhật tự động sẽ được lựa chọn khi nhóm chốt phương thức phân phối production.
 
 ## Cấu trúc
 
@@ -52,13 +61,9 @@ docker build --tag ocs-frontend:local .
 src/
 ├── app/                    # Route/screen của Expo Router
 ├── config/                 # Cấu hình môi trường
-├── infrastructure/
-│   └── database/           # Adapter SQLite theo nền tảng
-├── theme/                  # Design tokens
-└── types/                  # Khai báo type toàn cục
-electron/
-├── main.cjs                # Main process, SQLite và IPC handlers
-└── preload.cjs             # API tối thiểu expose cho renderer
+└── theme/                  # Design tokens
+desktop/
+└── OCS.Desktop/            # Ứng dụng WPF quản lý cửa hàng/POS
 deploy/
 └── compose.prod.yaml       # Web container trên VPS
 ```
@@ -67,10 +72,10 @@ deploy/
 
 Pipeline bám theo cấu trúc của UGTM: CI trên `dev`/`main`, publish image sau khi CI xanh, rồi deploy VPS sau khi publish thành công.
 
-- `Frontend CI`: ESLint, TypeScript, Expo Doctor, secret scan, web export, Windows package verification và Docker build verification.
+- `Frontend CI`: ESLint, TypeScript, Expo Doctor, secret scan, web export, WPF build và Docker build verification.
 - `Publish Frontend Image`: build multi-architecture image, quét Trivy và publish lên GHCR với tag `dev`, `main`, `latest` và `sha-xxxxxxx`.
 - `Deploy Frontend to VPS`: pull image từ GHCR và restart container bằng Docker Compose.
-- `Release Windows Desktop`: build installer thủ công hoặc khi push tag `v*`; tag release sẽ đính kèm installer vào GitHub Release.
+- `Release Windows Desktop`: publish WPF `win-x64` thủ công hoặc khi push tag `v*`; tag release sẽ đính kèm file ZIP vào GitHub Release.
 
 GitHub Actions secrets bắt buộc cho deploy:
 

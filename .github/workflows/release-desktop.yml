@@ -11,37 +11,38 @@ permissions:
 
 jobs:
   package:
-    name: Build Windows Installer
+    name: Publish WPF Application
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Setup Node.js 24
-        uses: actions/setup-node@v4
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v6
         with:
-          node-version: 24
-          cache: npm
+          dotnet-version: 10.0.x
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Publish Windows x64 application
+        run: >-
+          dotnet publish desktop/OCS.Desktop/OCS.Desktop.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained false
+          --output artifacts/desktop/win-x64
 
-      - name: Build NSIS installer
-        run: npm run build:desktop
+      - name: Create release archive
+        shell: pwsh
+        run: Compress-Archive -Path artifacts/desktop/win-x64/* -DestinationPath artifacts/OCS.Desktop-win-x64.zip
 
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v7
         with:
-          name: ocs-windows-installer
-          path: |
-            release/*.exe
-            release/*.blockmap
+          name: ocs-desktop-win-x64
+          path: artifacts/OCS.Desktop-win-x64.zip
 
-      - name: Attach installer to GitHub Release
+      - name: Attach archive to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            release/*.exe
-            release/*.blockmap
+          files: artifacts/OCS.Desktop-win-x64.zip
           generate_release_notes: true

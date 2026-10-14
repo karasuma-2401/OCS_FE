@@ -53,7 +53,7 @@ jobs:
           exit "$missing"
 
       - name: Checkout deployment definition
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
 

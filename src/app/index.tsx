@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,53 +7,29 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  initializeLocalDatabase,
-  type LocalDatabaseStatus,
-} from '@/infrastructure/database/database';
 import { colors } from '@/theme/colors';
 
 const modules = [
   {
-    eyebrow: 'MOBILE',
+    eyebrow: 'MOBILE & WEB',
     title: 'Ký gửi trực tuyến',
     description: 'Ứng dụng iOS và Android dành cho khách hàng theo dõi sản phẩm, giao dịch và thông báo.',
   },
   {
-    eyebrow: 'DESKTOP',
-    title: 'Quản lý & POS',
-    description: 'Ứng dụng desktop dành cho tiếp nhận, thẩm định, kho và bán hàng tại quầy.',
+    eyebrow: 'CATALOG',
+    title: 'Xem sản phẩm',
+    description: 'Khách chưa đăng nhập vẫn có thể xem danh sách, hình ảnh và giá bán của sản phẩm.',
   },
   {
-    eyebrow: 'OFFLINE-FIRST',
-    title: 'Dữ liệu cục bộ',
-    description: 'SQLite giữ dữ liệu tác nghiệp tạm thời và tạo nền tảng cho luồng đồng bộ khi mất mạng.',
+    eyebrow: 'CONSIGNOR',
+    title: 'Theo dõi ký gửi',
+    description: 'Người ký gửi có thể đặt lịch, theo dõi vòng đời sản phẩm và tra cứu thông tin quyết toán.',
   },
 ];
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
-  const [database, setDatabase] = useState<LocalDatabaseStatus | null>(null);
-
-  useEffect(() => {
-    let active = true;
-
-    initializeLocalDatabase()
-      .then((status) => {
-        if (active) setDatabase(status);
-      })
-      .catch(() => {
-        if (active) {
-          setDatabase({ ready: false, engine: 'unavailable', schemaVersion: 0 });
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.page}>
@@ -67,35 +41,25 @@ export default function HomeScreen() {
                 Một nền tảng cho ký gửi, vận hành và bán hàng.
               </Text>
               <Text style={styles.lead}>
-                OCS dùng React Native cho mobile, web và giao diện desktop; backend giao tiếp qua REST API.
+                OCS dùng React Native và React Native Web cho ứng dụng khách hàng, giao tiếp trực tuyến với Backend API.
               </Text>
             </View>
 
             <View style={styles.statusPanel}>
-              <Text style={styles.statusLabel}>LOCAL DATABASE</Text>
+              <Text style={styles.statusLabel}>CUSTOMER CLIENT</Text>
               <View style={styles.statusRow}>
-                {database ? (
-                  <View style={[styles.dot, database.ready ? styles.dotReady : styles.dotIdle]} />
-                ) : (
-                  <ActivityIndicator color={colors.accent} size="small" />
-                )}
-                <Text style={styles.statusValue}>
-                  {database
-                    ? database.ready
-                      ? `${database.engine} · schema v${database.schemaVersion}`
-                      : 'Chỉ bật trong app mobile/desktop'
-                    : 'Đang khởi tạo...'}
-                </Text>
+                <View style={[styles.dot, styles.dotReady]} />
+                <Text style={styles.statusValue}>Mobile · Web · Online</Text>
               </View>
               <Text style={styles.statusHint}>
-                Dữ liệu nhạy cảm và truy vấn SQL không được mở trực tiếp cho renderer desktop.
+                Quản lý cửa hàng và POS được triển khai riêng bằng WPF trên Windows.
               </Text>
             </View>
           </View>
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Nền móng đã sẵn sàng</Text>
-            <Text style={styles.sectionMeta}>Expo SDK 57 · React Native 0.86 · Electron 44</Text>
+            <Text style={styles.sectionMeta}>Expo SDK 57 · React Native 0.86 · React Native Web</Text>
           </View>
 
           <View style={styles.cardGrid}>
@@ -198,9 +162,6 @@ const styles = StyleSheet.create({
   },
   dotReady: {
     backgroundColor: colors.success,
-  },
-  dotIdle: {
-    backgroundColor: colors.warning,
   },
   statusValue: {
     flex: 1,

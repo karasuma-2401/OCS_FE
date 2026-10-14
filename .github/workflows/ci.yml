@@ -16,15 +16,15 @@ permissions:
   pull-requests: read
 
 jobs:
-  quality:
-    name: Lint, Typecheck and Expo Doctor
+  customer-quality:
+    name: Customer Client Quality
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout full history
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -59,14 +59,14 @@ jobs:
 
   build-web:
     name: Build Web Bundle
-    needs: quality
+    needs: customer-quality
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -78,33 +78,31 @@ jobs:
         run: npm run build:web
 
       - name: Upload web bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ocs-web
           path: dist
 
-  desktop-verify:
-    name: Verify Windows Desktop Package
-    needs: quality
+  desktop-build:
+    name: Build WPF Desktop
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Setup Node.js 24
-        uses: actions/setup-node@v4
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v6
         with:
-          node-version: 24
-          cache: npm
+          dotnet-version: 10.0.x
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Restore WPF dependencies
+        run: dotnet restore desktop/OCS.Desktop/OCS.Desktop.csproj
 
-      - name: Export production web bundle
-        run: npm run build:web
+      - name: Verify WPF formatting
+        run: dotnet format desktop/OCS.Desktop/OCS.Desktop.csproj --verify-no-changes --no-restore
 
-      - name: Package unpacked Windows application
-        run: npx electron-builder --win --x64 --dir
+      - name: Build WPF application
+        run: dotnet build desktop/OCS.Desktop/OCS.Desktop.csproj --configuration Release --no-restore
 
   docker-verify:
     name: Docker Build Verification
@@ -112,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build frontend image
         run: docker build --tag ocs-frontend:ci .

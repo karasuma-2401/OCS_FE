@@ -38,7 +38,11 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# Electron
+# .NET / WPF
+**/bin/
+**/obj/
+artifacts/
+# Legacy Electron build output kept out of version control.
 release/
 
 # Tool caches
