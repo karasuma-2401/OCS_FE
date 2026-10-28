@@ -90,7 +90,7 @@ jobs:
           push: false
           tags: ${{ steps.tags.outputs.scan_tag }}
           build-args: |
-            EXPO_PUBLIC_API_URL=${{ vars.EXPO_PUBLIC_API_URL || 'http://localhost:5204' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || 'http://localhost:5204/api' }}
           labels: |
             org.opencontainers.image.revision=${{ steps.tags.outputs.source_sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -123,7 +123,7 @@ jobs:
           push: true
           tags: ${{ steps.tags.outputs.push_tags }}
           build-args: |
-            EXPO_PUBLIC_API_URL=${{ vars.EXPO_PUBLIC_API_URL || 'http://localhost:5204' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || 'http://localhost:5204/api' }}
           labels: |
             org.opencontainers.image.revision=${{ steps.tags.outputs.source_sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

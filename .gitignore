@@ -1,53 +1,32 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
+# Dependencies
 node_modules/
 
-# Expo
-.expo/
+# Production build
 dist/
-web-build/
-expo-env.d.ts
+dist-ssr/
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
+# Environment files
 .env
 .env*.local
 !.env.example
 
-# typescript
+# Editor and OS
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Logs and debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# TypeScript cache
 *.tsbuildinfo
-
-# .NET / WPF
-**/bin/
-**/obj/
-artifacts/
-# Legacy Electron build output kept out of version control.
-release/
-
-# Tool caches
-.npm/
-
-# generated native folders
-/ios
-/android

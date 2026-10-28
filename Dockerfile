@@ -7,10 +7,10 @@ RUN npm ci --ignore-scripts
 
 COPY . .
 
-ARG EXPO_PUBLIC_API_URL=http://localhost:5204
-ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
+ARG VITE_API_URL=http://localhost:5204/api
+ENV VITE_API_URL=$VITE_API_URL
 
-RUN npm run build:web
+RUN npm run build
 
 FROM nginx:1.29-alpine AS runtime
 

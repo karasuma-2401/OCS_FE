@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #18211D;
+  --color-paper: #FFFDF8;
+  --color-surface: #F3F0E9;
+  --color-surface-subtle: #ECE6DC;
+  --color-border: #E2DBD0;
+  --color-border-dark: #2F3E37;
+  --color-accent: #EF9F45;
+  --color-accent-dark: #D48427;
+  --color-accent-hover: #F3AF62;
+  --color-muted: #6B7C72;
+  --color-muted-on-dark: #A5B6AC;
+  --color-success: #2E7D32;
+  --color-danger: #D32F2F;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+}
+

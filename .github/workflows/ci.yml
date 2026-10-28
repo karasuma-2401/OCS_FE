@@ -16,101 +16,56 @@ permissions:
   pull-requests: read
 
 jobs:
-  customer-quality:
-    name: Customer Client Quality
+  quality:
+    name: Code Quality & Type Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js 24
-        uses: actions/setup-node@v7
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci --ignore-scripts
+        working-directory: frontend
+        run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
+      - name: Build and verify TypeScript
+        working-directory: frontend
+        run: npm run build
 
-      - name: Run TypeScript typecheck
-        run: npm run typecheck
-
-      - name: Validate Expo dependencies and configuration
-        run: npx expo-doctor@latest
+      - name: Upload production bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocs-frontend-dist
+          path: frontend/dist
 
   secret-scan:
     name: Secret Scanning
     runs-on: ubuntu-latest
     steps:
       - name: Checkout full history
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Run Gitleaks
-        run: >-
-          docker run --rm
-          --volume "$GITHUB_WORKSPACE:/repo:ro"
-          ghcr.io/gitleaks/gitleaks:v8.30.1
-          git --redact --verbose /repo
-
-  build-web:
-    name: Build Web Bundle
-    needs: customer-quality
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup Node.js 24
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-
-      - name: Export production web bundle
-        run: npm run build:web
-
-      - name: Upload web bundle
-        uses: actions/upload-artifact@v7
-        with:
-          name: ocs-web
-          path: dist
-
-  desktop-build:
-    name: Build WPF Desktop
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup .NET 10
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Restore WPF dependencies
-        run: dotnet restore desktop/OCS.Desktop/OCS.Desktop.csproj
-
-      - name: Verify WPF formatting
-        run: dotnet format desktop/OCS.Desktop/OCS.Desktop.csproj --verify-no-changes --no-restore
-
-      - name: Build WPF application
-        run: dotnet build desktop/OCS.Desktop/OCS.Desktop.csproj --configuration Release --no-restore
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker-verify:
     name: Docker Build Verification
-    needs: build-web
+    needs: quality
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      - name: Build frontend image
+      - name: Build frontend container image
+        working-directory: frontend
         run: docker build --tag ocs-frontend:ci .
