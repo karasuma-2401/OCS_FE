@@ -1,0 +1,86 @@
+@theme {
+  --font-sans: "Be Vietnam Pro", system-ui, -apple-system, sans-serif;
+
+  --color-ink: #18211D;
+  --color-paper: #FFFDF8;
+  --color-surface: #F3F0E9;
+  --color-surface-subtle: #ECE6DC;
+  --color-surface-dashboard: #F5F5F7;
+  --color-border: #E2DBD0;
+  --color-border-dark: #2F3E37;
+  --color-border-dark-hover: #3D4F46;
+  --color-accent: #EF9F45;
+  --color-accent-dark: #D48427;
+  --color-accent-hover: #F3AF62;
+  --color-muted: #6B7C72;
+  --color-muted-on-dark: #A5B6AC;
+  --color-success: #2E7D32;
+  --color-danger: #D32F2F;
+  --color-danger-hover: #F87171;
+
+  --color-state-success: #15803D;
+  --color-state-success-strong: #166534;
+  --color-state-success-deep: #14532D;
+  --color-state-success-icon: #16A34A;
+  --color-state-success-solid: #22C55E;
+  --color-state-success-soft: #F0FDF4;
+  --color-state-success-muted: #DCFCE7;
+  --color-state-success-border: #BBF7D0;
+  --color-state-info: #1E40AF;
+  --color-state-info-strong: #1D4ED8;
+  --color-state-info-soft: #DBEAFE;
+  --color-state-warning: #B45309;
+  --color-state-warning-strong: #92400E;
+  --color-state-warning-soft: #FEF3C7;
+  --color-state-neutral: #1F2937;
+  --color-state-neutral-soft: #F3F4F6;
+  --color-state-danger: #B91C1C;
+  --color-state-danger-strong: #DC2626;
+  --color-state-danger-icon: #EF4444;
+  --color-state-danger-soft: #FEF2F2;
+  --color-state-danger-border: #FECACA;
+
+  --color-brand-pink: #FA9BBF;
+  --color-brand-pink-hover: #F78BB4;
+  --color-brand-pink-light: #F9E9EE;
+  --color-brand-pink-surface: #FBF3F6;
+  --color-brand-pink-focus: #EF91B6;
+  --color-brand-pink-gradient: #F3A6CA;
+  --color-brand-lavender: #C7B9E2;
+  --color-brand-lavender-gradient: #B9B8E4;
+  --color-brand-blue: #90CAF9;
+  --color-brand-blue-gradient: #91C9F4;
+  --color-brand-ink: #382F3E;
+  --color-brand-highlight: #8D536C;
+
+  --color-text-primary: #111C2D;
+  --color-text-secondary: #524347;
+  --color-text-muted: #64748B;
+  --color-surface-default: #FFFFFF;
+  --color-surface-active: #FCF9FC;
+
+  --text-heading-xl: 32px;
+  --text-heading-lg: 24px;
+  --text-heading-md: 20px;
+  --text-body: 15px;
+  --text-caption: 11px;
+
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-pill: 9999px;
+
+  --shadow-navbar: 0 2px 12px rgba(200, 185, 226, 0.2);
+
+  --breakpoint-xs: 30rem;
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-surface text-ink;
+  }
+}
