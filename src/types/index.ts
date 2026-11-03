@@ -1,16 +1,72 @@
-export type Role = 'Admin' | 'Manager' | 'Staff' | 'Consignor' | 'Customer';
+export type RoleCode = 'Admin' | 'Manager' | 'Staff' | 'Customer';
+export type Role = RoleCode | 'Consignor';
 
 export interface User {
   id: string;
-  username: string;
-  fullName: string;
   email: string;
-  phoneNumber?: string;
-  roles: Role[];
+  fullName: string;
+  phoneNumber?: string | null;
+  roles: RoleCode[];
+  username?: string | null;
 }
 
+export interface ProblemDetails {
+  type?: string;
+  title?: string;
+  status?: number;
+  detail?: string;
+  code?: string;
+  traceId?: string;
+  errors?: Record<string, string[]>;
+  lockoutEndAt?: string;
+  retryAfterSeconds?: number;
+  continuationToken?: string;
+  email?: string;
+}
+
+export interface CurrentUserResponse {
+  user: User;
+  expiresAt: string;
+  expiresIn: number;
+}
+
+export interface LoginResponse {
+  user: User;
+  expiresAt: string;
+  expiresIn: number;
+}
+
+export interface CsrfTokenResponse {
+  token: string;
+  headerName?: string;
+}
+
+export interface RegisterResponse {
+  challengeId: string;
+  purpose: string;
+  maskedDestination: string;
+  expiresAt: string;
+  resendAvailableAt: string;
+  continuationToken: string;
+}
+
+export interface VerifyOtpResponse {
+  message: string;
+  verifiedAt: string;
+}
+
+export interface ResendOtpResponse {
+  challengeId: string;
+  purpose: string;
+  maskedDestination: string;
+  expiresAt: string;
+  resendAvailableAt: string;
+  continuationToken: string;
+}
+
+// Deprecated: kept temporarily for backwards compatibility with existing UI types
 export interface AuthResponse {
-  accessToken: string;
+  accessToken?: string;
   refreshToken?: string;
   expiresIn: number;
   user: User;

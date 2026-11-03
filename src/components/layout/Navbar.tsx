@@ -1,18 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { ShoppingBag, Calendar, FileText, LayoutDashboard, ShoppingCart, LogIn, LogOut, Package, User as UserIcon } from 'lucide-react';
+import { ShoppingBag, Calendar, LayoutDashboard, ShoppingCart, LogIn, LogOut, Package, User as UserIcon } from 'lucide-react';
 import mascotLogo from '@/assets/images/mascot-logo.png';
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, isStaffOrAdmin, hasRole, logout } = useAuth();
   const navigate = useNavigate();
-  const isConsignor = hasRole('Consignor');
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const canManage = hasRole('Admin') || hasRole('Manager');
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      navigate('/');
+    } catch {
+      // Handled in auth context, redirect to home
+      navigate('/');
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -39,22 +48,19 @@ export const Navbar: React.FC = () => {
             </Link>
 
             <Link
-              to="/appointments"
+              to="/consign"
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-on-dark hover:text-paper hover:bg-border-dark/50 transition-colors"
             >
               <Calendar className="w-4 h-4 text-accent" />
-              Đặt lịch ký gửi
+              Cách ký gửi
             </Link>
 
-            {isConsignor && (
-              <Link
-                to="/consignor/contracts"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-on-dark hover:text-paper hover:bg-border-dark/50 transition-colors"
-              >
-                <FileText className="w-4 h-4 text-accent" />
-                Hợp đồng của tôi
-              </Link>
-            )}
+            <Link
+              to="/ui-components"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-on-dark hover:text-paper hover:bg-border-dark/50 transition-colors"
+            >
+              UI Kit
+            </Link>
 
             {isStaffOrAdmin && (
               <div className="flex items-center gap-1 ml-2 pl-2 border-l border-border-dark">
@@ -91,16 +97,17 @@ export const Navbar: React.FC = () => {
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
                 <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-xs font-semibold text-paper">{user?.fullName || user?.username}</span>
+                  <span className="text-xs font-semibold text-paper">{user?.fullName || user?.email}</span>
                   <span className="text-[10px] text-accent font-medium">{user?.roles?.join(', ')}</span>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-muted-on-dark hover:text-danger-hover hover:bg-border-dark/50 transition-colors"
+                  disabled={isLoggingOut}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-muted-on-dark hover:text-danger-hover hover:bg-border-dark/50 transition-colors disabled:opacity-50"
                   title="Đăng xuất"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline">Thoát</span>
+                  <span className="hidden sm:inline">{isLoggingOut ? 'Đang thoát...' : 'Thoát'}</span>
                 </button>
               </div>
             ) : (
