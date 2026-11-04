@@ -21,12 +21,11 @@ interface AppointmentManagementProps {
 }
 
 export function AppointmentManagement({ onSwitchRole }: AppointmentManagementProps = {}) {
-  // Calendar month state: October 2026 (matching Figma 39-1220)
-  const [calendarYear] = useState<number>(2026);
-  const [calendarMonth] = useState<number>(10);
-  const [selectedDay, setSelectedDay] = useState<number>(28);
-
-  const selectedDateFormatted = `${calendarYear}-10-${selectedDay < 10 ? `0${selectedDay}` : selectedDay}`;
+  const [today] = useState(() => new Date());
+  const calendarYear = today.getFullYear();
+  const calendarMonth = today.getMonth() + 1;
+  const [selectedDay, setSelectedDay] = useState<number>(today.getDate());
+  const selectedDateFormatted = [calendarYear, String(calendarMonth).padStart(2, '0'), String(selectedDay).padStart(2, '0')].join('-');
 
   // Filter dropdowns
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -45,65 +44,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
 
   // Start Reception UC-02 Modal
   const [receptionData, setReceptionData] = useState<StartReceptionResponse | null>(null);
-  const [contractCreatedSuccess, setContractCreatedSuccess] = useState<boolean>(false);
-
-  // Default demo items matching Figma 39-1220 (Nguyễn Thu Trang, Trần Mai Chi, Hoàng Yến)
-  const defaultDemoAppointments: Appointment[] = [
-    {
-      id: '20000000-0000-0000-0000-000000000001',
-      trackingNumber: 'LH-012',
-      customerId: '10000000-0000-0000-0000-000000000010',
-      customerName: 'Nguyễn Thu Trang',
-      customerPhone: '0908123456',
-      appointmentDate: '2026-10-28',
-      timeSlotId: '11111111-0000-0000-0000-000000000001',
-      timeSlotDisplay: '09:00 - 10:00',
-      startTime: '09:00',
-      endTime: '10:00',
-      estimatedItemCount: 6,
-      submissionMethod: 'InPerson',
-      status: 'Completed',
-      note: 'Áo khoác dạ và chân váy len',
-      createdAt: '2026-10-25T08:00:00Z',
-      canCancel: false,
-    },
-    {
-      id: '20000000-0000-0000-0000-000000000002',
-      trackingNumber: 'LH-261028-018',
-      customerId: '10000000-0000-0000-0000-000000000011',
-      customerName: 'Trần Mai Chi',
-      customerPhone: '0912345678',
-      appointmentDate: '2026-10-28',
-      timeSlotId: '11111111-0000-0000-0000-000000000002',
-      timeSlotDisplay: '10:00 - 11:00',
-      startTime: '10:00',
-      endTime: '11:00',
-      estimatedItemCount: 8,
-      submissionMethod: 'InPerson',
-      status: 'CheckedIn', // "Chờ đến" / "Đã đến quầy"
-      note: 'Quần áo và một túi xách',
-      createdAt: '2026-10-26T09:30:00Z',
-      canCancel: false,
-    },
-    {
-      id: '20000000-0000-0000-0000-000000000003',
-      trackingNumber: 'LH-020',
-      customerId: '10000000-0000-0000-0000-000000000012',
-      customerName: 'Hoàng Yến',
-      customerPhone: '0987654321',
-      appointmentDate: '2026-10-28',
-      timeSlotId: '11111111-0000-0000-0000-000000000003',
-      timeSlotDisplay: '11:00 - 12:00',
-      startTime: '11:00',
-      endTime: '12:00',
-      estimatedItemCount: 4,
-      submissionMethod: 'InPerson',
-      status: 'Scheduled', // "Đã đặt lịch"
-      note: 'Váy công sở và áo sơ mi',
-      createdAt: '2026-10-27T14:15:00Z',
-      canCancel: true,
-    },
-  ];
+  const contractCreatedSuccess = false;
 
   const fetchAppointments = async () => {
     setLoading(true);
@@ -114,19 +55,12 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
         search: searchKeyword || undefined,
       });
 
-      if (data && data.length > 0) {
-        setAppointments(data);
-        if (!selectedAppointmentId || !data.some((a) => a.id === selectedAppointmentId)) {
-          setSelectedAppointmentId(data[0].id);
-        }
-      } else {
-        setAppointments(defaultDemoAppointments);
-        setSelectedAppointmentId(defaultDemoAppointments[1].id);
-      }
+      setAppointments(data);
+      setSelectedAppointmentId((current) => data.some((item) => item.id === current) ? current : (data[0]?.id ?? ''));
     } catch {
-      // Fallback
-      setAppointments(defaultDemoAppointments);
-      setSelectedAppointmentId(defaultDemoAppointments[1].id);
+      setAppointments([]);
+      setSelectedAppointmentId('');
+      setToastMessage({ title: 'Không tải được lịch hẹn', message: 'Vui lòng thử lại sau.', variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -190,22 +124,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
       setActionModalType(null);
       setActionReason('');
     } catch {
-      // Offline fallback update
-      let targetStatus: AppointmentStatus =
-        actionModalType === 'checkin'
-          ? 'CheckedIn'
-          : actionModalType === 'noshow'
-            ? 'NoShow'
-            : 'Cancelled';
-
-      setAppointments((prev) =>
-        prev.map((a) =>
-          a.id === activeAppointment.id ? { ...a, status: targetStatus } : a,
-        ),
-      );
-
-      setActionModalType(null);
-      setActionReason('');
+      setToastMessage({ title: 'Không thể cập nhật', message: 'Vui lòng thử lại sau.', variant: 'error' });
     } finally {
       setActionLoading(false);
     }
@@ -219,51 +138,15 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
       const response = await appointmentApi.startReception(activeAppointment.id);
       setReceptionData(response);
     } catch {
-      // Mock fallback response for smooth UX
-      setReceptionData({
-        appointmentId: activeAppointment.id,
-        trackingNumber: activeAppointment.trackingNumber,
-        customerId: activeAppointment.customerId,
-        customerName: activeAppointment.customerName,
-        customerPhone: activeAppointment.customerPhone,
-        estimatedItemCount: activeAppointment.estimatedItemCount,
-        note: activeAppointment.note,
-        message: 'Lịch hẹn hợp lệ. Sẵn sàng tiếp nhận và lập hợp đồng ký gửi.',
-      });
+      setToastMessage({ title: 'Không thể bắt đầu tiếp nhận', message: 'Vui lòng thử lại sau.', variant: 'error' });
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Complete UC-02 contract generation
-  const handleCompleteContract = async () => {
-    if (!receptionData) return;
-    setActionLoading(true);
-    try {
-      await appointmentApi.updateStatus(receptionData.appointmentId, {
-        status: 'Completed',
-        reason: 'Đã hoàn tất tiếp nhận và lập hợp đồng ký gửi tại quầy.',
-      });
-
-      setAppointments((prev) =>
-        prev.map((a) =>
-          a.id === receptionData.appointmentId ? { ...a, status: 'Completed' } : a,
-        ),
-      );
-
-      setContractCreatedSuccess(true);
-      setTimeout(() => {
-        setContractCreatedSuccess(false);
-        setReceptionData(null);
-        setToastMessage({
-          title: 'Hợp đồng đã tạo thành công!',
-          message: `Lịch hẹn ${receptionData.trackingNumber} đã chuyển sang Đã tiếp nhận.`,
-          variant: 'success',
-        });
-      }, 1500);
-    } finally {
-      setActionLoading(false);
-    }
+  // Contract creation requires a dedicated endpoint.
+  const handleCompleteContract = () => {
+    setToastMessage({ title: 'Chưa hỗ trợ', message: 'Tạo hợp đồng chưa sẵn sàng.', variant: 'error' });
   };
 
   // Render Badge matching Figma 39-1220
@@ -308,9 +191,8 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
     }
   };
 
-  // Days in October 2026 (1 to 31)
-  const daysInMonth = 31;
-  const firstDayOffset = 3; // October 2026 starts on Thursday (index 3 for Mon=0)
+  const daysInMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+  const firstDayOffset = (new Date(calendarYear, calendarMonth - 1, 1).getDay() + 6) % 7;
 
   return (
     <div className="w-full">
@@ -361,10 +243,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
                   onChange={(e) => setSelectedDay(parseInt(e.target.value))}
                   className="w-full appearance-none rounded-2xl border border-white/80 bg-white/95 px-4 py-2.5 pr-8 text-xs font-semibold text-gray-800 shadow-sm outline-none focus:ring-2 focus:ring-pink-200"
                 >
-                  <option value={28}>28/10/2026</option>
-                  <option value={29}>29/10/2026</option>
-                  <option value={30}>30/10/2026</option>
-                  <option value={31}>31/10/2026</option>
+                  {Array.from({ length: daysInMonth }, (_, i) => <option key={i + 1} value={i + 1}>{String(i + 1).padStart(2, '0')}/{String(calendarMonth).padStart(2, '0')}/{calendarYear}</option>)}
                 </select>
                 <ChevronDown
                   size={14}
@@ -563,7 +442,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
                     {activeAppointment.customerName} • {activeAppointment.trackingNumber}
                   </h4>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    28/10/2026 • {activeAppointment.timeSlotDisplay || `${activeAppointment.startTime} - ${activeAppointment.endTime}`} • {activeAppointment.estimatedItemCount} món dự kiến
+                    {selectedDateFormatted} • {activeAppointment.timeSlotDisplay || `${activeAppointment.startTime} - ${activeAppointment.endTime}`} • {activeAppointment.estimatedItemCount} món dự kiến
                   </p>
                 </div>
 
@@ -627,18 +506,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
 
         <button
           type="button"
-          onClick={() => {
-            setReceptionData({
-              appointmentId: crypto.randomUUID(),
-              trackingNumber: `LH-TRUCTIEP-${Math.floor(100 + Math.random() * 900)}`,
-              customerId: '10000000-0000-0000-0000-000000000004',
-              customerName: 'Khách Vãng Lai Tại Quầy',
-              customerPhone: '0901234567',
-              estimatedItemCount: 5,
-              note: 'Tiếp nhận trực tiếp không hẹn trước',
-              message: 'Khởi tạo tiếp nhận trực tiếp thành công.',
-            });
-          }}
+          onClick={() => setToastMessage({ title: 'Chưa hỗ trợ', message: 'Tiếp nhận khách trực tiếp chưa sẵn sàng.', variant: 'error' })}
           className="w-full rounded-2xl border border-white/80 bg-white py-3.5 px-6 text-center text-sm font-bold text-gray-900 shadow-sm transition hover:bg-gray-50 active:scale-[0.99]"
         >
           Tiếp nhận khách trực tiếp
@@ -785,7 +653,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
                 <div className="rounded-xl bg-pink-50 p-3 text-pink-900 flex items-start gap-2">
                   <AlertCircle size={16} className="text-[#E53E8A] shrink-0 mt-0.5" />
                   <p className="text-[11px] leading-relaxed">
-                    Sau khi nhấn "Tạo hợp đồng", hệ thống sẽ sinh Barcode độc nhất cho từng món đồ, đưa sản phẩm vào kho và gửi thông báo quyết toán tới khách hàng.
+                    Chức năng tạo hợp đồng và mã vạch chưa sẵn sàng.
                   </p>
                 </div>
               </>

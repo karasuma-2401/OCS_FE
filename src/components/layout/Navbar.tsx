@@ -1,129 +1,54 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { ArrowUpRight, CircleUserRound, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { ShoppingBag, Calendar, FileText, LayoutDashboard, ShoppingCart, LogIn, LogOut, Package, User as UserIcon } from 'lucide-react';
-import mascotLogo from '@/assets/images/mascot-logo.png';
+import { NotificationBell } from '@/components/shared/NotificationBell';
+import '@/pages/HomePage.css';
 
-export const Navbar: React.FC = () => {
+const links = [
+  { to: '/', label: 'Trang chủ', end: true },
+  { to: '/catalog', label: 'Khám phá', end: false },
+  { to: '/consign', label: 'Cách ký gửi', end: false },
+  { to: '/appointments', label: 'Lịch hẹn', end: false },
+];
+
+export function Navbar() {
   const { user, isAuthenticated, isStaffOrAdmin, hasRole, logout } = useAuth();
   const navigate = useNavigate();
-  const isConsignor = hasRole('Consignor');
-  const canManage = hasRole('Admin') || hasRole('Manager');
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
+  async function handleLogout() {
+    setLoggingOut(true);
+    setLogoutError(false);
+    try { await logout(); setMenuOpen(false); navigate('/'); } catch { setLogoutError(true); } finally { setLoggingOut(false); }
+  }
 
   return (
-    <header className="sticky top-0 z-50 bg-ink text-paper border-b border-border-dark shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <img src={mascotLogo} alt="" className="w-10 h-10 object-contain" />
-            <div>
-              <div className="font-extrabold tracking-tight text-lg text-paper">OLD CLOTHES STORE</div>
-              <div className="text-[10px] uppercase tracking-wider text-accent font-semibold">Ký gửi & Thời trang bền vững</div>
-            </div>
-          </Link>
-
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
-            <Link
-              to="/catalog"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-on-dark hover:text-paper hover:bg-border-dark/50 transition-colors"
-            >
-              <ShoppingBag className="w-4 h-4 text-accent" />
-              Sản phẩm
-            </Link>
-
-            <Link
-              to="/appointments"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-on-dark hover:text-paper hover:bg-border-dark/50 transition-colors"
-            >
-              <Calendar className="w-4 h-4 text-accent" />
-              Đặt lịch ký gửi
-            </Link>
-
-            {isConsignor && (
-              <Link
-                to="/consignor/contracts"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-on-dark hover:text-paper hover:bg-border-dark/50 transition-colors"
-              >
-                <FileText className="w-4 h-4 text-accent" />
-                Hợp đồng của tôi
-              </Link>
-            )}
-
-            {isStaffOrAdmin && (
-              <div className="flex items-center gap-1 ml-2 pl-2 border-l border-border-dark">
-                <Link
-                  to="/admin/pos"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-ink font-bold hover:bg-accent-hover transition-colors shadow-sm"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  Web POS
-                </Link>
-
-                <Link
-                  to="/admin/products"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-on-dark hover:text-paper hover:bg-border-dark/50 transition-colors"
-                >
-                  <Package className="w-4 h-4 text-accent" />
-                  Kho hàng
-                </Link>
-                {canManage && (
-                  <Link
-                    to="/admin"
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-on-dark hover:text-paper hover:bg-border-dark/50 transition-colors"
-                  >
-                    <LayoutDashboard className="w-4 h-4 text-accent" />
-                    Quản lý
-                  </Link>
-                )}
-              </div>
-            )}
-          </nav>
-
-          {/* User actions */}
-          <div className="flex items-center gap-3">
-            {isAuthenticated ? (
-              <div className="flex items-center gap-3">
-                <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-xs font-semibold text-paper">{user?.fullName || user?.username}</span>
-                  <span className="text-[10px] text-accent font-medium">{user?.roles?.join(', ')}</span>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-muted-on-dark hover:text-danger-hover hover:bg-border-dark/50 transition-colors"
-                  title="Đăng xuất"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline">Thoát</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/login"
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-border-dark text-paper hover:bg-border-dark-hover transition-colors"
-                >
-                  <LogIn className="w-3.5 h-3.5 text-accent" />
-                  Đăng nhập
-                </Link>
-                <Link
-                  to="/register"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-accent text-ink hover:bg-accent-hover transition-colors"
-                >
-                  <UserIcon className="w-3.5 h-3.5" />
-                  Đăng ký
-                </Link>
-              </div>
-            )}
-          </div>
+    <header className="landing-header">
+      <div className="landing-header__inner">
+        <Link className="landing-logo" to="/" aria-label="OCS - Trang chủ" onClick={() => setMenuOpen(false)}>ocs<span>.</span></Link>
+        <nav className="landing-nav" aria-label="Điều hướng chính">
+          {links.map((link) => <NavLink key={link.to} to={link.to} end={link.end}>{link.label}</NavLink>)}
+          {isStaffOrAdmin && <><Link to="/admin/pos">Web POS</Link><Link to="/admin/products">Kho hàng</Link></>}
+        </nav>
+        <div className="landing-header__actions">
+          {isAuthenticated ? <>
+            <span className="landing-user"><CircleUserRound size={16} aria-hidden="true" /> {user?.fullName || user?.email}</span>
+            <NotificationBell />
+            {isStaffOrAdmin && <Link className="landing-header__login landing-header__management" to="/admin">Quản lý</Link>}
+            <button type="button" className="landing-header__login" onClick={handleLogout} disabled={loggingOut}><LogOut size={15} aria-hidden="true" /> {loggingOut ? 'Đang thoát...' : 'Đăng xuất'}</button>
+          </> : <Link className="landing-header__login" to="/login">Đăng nhập</Link>}
+          <Link to="/consign" className="landing-button landing-button--small">Tìm hiểu ký gửi <ArrowUpRight size={15} aria-hidden="true" /></Link>
+          <button type="button" className="landing-menu-toggle" aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={menuOpen} aria-controls="customer-mobile-menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
         </div>
       </div>
+      {menuOpen && <nav id="customer-mobile-menu" className="landing-mobile-nav" aria-label="Điều hướng di động">
+        {links.map((link) => <NavLink key={link.to} to={link.to} end={link.end} onClick={() => setMenuOpen(false)}>{link.label}</NavLink>)}
+        {isStaffOrAdmin && <><Link to="/admin/pos" onClick={() => setMenuOpen(false)}>Web POS</Link><Link to="/admin/products" onClick={() => setMenuOpen(false)}>Kho hàng</Link>{(hasRole('Admin') || hasRole('Manager')) && <Link to="/admin" onClick={() => setMenuOpen(false)}>Quản lý</Link>}</>}
+      </nav>}
+      {logoutError && <p className="landing-header__error" role="alert">Không thể đăng xuất. Vui lòng thử lại.</p>}
     </header>
   );
-};
+}

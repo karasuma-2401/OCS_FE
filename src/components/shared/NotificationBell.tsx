@@ -8,6 +8,7 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = async () => {
@@ -16,8 +17,9 @@ export function NotificationBell() {
       const res = await notificationApi.getMyNotifications(20);
       setNotifications(res.data);
       setUnreadCount(res.unreadCount);
+      setError(null);
     } catch {
-      // Ignored if unauthenticated or offline
+      setError('Không thể tải thông báo. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ export function NotificationBell() {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch {
-      // fallback
+      setError('Không thể cập nhật thông báo. Vui lòng thử lại.');
     }
   };
 
@@ -57,7 +59,7 @@ export function NotificationBell() {
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch {
-      // fallback
+      setError('Không thể cập nhật thông báo. Vui lòng thử lại.');
     }
   };
 
@@ -72,6 +74,7 @@ export function NotificationBell() {
         className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-paper text-ink transition hover:border-accent hover:bg-surface-subtle"
         title="Thông báo"
         aria-label="Thông báo"
+        aria-expanded={isOpen}
       >
         <Bell size={18} />
         {unreadCount > 0 && (
@@ -82,7 +85,7 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-border bg-paper p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] sm:w-96 rounded-2xl border border-border bg-paper p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-ink">Thông báo hệ thống</h3>
@@ -103,15 +106,16 @@ export function NotificationBell() {
             )}
           </div>
 
+          {error && <p role="alert" className="mt-3 text-xs text-state-danger">{error}</p>}
           <div className="mt-3 max-h-80 overflow-y-auto space-y-2.5 divide-y divide-border/50">
             {loading && notifications.length === 0 ? (
               <p className="py-6 text-center text-xs text-muted">Đang tải thông báo...</p>
-            ) : notifications.length === 0 ? (
+            ) : notifications.length === 0 && !error ? (
               <div className="py-8 text-center text-xs text-muted">
                 <Info size={28} className="mx-auto mb-2 text-muted/60" />
                 Chưa có thông báo nào.
               </div>
-            ) : (
+            ) : notifications.length > 0 ? (
               notifications.map((n) => (
                 <div
                   key={n.id}
@@ -137,11 +141,10 @@ export function NotificationBell() {
                   </p>
                 </div>
               ))
-            )}
+            ) : null}
           </div>
         </div>
       )}
     </div>
   );
 }
-

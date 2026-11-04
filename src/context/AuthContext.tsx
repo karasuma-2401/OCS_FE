@@ -1,102 +1,204 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { User, Role } from '@/types';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { User, RoleCode, LoginResponse } from '@/types';
+import { getMe, logout as apiLogout, login as apiLogin, type LoginRequest } from '@/api/auth';
+import { setUnauthorizedHandler, clearCsrfToken } from '@/api/client';
 
-interface AuthContextType {
+export type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
+
+export interface AuthContextType {
+  status: AuthStatus;
   user: User | null;
-  token: string | null;
+  expiresAt: string | null;
   isAuthenticated: boolean;
+  isChecking: boolean;
   isStaffOrAdmin: boolean;
-  login: (token: string, user: User) => void;
-  loginDemo: (role: 'Customer' | 'Staff') => void;
-  logout: () => void;
-  hasRole: (role: Role) => boolean;
+  bootstrapError: boolean;
+  setAuthenticatedUser: (user: User, expiresAt: string) => void;
+  login: (credentials: LoginRequest) => Promise<LoginResponse>;
+  logout: () => Promise<void>;
+  retryBootstrap: () => Promise<void>;
+  hasRole: (role: RoleCode) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const AUTH_SYNC_CHANNEL = 'ocs_auth_sync';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('ocs_token'));
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('ocs_user');
-    if (!saved) return null;
+  const [status, setStatus] = useState<AuthStatus>('checking');
+  const [user, setUser] = useState<User | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [bootstrapError, setBootstrapError] = useState(false);
+
+  // Broadcast helper
+  const postSyncMessage = useCallback((action: 'LOGIN' | 'LOGOUT') => {
     try {
-      return JSON.parse(saved);
+      if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel(AUTH_SYNC_CHANNEL);
+        channel.postMessage(action);
+        channel.close();
+      }
     } catch {
-      return null;
+      // Ignore broadcast errors
     }
-  });
+  }, []);
+
+  // Check current session against /me
+  const checkAuth = useCallback(async () => {
+    setStatus('checking');
+    setBootstrapError(false);
+    try {
+      const data = await getMe();
+      setUser(data.user);
+      setExpiresAt(data.expiresAt);
+      setStatus('authenticated');
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number } };
+      if (error.response?.status === 401) {
+        setUser(null);
+        setExpiresAt(null);
+        setStatus('anonymous');
+      } else {
+        // Network error / timeout / 5xx: do NOT assume cookie was revoked
+        setBootstrapError(true);
+        setStatus('anonymous');
+      }
+    }
+  }, []);
+
+  // Initial bootstrap on mount
+  useEffect(() => {
+    void checkAuth();
+  }, [checkAuth]);
+
+  // Hook into apiClient 401 interceptor
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setUser(null);
+      setExpiresAt(null);
+      setStatus('anonymous');
+      clearCsrfToken();
+    });
+    return () => {
+      setUnauthorizedHandler(null);
+    };
+  }, []);
+
+  // Multi-tab synchronization
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(AUTH_SYNC_CHANNEL);
+      channel.onmessage = (event: MessageEvent<string>) => {
+        if (event.data === 'LOGOUT') {
+          setUser(null);
+          setExpiresAt(null);
+          setStatus('anonymous');
+          clearCsrfToken();
+        } else if (event.data === 'LOGIN') {
+          void checkAuth();
+        }
+      };
+    } catch {
+      // BroadcastChannel not available
+    }
+
+    return () => {
+      channel?.close();
+    };
+  }, [checkAuth]);
+
+  // Tab visibility and focus: check if session has expired or needs revalidation
+  useEffect(() => {
+    const handleRevalidation = () => {
+      if (document.visibilityState === 'visible' && status === 'authenticated') {
+        if (expiresAt) {
+          const expiryTime = new Date(expiresAt).getTime();
+          const now = Date.now();
+          if (now >= expiryTime) {
+            void checkAuth();
+            return;
+          }
+        }
+        // Periodic background revalidation
+        void checkAuth();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleRevalidation);
+    window.addEventListener('focus', handleRevalidation);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleRevalidation);
+      window.removeEventListener('focus', handleRevalidation);
+    };
+  }, [status, expiresAt, checkAuth]);
 
   useEffect(() => {
-    if (token) {
-      localStorage.setItem('ocs_token', token);
-    } else {
-      localStorage.removeItem('ocs_token');
-    }
-  }, [token]);
+    if (status !== 'authenticated' || !expiresAt) return;
+    const delay = Math.max(0, new Date(expiresAt).getTime() - Date.now());
+    const timer = window.setTimeout(() => void checkAuth(), Math.min(delay, 2147483647));
+    return () => window.clearTimeout(timer);
+  }, [status, expiresAt, checkAuth]);
 
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('ocs_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('ocs_user');
-    }
-  }, [user]);
-
-  const login = (newToken: string, newUser: User) => {
-    setToken(newToken);
+  // Set user after successful login
+  const setAuthenticatedUser = useCallback((newUser: User, newExpiresAt: string) => {
     setUser(newUser);
-  };
+    setExpiresAt(newExpiresAt);
+    setStatus('authenticated');
+    setBootstrapError(false);
+    postSyncMessage('LOGIN');
+  }, [postSyncMessage]);
 
-  const loginDemo = (role: 'Customer' | 'Staff') => {
-    if (role === 'Customer') {
-      const demoUser: User = {
-        id: '10000000-0000-0000-0000-000000000004',
-        username: 'customer_demo',
-        fullName: 'Nguyễn Thị Khách Hàng',
-        email: 'khachhang@example.com',
-        phoneNumber: '0901234567',
-        roles: ['Customer'],
-      };
-      const mockToken = localStorage.getItem('ocs_token') || 'demo-jwt-customer-token';
-      login(mockToken, demoUser);
-    } else {
-      const demoStaff: User = {
-        id: '10000000-0000-0000-0000-000000000003',
-        username: 'staff_dev',
-        fullName: 'Trần Văn Nhân Viên',
-        email: 'nhanvien@example.com',
-        phoneNumber: '0900000003',
-        roles: ['Staff'],
-      };
-      const mockToken = localStorage.getItem('ocs_token') || 'demo-jwt-staff-token';
-      login(mockToken, demoStaff);
-    }
-  };
+  // Login action
+  const login = useCallback(async (credentials: LoginRequest): Promise<LoginResponse> => {
+    const response = await apiLogin(credentials);
+    setAuthenticatedUser(response.user, response.expiresAt);
+    return response;
+  }, [setAuthenticatedUser]);
 
-  const logout = () => {
-    setToken(null);
+  // Logout action
+  const logout = useCallback(async (): Promise<void> => {
+    await apiLogout();
     setUser(null);
-    localStorage.removeItem('ocs_token');
-    localStorage.removeItem('ocs_user');
-  };
+    setExpiresAt(null);
+    setStatus('anonymous');
+    clearCsrfToken();
+    postSyncMessage('LOGOUT');
+  }, [postSyncMessage]);
 
-  const hasRole = (role: Role) => {
+  // Retry bootstrap action
+  const retryBootstrap = useCallback(async () => {
+    await checkAuth();
+  }, [checkAuth]);
+
+  // Role check helper
+  const hasRole = useCallback((role: RoleCode): boolean => {
     return user?.roles?.includes(role) ?? false;
-  };
+  }, [user]);
 
   const isStaffOrAdmin =
     hasRole('Admin') || hasRole('Manager') || hasRole('Staff');
 
+  const isAuthenticated = status === 'authenticated' && !!user;
+  const isChecking = status === 'checking';
+
   return (
     <AuthContext.Provider
       value={{
+        status,
         user,
-        token,
-        isAuthenticated: !!token && !!user,
+        expiresAt,
+        isAuthenticated,
+        isChecking,
         isStaffOrAdmin,
+        bootstrapError,
+        setAuthenticatedUser,
         login,
-        loginDemo,
         logout,
+        retryBootstrap,
         hasRole,
       }}
     >
@@ -105,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');

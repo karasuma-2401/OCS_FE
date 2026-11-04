@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
   Sparkles,
-  Camera,
   ChevronLeft,
   ChevronRight,
   Check,
@@ -22,10 +21,10 @@ export function ConsignBooking({
   onBookingSuccess,
   onViewHistory,
 }: ConsignBookingProps) {
-  // Calendar date state: October 2026 (or dynamic current/selected month)
-  const [currentYear, setCurrentYear] = useState<number>(2026);
-  const [currentMonth, setCurrentMonth] = useState<number>(10); // 1-12, default October 2026
-  const [selectedDay, setSelectedDay] = useState<number>(28);
+  const [today] = useState(() => new Date());
+  const [currentYear, setCurrentYear] = useState<number>(today.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState<number>(today.getMonth() + 1);
+  const [selectedDay, setSelectedDay] = useState<number>(today.getDate());
 
   const getFormattedDate = (year: number, month: number, day: number) => {
     const m = month < 10 ? `0${month}` : `${month}`;
@@ -37,9 +36,9 @@ export function ConsignBooking({
 
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
-  const [itemCount, setItemCount] = useState<number>(8);
+  const [itemCount, setItemCount] = useState<number>(1);
   const [submissionMethod, setSubmissionMethod] = useState<string>('Mang trực tiếp tại cửa hàng');
-  const [note, setNote] = useState<string>('Quần áo và một túi xách');
+  const [note, setNote] = useState<string>('');
 
   const [loadingSlots, setLoadingSlots] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -48,6 +47,7 @@ export function ConsignBooking({
 
   // Month navigation
   const handlePrevMonth = () => {
+    setSelectedDay(1);
     if (currentMonth === 1) {
       setCurrentMonth(12);
       setCurrentYear((y) => y - 1);
@@ -57,6 +57,7 @@ export function ConsignBooking({
   };
 
   const handleNextMonth = () => {
+    setSelectedDay(1);
     if (currentMonth === 12) {
       setCurrentMonth(1);
       setCurrentYear((y) => y + 1);
@@ -79,78 +80,13 @@ export function ConsignBooking({
       try {
         const slots = await appointmentApi.getAvailableSlots(selectedDateString);
         if (isMounted) {
-          if (slots && slots.length > 0) {
-            setTimeSlots(slots);
-            const firstAvailable = slots.find((s) => s.isAvailable);
-            if (firstAvailable) setSelectedSlotId(firstAvailable.id);
-          } else {
-            // Fallback default slots for preview matching Figma (09:00 - 10:00, 10:00 - 11:00, 11:00 - 12:00)
-            const fallbackSlots: TimeSlot[] = [
-              {
-                id: '11111111-0000-0000-0000-000000000001',
-                startTime: '09:00',
-                endTime: '10:00',
-                maxCustomers: 3,
-                bookedCount: 3,
-                availableCount: 0,
-                isAvailable: false,
-              },
-              {
-                id: '11111111-0000-0000-0000-000000000002',
-                startTime: '10:00',
-                endTime: '11:00',
-                maxCustomers: 3,
-                bookedCount: 1,
-                availableCount: 2,
-                isAvailable: true,
-              },
-              {
-                id: '11111111-0000-0000-0000-000000000003',
-                startTime: '11:00',
-                endTime: '12:00',
-                maxCustomers: 3,
-                bookedCount: 1,
-                availableCount: 2,
-                isAvailable: true,
-              },
-            ];
-            setTimeSlots(fallbackSlots);
-            setSelectedSlotId(fallbackSlots[1].id);
-          }
+          setTimeSlots(slots);
+          setSelectedSlotId(slots.find((slot) => slot.isAvailable)?.id ?? '');
         }
       } catch {
         if (isMounted) {
-          const fallbackSlots: TimeSlot[] = [
-            {
-              id: '11111111-0000-0000-0000-000000000001',
-              startTime: '09:00',
-              endTime: '10:00',
-              maxCustomers: 3,
-              bookedCount: 3,
-              availableCount: 0,
-              isAvailable: false,
-            },
-            {
-              id: '11111111-0000-0000-0000-000000000002',
-              startTime: '10:00',
-              endTime: '11:00',
-              maxCustomers: 3,
-              bookedCount: 1,
-              availableCount: 2,
-              isAvailable: true,
-            },
-            {
-              id: '11111111-0000-0000-0000-000000000003',
-              startTime: '11:00',
-              endTime: '12:00',
-              maxCustomers: 3,
-              bookedCount: 1,
-              availableCount: 2,
-              isAvailable: true,
-            },
-          ];
-          setTimeSlots(fallbackSlots);
-          setSelectedSlotId(fallbackSlots[1].id);
+          setTimeSlots([]);
+          setErrorMsg('Không thể tải khung giờ. Vui lòng thử lại sau.');
         }
       } finally {
         if (isMounted) setLoadingSlots(false);
@@ -184,30 +120,8 @@ export function ConsignBooking({
 
       setSuccessAppointment(created);
       if (onBookingSuccess) onBookingSuccess(created);
-    } catch (err: any) {
-      // If error or offline mock, generate confirmed state
-      const tracking = `APT-${currentYear.toString().slice(-2)}${currentMonth}${selectedDay}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const selectedSlot = timeSlots.find((s) => s.id === selectedSlotId);
-      const mockCreated: Appointment = {
-        id: crypto.randomUUID(),
-        trackingNumber: tracking,
-        customerId: '10000000-0000-0000-0000-000000000004',
-        customerName: 'Khách Hàng Ký Gửi',
-        customerPhone: '0901234567',
-        appointmentDate: selectedDateString,
-        timeSlotId: selectedSlotId,
-        timeSlotDisplay: selectedSlot ? `${selectedSlot.startTime} - ${selectedSlot.endTime}` : '10:00 - 11:00',
-        startTime: selectedSlot?.startTime || '10:00',
-        endTime: selectedSlot?.endTime || '11:00',
-        estimatedItemCount: itemCount,
-        submissionMethod: 'InPerson',
-        status: 'Scheduled',
-        note,
-        createdAt: new Date().toISOString(),
-        canCancel: true,
-      };
-      setSuccessAppointment(mockCreated);
-      if (onBookingSuccess) onBookingSuccess(mockCreated);
+    } catch {
+      setErrorMsg('Không thể đặt lịch. Vui lòng kiểm tra thông tin và thử lại.');
     } finally {
       setSubmitting(false);
     }
@@ -217,35 +131,6 @@ export function ConsignBooking({
 
   return (
     <div className="space-y-6">
-      {/* 1. Top AI Valuation Banner (Exact Figma 529-10373) */}
-      <div className="rounded-3xl border border-pink-100 bg-gradient-to-r from-[#FDEAF3] via-[#FDF3F8] to-[#F1F3FE] p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#E53E8A] shadow-sm">
-              <Sparkles size={22} />
-            </div>
-            <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#E53E8A] flex items-center gap-1.5">
-                <Sparkles size={13} /> TÍNH NĂNG THẨM ĐỊNH NHANH
-              </p>
-              <h3 className="mt-0.5 text-base sm:text-lg font-bold text-gray-900">
-                Bạn muốn tham khảo giá trước?
-              </h3>
-              <p className="mt-0.5 text-xs text-gray-600 leading-relaxed max-w-2xl">
-                Thử quét ảnh bằng OCS AI để nhận định giá dự kiến, tỷ lệ hoa hồng và gợi ý mức giá tối ưu chỉ trong 30 giây.
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="shrink-0 inline-flex items-center justify-center gap-2 rounded-full border border-[#F472B6] bg-white px-4 py-2 text-xs font-bold text-[#E53E8A] shadow-sm transition hover:bg-pink-50"
-          >
-            <Camera size={15} /> Thử quét ảnh bằng OCS AI
-          </button>
-        </div>
-      </div>
-
       {errorMsg && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 flex items-center gap-2">
           <AlertCircle size={16} />
@@ -317,12 +202,17 @@ export function ConsignBooking({
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
                   const isSelected = selectedDay === day;
-                  const isPast = day < 20 && currentMonth === 10 && currentYear === 2026;
+                  const date = new Date(currentYear, currentMonth - 1, day);
+                  const firstAllowed = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                  const lastAllowed = new Date(firstAllowed);
+                  lastAllowed.setDate(lastAllowed.getDate() + 14);
+                  const isPast = date < firstAllowed || date > lastAllowed;
 
                   return (
                     <div key={day} className="flex justify-center">
                       <button
                         type="button"
+                        disabled={isPast}
                         onClick={() => setSelectedDay(day)}
                         className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-all ${isSelected
                           ? 'bg-[#E53E8A] text-white shadow-md ring-4 ring-pink-100 scale-105'
@@ -503,11 +393,7 @@ export function ConsignBooking({
               </div>
 
               <a
-                href="#guidelines"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (onViewHistory) onViewHistory();
-                }}
+                href="/consign"
                 className="inline-flex items-center gap-1 text-xs font-bold text-[#E53E8A] hover:underline pt-1"
               >
                 Xem quy chuẩn các đợt ký gửi <ArrowRight size={13} />

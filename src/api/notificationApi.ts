@@ -24,4 +24,3 @@ export const notificationApi = {
     return response.data;
   },
 };
-
