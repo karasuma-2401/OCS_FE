@@ -64,6 +64,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
   };
 
   const [activeTab, setActiveTab] = useState<ShopNavId>(getTabFromPath());
+  const [logoutError, setLogoutError] = useState(false);
 
   const handleNavigate = (item: ShopNavItem) => {
     setActiveTab(item.id);
@@ -104,8 +105,12 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
               variant="ghost"
               size="sm"
               onClick={async () => {
-                await logout();
-                navigate('/');
+                try {
+                  await logout();
+                  navigate('/');
+                } catch {
+                  setLogoutError(true);
+                }
               }}
               className="text-danger hover:bg-danger-bg"
             >
@@ -115,6 +120,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
           </div>
         </div>
 
+        {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
         <Card className="p-6 mb-6">
           <p className="text-sm text-muted">{currentTabInfo.desc}</p>
           <div className="mt-6 rounded-xl border border-dashed border-border p-8 text-center bg-white">

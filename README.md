@@ -25,7 +25,7 @@
 
 ## Kiểm tra chất lượng & Chạy Test
 
-Hệ thống frontend đã tích hợp bộ test tự động kiểm thử toàn diện các quy tắc xác thực (validation), ProblemDetails RFC 7807, cơ chế bảo vệ CSRF, OTP timer, safe return path và phân quyền:
+Bộ test Node kiểm tra trực tiếp các hàm validation và chuyển đổi lỗi ProblemDetails trong mã nguồn. Luồng trình duyệt đầy đủ vẫn cần kiểm thử end-to-end riêng:
 
 ```powershell
 # Chạy bộ test tự động (Node.js test runner)
@@ -37,6 +37,8 @@ npm run lint
 # Đóng gói bản Production
 npm run build
 ```
+
+Docker build và workflow publish yêu cầu `VITE_API_URL` trỏ tới API HTTPS công khai, gồm `/api` (ví dụ `https://api.example.com/api`); cấu hình GitHub repository variable cùng tên trước khi publish. Giá trị được nhúng lúc build, nên đổi URL cần build lại image. Cookie hiện dùng `SameSite=Lax`: frontend và API cần cùng site, hoặc dùng reverse proxy cùng origin; cấu hình CORS và HTTPS phù hợp.
 
 ## Cơ chế Xác thực & Phiên làm việc (Auth Architecture)
 

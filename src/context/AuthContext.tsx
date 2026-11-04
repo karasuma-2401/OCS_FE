@@ -136,6 +136,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [status, expiresAt, checkAuth]);
 
+  useEffect(() => {
+    if (status !== 'authenticated' || !expiresAt) return;
+    const delay = Math.max(0, new Date(expiresAt).getTime() - Date.now());
+    const timer = window.setTimeout(() => void checkAuth(), Math.min(delay, 2147483647));
+    return () => window.clearTimeout(timer);
+  }, [status, expiresAt, checkAuth]);
+
   // Set user after successful login
   const setAuthenticatedUser = useCallback((newUser: User, newExpiresAt: string) => {
     setUser(newUser);
@@ -154,16 +161,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Logout action
   const logout = useCallback(async (): Promise<void> => {
-    try {
-      await apiLogout();
-    } finally {
-      // Clear React state and cached tokens
-      setUser(null);
-      setExpiresAt(null);
-      setStatus('anonymous');
-      clearCsrfToken();
-      postSyncMessage('LOGOUT');
-    }
+    await apiLogout();
+    setUser(null);
+    setExpiresAt(null);
+    setStatus('anonymous');
+    clearCsrfToken();
+    postSyncMessage('LOGOUT');
   }, [postSyncMessage]);
 
   // Retry bootstrap action

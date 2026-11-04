@@ -8,17 +8,18 @@ export const Navbar: React.FC = () => {
   const { user, isAuthenticated, isStaffOrAdmin, hasRole, logout } = useAuth();
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState(false);
 
   const canManage = hasRole('Admin') || hasRole('Manager');
 
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
+      setLogoutError(false);
       await logout();
       navigate('/');
     } catch {
-      // Handled in auth context, redirect to home
-      navigate('/');
+      setLogoutError(true);
     } finally {
       setIsLoggingOut(false);
     }
@@ -92,6 +93,7 @@ export const Navbar: React.FC = () => {
             )}
           </nav>
 
+          {logoutError && <span role="alert" className="text-xs text-red-300">Không thể đăng xuất. Vui lòng thử lại.</span>}
           {/* User actions */}
           <div className="flex items-center gap-3">
             {isAuthenticated ? (

@@ -34,6 +34,10 @@ jobs:
       )
     runs-on: ubuntu-latest
     steps:
+      - name: Require the public API URL
+        env:
+          API_URL: ${{ vars.VITE_API_URL }}
+        run: test -n "$API_URL" || { echo 'Set the VITE_API_URL repository variable to the public HTTPS API URL.'; exit 1; }
       - name: Checkout source revision
         uses: actions/checkout@v7
         with:
@@ -90,7 +94,7 @@ jobs:
           push: false
           tags: ${{ steps.tags.outputs.scan_tag }}
           build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL || 'http://localhost:5204/api' }}
+            VITE_API_URL=${{ vars.VITE_API_URL }}
           labels: |
             org.opencontainers.image.revision=${{ steps.tags.outputs.source_sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -123,7 +127,7 @@ jobs:
           push: true
           tags: ${{ steps.tags.outputs.push_tags }}
           build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL || 'http://localhost:5204/api' }}
+            VITE_API_URL=${{ vars.VITE_API_URL }}
           labels: |
             org.opencontainers.image.revision=${{ steps.tags.outputs.source_sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

@@ -23,13 +23,13 @@ export interface RegisterRequest {
 
 export interface VerifyOtpRequest {
   challengeId: string;
-  continuationToken?: string;
+  continuationToken: string;
   code: string;
 }
 
 export interface ResendOtpRequest {
   challengeId: string;
-  continuationToken?: string;
+  continuationToken: string;
 }
 
 /**

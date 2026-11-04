@@ -107,12 +107,9 @@ export const LoginPage: React.FC = () => {
 
       // 403: Account Locked (temporary or admin)
       if (problem.code === 'AUTH.ACCOUNT_LOCKED') {
-        const remainingMinutes = problem.retryAfterSeconds
-          ? Math.ceil(problem.retryAfterSeconds / 60)
-          : 15;
-        setFormError(
-          `Tài khoản đang bị tạm khóa do nhập sai mật khẩu quá 5 lần liên tiếp. Vui lòng thử lại sau ${remainingMinutes} phút.`
-        );
+        setFormError(problem.retryAfterSeconds
+          ? `Tài khoản đang bị tạm khóa. Vui lòng thử lại sau ${Math.ceil(problem.retryAfterSeconds / 60)} phút.`
+          : 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.');
         return;
       }
 
@@ -141,6 +138,11 @@ export const LoginPage: React.FC = () => {
           setFieldErrors(serverFieldErrors);
           return;
         }
+      }
+
+      if (problem.code === 'AUTH.RESEND_COOLDOWN') {
+        setFormError(`Vui lòng đợi ${problem.retryAfterSeconds || 60} giây trước khi yêu cầu mã xác thực mới.`);
+        return;
       }
 
       // 429: Rate limited

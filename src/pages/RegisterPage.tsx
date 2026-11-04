@@ -129,7 +129,7 @@ export const RegisterPage: React.FC = () => {
       // 503: Email service unavailable
       if (problem.status === 503 || problem.code === 'AUTH.DELIVERY_UNAVAILABLE') {
         setFormError(
-          'Dịch vụ gửi email xác thực gặp sự cố tạm thời. Tài khoản đã được tạo ở trạng thái chờ kích hoạt, bạn có thể thử yêu cầu gửi lại mã sau.'
+          'Dịch vụ gửi email xác thực gặp sự cố tạm thời. Tài khoản đang chờ kích hoạt; hãy đăng nhập lại sau để yêu cầu mã mới.'
         );
         return;
       }

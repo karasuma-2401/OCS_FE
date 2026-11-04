@@ -25,7 +25,7 @@ export const VerifyOtpPage: React.FC = () => {
   );
   const [expiresAt, setExpiresAt] = useState<string | undefined>(state.expiresAt);
   const [resendAvailableAt, setResendAvailableAt] = useState<string | undefined>(state.resendAvailableAt);
-  const continuationToken = state.continuationToken;
+  const [continuationToken, setContinuationToken] = useState<string | undefined>(state.continuationToken);
 
   // 6-digit OTP input state
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
@@ -149,7 +149,7 @@ export const VerifyOtpPage: React.FC = () => {
   // Verify OTP submission
   const handleVerify = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!challengeId || !isCodeComplete || isVerifying || isResending || isExpired) return;
+    if (!challengeId || !continuationToken || !isCodeComplete || isVerifying || isResending || isExpired) return;
 
     setIsVerifying(true);
     setErrorMessage(null);
@@ -190,7 +190,7 @@ export const VerifyOtpPage: React.FC = () => {
 
   // Resend OTP action
   const handleResend = async () => {
-    if (!challengeId || isResending || isVerifying || cooldownSecondsRemaining > 0) return;
+    if (!challengeId || !continuationToken || isResending || isVerifying || cooldownSecondsRemaining > 0) return;
 
     setIsResending(true);
     setErrorMessage(null);
@@ -207,6 +207,7 @@ export const VerifyOtpPage: React.FC = () => {
       setMaskedDestination(response.maskedDestination);
       setExpiresAt(response.expiresAt);
       setResendAvailableAt(response.resendAvailableAt);
+      setContinuationToken(response.continuationToken);
 
       // Reset digit boxes
       setDigits(['', '', '', '', '', '']);
@@ -235,7 +236,7 @@ export const VerifyOtpPage: React.FC = () => {
   };
 
   // If visited directly with NO challenge context
-  if (!challengeId && !state.email) {
+  if (!challengeId || !continuationToken) {
     return (
       <div className="flex min-h-[75vh] items-center justify-center bg-surface px-4 py-12">
         <Card className="w-full max-w-md p-8 shadow-lg text-center">
