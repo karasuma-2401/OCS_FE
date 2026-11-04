@@ -93,6 +93,10 @@ export const LoginPage: React.FC = () => {
       if (problem.code === 'AUTH.ACCOUNT_PENDING_ACTIVATION') {
         navigate('/verify-otp', {
           state: {
+            challengeId: problem.challengeId,
+            maskedDestination: problem.maskedDestination,
+            expiresAt: problem.expiresAt,
+            resendAvailableAt: problem.resendAvailableAt,
             continuationToken: problem.continuationToken,
             email: problem.email || email.trim(),
           },

@@ -22,6 +22,10 @@ export interface ProblemDetails {
   retryAfterSeconds?: number;
   continuationToken?: string;
   email?: string;
+  challengeId?: string;
+  maskedDestination?: string;
+  expiresAt?: string;
+  resendAvailableAt?: string;
 }
 
 export interface CurrentUserResponse {

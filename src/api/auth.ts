@@ -23,13 +23,13 @@ export interface RegisterRequest {
 
 export interface VerifyOtpRequest {
   challengeId: string;
-  continuationToken: string;
+  continuationToken?: string;
   code: string;
 }
 
 export interface ResendOtpRequest {
   challengeId: string;
-  continuationToken: string;
+  continuationToken?: string;
 }
 
 /**
@@ -50,6 +50,10 @@ export function parseProblemDetails(error: unknown): ProblemDetails {
       retryAfterSeconds: typeof data.retryAfterSeconds === 'number' ? data.retryAfterSeconds : undefined,
       continuationToken: typeof data.continuationToken === 'string' ? data.continuationToken : undefined,
       email: typeof data.email === 'string' ? data.email : undefined,
+      challengeId: typeof data.challengeId === 'string' ? data.challengeId : undefined,
+      maskedDestination: typeof data.maskedDestination === 'string' ? data.maskedDestination : undefined,
+      expiresAt: typeof data.expiresAt === 'string' ? data.expiresAt : undefined,
+      resendAvailableAt: typeof data.resendAvailableAt === 'string' ? data.resendAvailableAt : undefined,
     };
   }
 

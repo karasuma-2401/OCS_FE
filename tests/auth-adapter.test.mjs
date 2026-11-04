@@ -310,3 +310,120 @@ test('Role authorization enforces exact role codes', () => {
   assert.strictEqual(isAuthorized([], ['Customer']), false);
   assert.strictEqual(isAuthorized(['Customer'], []), true); // Public route
 });
+
+// OTP helper functions matching VerifyOtpPage.tsx
+function maskEmail(email) {
+  const atIndex = email.indexOf('@');
+  if (atIndex <= 1) return email;
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex);
+  if (local.length <= 2) {
+    return `${local[0]}***${domain}`;
+  }
+  return `${local[0]}***${local[local.length - 1]}${domain}`;
+}
+
+function calculateExpirySeconds(expiresAt, now) {
+  if (!expiresAt) return 0;
+  const target = new Date(expiresAt).getTime();
+  return Math.max(0, Math.floor((target - now) / 1000));
+}
+
+function calculateCooldownSeconds(resendAvailableAt, now) {
+  if (!resendAvailableAt) return 0;
+  const target = new Date(resendAvailableAt).getTime();
+  return Math.max(0, Math.floor((target - now) / 1000));
+}
+
+function isValidOtpCode(code) {
+  return typeof code === 'string' && code.length === 6 && /^\d{6}$/.test(code);
+}
+
+test('maskEmail obfuscates email address while preserving domain and extremities', () => {
+  assert.strictEqual(maskEmail('nguyenvana@example.com'), 'n***a@example.com');
+  assert.strictEqual(maskEmail('ab@example.com'), 'a***@example.com');
+  assert.strictEqual(maskEmail('a@b.com'), 'a@b.com');
+});
+
+test('calculateExpirySeconds uses timestamps to prevent tab-switching clock drift', () => {
+  const baseNow = new Date('2026-11-04T12:00:00Z').getTime();
+  const expiresAt = '2026-11-04T12:05:00Z'; // 300s in the future
+
+  assert.strictEqual(calculateExpirySeconds(expiresAt, baseNow), 300);
+  assert.strictEqual(calculateExpirySeconds(expiresAt, baseNow + 60000), 240);
+  assert.strictEqual(calculateExpirySeconds(expiresAt, baseNow + 300000), 0);
+  assert.strictEqual(calculateExpirySeconds(expiresAt, baseNow + 400000), 0); // past expiry
+});
+
+test('calculateCooldownSeconds enforces 60s resend wait based on server timestamp', () => {
+  const baseNow = new Date('2026-11-04T12:00:00Z').getTime();
+  const resendAvailableAt = '2026-11-04T12:01:00Z'; // 60s in the future
+
+  assert.strictEqual(calculateCooldownSeconds(resendAvailableAt, baseNow), 60);
+  assert.strictEqual(calculateCooldownSeconds(resendAvailableAt, baseNow + 15000), 45);
+  assert.strictEqual(calculateCooldownSeconds(resendAvailableAt, baseNow + 60000), 0);
+  assert.strictEqual(calculateCooldownSeconds(resendAvailableAt, baseNow + 90000), 0);
+});
+
+test('isValidOtpCode enforces exactly 6 numeric digits', () => {
+  assert.strictEqual(isValidOtpCode('123456'), true);
+  assert.strictEqual(isValidOtpCode('000000'), true);
+  assert.strictEqual(isValidOtpCode('999999'), true);
+
+  assert.strictEqual(isValidOtpCode('12345'), false); // 5 digits
+  assert.strictEqual(isValidOtpCode('1234567'), false); // 7 digits
+  assert.strictEqual(isValidOtpCode('12345a'), false); // alphanumeric
+  assert.strictEqual(isValidOtpCode('abcdef'), false); // letters
+  assert.strictEqual(isValidOtpCode(''), false); // empty
+  assert.strictEqual(isValidOtpCode(null), false);
+});
+
+test('parseProblemDetails maps OTP specific error codes cleanly', () => {
+  const otpInvalidError = {
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: {
+        code: 'AUTH.OTP_INVALID',
+        title: 'Mã OTP không chính xác.',
+      },
+    },
+  };
+  assert.strictEqual(parseProblemDetails(otpInvalidError).code, 'AUTH.OTP_INVALID');
+
+  const otpExpiredError = {
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: {
+        code: 'AUTH.OTP_EXPIRED',
+        title: 'Mã OTP đã hết hạn.',
+      },
+    },
+  };
+  assert.strictEqual(parseProblemDetails(otpExpiredError).code, 'AUTH.OTP_EXPIRED');
+
+  const attemptsExceededError = {
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: {
+        code: 'AUTH.OTP_ATTEMPTS_EXCEEDED',
+        title: 'Đã vượt quá số lần thử OTP.',
+      },
+    },
+  };
+  assert.strictEqual(parseProblemDetails(attemptsExceededError).code, 'AUTH.OTP_ATTEMPTS_EXCEEDED');
+
+  const deliveryError = {
+    isAxiosError: true,
+    response: {
+      status: 503,
+      data: {
+        code: 'AUTH.DELIVERY_UNAVAILABLE',
+        title: 'Dịch vụ gửi email không khả dụng.',
+      },
+    },
+  };
+  assert.strictEqual(parseProblemDetails(deliveryError).code, 'AUTH.DELIVERY_UNAVAILABLE');
+});
