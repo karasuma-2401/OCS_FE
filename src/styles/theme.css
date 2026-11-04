@@ -84,3 +84,7 @@
     @apply font-sans bg-surface text-ink;
   }
 }
+
+.bg-shop-gradient {
+  background: linear-gradient(135deg, #FCE8F2 0%, #ECE7F9 45%, #D4E8FC 100%);
+}

@@ -7,6 +7,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isStaffOrAdmin: boolean;
   login: (token: string, user: User) => void;
+  loginDemo: (role: 'Customer' | 'Staff') => void;
   logout: () => void;
   hasRole: (role: Role) => boolean;
 }
@@ -46,6 +47,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(newUser);
   };
 
+  const loginDemo = (role: 'Customer' | 'Staff') => {
+    if (role === 'Customer') {
+      const demoUser: User = {
+        id: '10000000-0000-0000-0000-000000000004',
+        username: 'customer_demo',
+        fullName: 'Nguyễn Thị Khách Hàng',
+        email: 'khachhang@example.com',
+        phoneNumber: '0901234567',
+        roles: ['Customer'],
+      };
+      const mockToken = localStorage.getItem('ocs_token') || 'demo-jwt-customer-token';
+      login(mockToken, demoUser);
+    } else {
+      const demoStaff: User = {
+        id: '10000000-0000-0000-0000-000000000003',
+        username: 'staff_dev',
+        fullName: 'Trần Văn Nhân Viên',
+        email: 'nhanvien@example.com',
+        phoneNumber: '0900000003',
+        roles: ['Staff'],
+      };
+      const mockToken = localStorage.getItem('ocs_token') || 'demo-jwt-staff-token';
+      login(mockToken, demoStaff);
+    }
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -68,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!token && !!user,
         isStaffOrAdmin,
         login,
+        loginDemo,
         logout,
         hasRole,
       }}
@@ -84,4 +112,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

@@ -39,15 +39,79 @@ export interface Product {
   consignmentContractId?: string;
 }
 
+export type AppointmentStatus =
+  | 'Scheduled'
+  | 'CheckedIn'
+  | 'Completed'
+  | 'Cancelled'
+  | 'NoShow';
+
 export interface Appointment {
   id: string;
-  consignorName: string;
-  consignorPhone: string;
-  scheduledDate: string;
-  timeSlot: string;
-  expectedItemCount: number;
-  status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
+  trackingNumber: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  appointmentDate: string; // YYYY-MM-DD
+  timeSlotId: string;
+  timeSlotDisplay: string; // "08:00 - 09:00"
+  startTime: string;
+  endTime: string;
+  estimatedItemCount: number;
+  submissionMethod: string;
+  status: AppointmentStatus;
   note?: string;
+  cancellationReason?: string;
+  reminderSentAt?: string;
+  createdAt: string;
+  canCancel: boolean;
+}
+
+export interface TimeSlot {
+  id: string;
+  startTime: string;
+  endTime: string;
+  maxCustomers: number;
+  bookedCount: number;
+  availableCount: number;
+  isAvailable: boolean;
+}
+
+export interface CreateAppointmentRequest {
+  appointmentDate: string; // YYYY-MM-DD
+  timeSlotId: string;
+  estimatedItemCount: number;
+  note?: string;
+  submissionMethod?: number; // 0: InPerson, 1: Shipping
+}
+
+export interface CancelAppointmentRequest {
+  reason?: string;
+}
+
+export interface UpdateAppointmentStatusRequest {
+  status: AppointmentStatus;
+  reason?: string;
+}
+
+export interface StartReceptionResponse {
+  appointmentId: string;
+  trackingNumber: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  estimatedItemCount: number;
+  note?: string;
+  message: string;
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  content: string;
+  type: number;
+  sentAt: string;
+  isRead: boolean;
 }
 
 export interface ConsignmentContract {
@@ -68,4 +132,3 @@ export interface CartItem {
   product: Product;
   quantity: number;
 }
-

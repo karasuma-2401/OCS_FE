@@ -3,7 +3,7 @@ import { ArrowRight, Menu, X } from "lucide-react";
 import mascotLogo from "../../../assets/images/mascot-logo.png";
 import "./CusNavBar.css";
 
-export type MenuId = "home" | "explore" | "consign" | "login";
+export type MenuId = "home" | "explore" | "consign" | "booking" | "login";
 
 export interface MenuItem {
   id: MenuId;
