@@ -17,7 +17,7 @@ function loadSource(relativePath, mocks = {}) {
 const requests = [];
 const client = { apiClient: { post: async (path, body) => { requests.push({ path, body }); return { data: {} }; } } };
 const { parseProblemDetails, extractFieldError, verifyOtp, resendOtp } = loadSource('../src/api/auth.ts', { './client': client });
-const { validateFullName, validateEmail, validatePhoneNumber, validatePasswordPolicy, validateConfirmPassword } = loadSource('../src/utils/validation.ts');
+const { validateFullName, validateEmail, validatePhoneNumber, getPasswordRequirements, validatePasswordPolicy, validateConfirmPassword } = loadSource('../src/utils/validation.ts');
 
 test('OTP API sends the current continuation token for verification and resend', async () => {
   requests.length = 0;
@@ -166,6 +166,21 @@ test('validatePasswordPolicy checks 8-70 chars, 72 bytes UTF-8, and complexity',
   // Valid passwords
   assert.strictEqual(validatePasswordPolicy('Password123@'), null);
   assert.strictEqual(validatePasswordPolicy('P@ssw0rdSecure'), null);
+});
+
+test('password checklist matches the backend rules at Unicode and UTF-8 boundaries', () => {
+  assert.deepStrictEqual(getPasswordRequirements(''), {
+    validLength: false, withinByteLimit: true, hasLower: false, hasUpper: false, hasDigitOrSpecial: false,
+  });
+  assert.strictEqual(getPasswordRequirements('Passwordé').hasDigitOrSpecial, false);
+  assert.notStrictEqual(validatePasswordPolicy('Passwordé'), null);
+  assert.strictEqual(getPasswordRequirements('Password١').hasDigitOrSpecial, true);
+  assert.strictEqual(validatePasswordPolicy('Password١'), null);
+  assert.strictEqual(validatePasswordPolicy('Password😀'), null);
+  assert.strictEqual(validatePasswordPolicy('Password𐐀'), null);
+  assert.strictEqual(getPasswordRequirements('A1' + '😀'.repeat(35)).validLength, false);
+  assert.strictEqual(getPasswordRequirements('A1' + '密'.repeat(24)).withinByteLimit, false);
+  assert.strictEqual(getPasswordRequirements('A1' + '密'.repeat(23) + 'a').withinByteLimit, true);
 });
 
 test('validateConfirmPassword enforces exact match', () => {

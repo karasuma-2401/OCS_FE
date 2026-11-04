@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { register, parseProblemDetails, extractFieldError } from '@/api/auth';
@@ -7,10 +7,11 @@ import {
   validateEmail,
   validatePhoneNumber,
   validatePasswordPolicy,
+  getPasswordRequirements,
   validateConfirmPassword,
 } from '@/utils/validation';
 import { Form, Input, Button, Toast } from '@/components/shared';
-import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Check, Eye, EyeOff } from 'lucide-react';
 
 interface RegisterFieldErrors {
   fullName?: string;
@@ -28,6 +29,7 @@ export const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
+  const passwordRequirementsId = useId();
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -35,6 +37,13 @@ export const RegisterPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const passwordRequirements = getPasswordRequirements(password);
+  const passwordChecklist = [
+    { label: 'Từ 8–70 ký tự, tối đa 72 byte UTF-8', met: passwordRequirements.validLength && passwordRequirements.withinByteLimit },
+    { label: 'Ít nhất một chữ hoa (A–Z)', met: passwordRequirements.hasUpper },
+    { label: 'Ít nhất một chữ thường (a–z)', met: passwordRequirements.hasLower },
+    { label: 'Ít nhất một chữ số hoặc ký tự đặc biệt', met: passwordRequirements.hasDigitOrSpecial },
+  ];
 
   // If already authenticated, redirect to home
   if (isAuthenticated) {
@@ -221,6 +230,7 @@ export const RegisterPage: React.FC = () => {
             disabled={isSubmitting}
           />
 
+          <div className="auth-password-field">
           <Input
             label="Mật khẩu"
             type={showPassword ? 'text' : 'password'}
@@ -234,7 +244,7 @@ export const RegisterPage: React.FC = () => {
             placeholder="••••••••"
             required
             autoComplete="new-password"
-            helperText="Từ 8–70 ký tự, gồm ít nhất một chữ hoa, một chữ thường và một chữ số hoặc ký tự đặc biệt"
+            aria-describedby={passwordRequirementsId}
             error={fieldErrors.password}
             disabled={isSubmitting}
             endAdornment={
@@ -244,6 +254,15 @@ export const RegisterPage: React.FC = () => {
               </button>
             }
           />
+          <ul id={passwordRequirementsId} className="auth-password-requirements" aria-label="Điều kiện mật khẩu">
+            {passwordChecklist.map((requirement) => (
+              <li key={requirement.label} className={requirement.met ? 'is-met' : undefined}>
+                <span className="auth-password-requirements__icon" aria-hidden="true">{requirement.met && <Check size={11} strokeWidth={3} />}</span>
+                <span><span className="sr-only">{requirement.met ? 'Đã đạt: ' : 'Chưa đạt: '}</span>{requirement.label}</span>
+              </li>
+            ))}
+          </ul>
+          </div>
 
           <Input
             label="Xác nhận mật khẩu"

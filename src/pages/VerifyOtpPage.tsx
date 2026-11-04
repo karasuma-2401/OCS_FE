@@ -336,7 +336,7 @@ export const VerifyOtpPage: React.FC = () => {
             <p className="block text-xs font-bold text-brand-ink text-center mb-3">
               Nhập mã xác thực 6 chữ số
             </p>
-            <div className="flex justify-center gap-2 sm:gap-3" onPaste={handlePaste}>
+            <div className="auth-otp-grid" onPaste={handlePaste}>
               {digits.map((digit, index) => (
                 <input
                   key={index}
@@ -351,7 +351,7 @@ export const VerifyOtpPage: React.FC = () => {
                   disabled={isVerifying || isResending || isExpired}
                   onChange={(e) => handleDigitChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
-                  className={`auth-otp-input h-12 w-10 sm:h-14 sm:w-12 rounded-xl border text-center font-mono text-xl sm:text-2xl font-bold transition outline-none ${
+                  className={`auth-otp-input ${
                     digit ? 'auth-otp-input--filled' : ''
                   } ${isExpired ? 'opacity-60' : ''}`}
                   aria-label={`Số thứ ${index + 1}`}
@@ -380,10 +380,10 @@ export const VerifyOtpPage: React.FC = () => {
             size="sm"
             onClick={handleResend}
             loading={isResending}
+            loadingText="Đang gửi..."
             disabled={cooldownSecondsRemaining > 0 || isResending || isVerifying}
-            className="inline-flex items-center gap-1.5"
+            startIcon={<RefreshCw size={14} aria-hidden="true" />}
           >
-            <RefreshCw size={14} className={isResending ? 'animate-spin' : ''} />
             {cooldownSecondsRemaining > 0
               ? `Gửi lại mã sau (${cooldownSecondsRemaining}s)`
               : 'Gửi lại mã OTP'}

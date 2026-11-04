@@ -42,29 +42,35 @@ export function validatePhoneNumber(phone: string): string | null {
   return null;
 }
 
+export function getPasswordRequirements(password: string) {
+  return {
+    // The backend's regex counts UTF-16 code units, as JavaScript string length does.
+    validLength: password.length >= 8 && password.length <= 70,
+    withinByteLimit: new TextEncoder().encode(password).length <= 72,
+    hasLower: /[a-z]/.test(password),
+    hasUpper: /[A-Z]/.test(password),
+    // .NET matches UTF-16 surrogates as non-word characters, even in astral letters.
+    hasDigitOrSpecial: /[\uD800-\uDFFF]/.test(password) || /(?:\p{Nd}|[^\p{L}\p{Mn}\p{Nd}\p{Pc}])/u.test(password),
+  };
+}
+
 export function validatePasswordPolicy(password: string): string | null {
   if (!password) {
     return 'Vui lòng nhập mật khẩu.';
   }
 
-  // Count Unicode scalar values
-  const charCount = Array.from(password).length;
-  if (charCount < 8 || charCount > 70) {
+  const requirements = getPasswordRequirements(password);
+  if (!requirements.validLength) {
     return 'Mật khẩu phải từ 8 đến 70 ký tự.';
   }
 
   // Check UTF-8 byte length (BCrypt limit is 72 bytes)
-  const utf8Bytes = new TextEncoder().encode(password).length;
-  if (utf8Bytes > 72) {
+  if (!requirements.withinByteLimit) {
     return 'Mật khẩu không được vượt quá 72 byte UTF-8.';
   }
 
   // Password complexity: at least 1 lowercase, 1 uppercase, and 1 digit or special char
-  const hasLower = /[a-z]/.test(password);
-  const hasUpper = /[A-Z]/.test(password);
-  const hasDigitOrSpecial = /[\d\W]/.test(password);
-
-  if (!hasLower || !hasUpper || !hasDigitOrSpecial) {
+  if (!requirements.hasLower || !requirements.hasUpper || !requirements.hasDigitOrSpecial) {
     return 'Mật khẩu phải chứa ít nhất một chữ hoa, một chữ thường và một chữ số hoặc ký tự đặc biệt.';
   }
 

@@ -1,77 +1,22 @@
-import React from 'react';
-import { Card } from '@/components/shared';
-import { Calendar } from 'lucide-react';
+import { ArrowRight, Check, PackageCheck, Recycle, Shirt } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import './CustomerPages.css';
 
-export const ConsignPage: React.FC = () => {
+const steps = [
+  { number: '01', title: 'Chọn và chuẩn bị', description: 'Chọn quần áo còn nguyên vẹn, đã giặt sạch, không rách hỏng hoặc ố màu.', icon: Shirt },
+  { number: '02', title: 'Mang đồ đến OCS', description: 'Mang những món đồ bạn muốn ký gửi đến cửa hàng để được tiếp nhận.', icon: PackageCheck },
+  { number: '03', title: 'Kiểm tra và thỏa thuận', description: 'Cùng cửa hàng kiểm tra tình trạng, thống nhất giá bán và thông tin ký gửi.', icon: Check },
+  { number: '04', title: 'Theo dõi hành trình', description: 'Theo dõi tình trạng bán hàng và việc quyết toán các món đồ ký gửi.', icon: Recycle },
+];
+
+export function ConsignPage() {
   return (
-    <div className="py-10 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-      <div className="mb-8">
-        <div className="flex items-center gap-3">
-          <Calendar className="text-accent-dark" size={24} />
-          <h1 className="text-3xl font-extrabold text-ink">Quy trình ký gửi tại OCS</h1>
-        </div>
-        <p className="mt-2 text-sm text-muted">
-          Hướng dẫn 4 bước đơn giản để ký gửi quần áo và nhận chi trả minh bạch.
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        <Card className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent-dark font-bold">
-              1
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-ink">Lựa chọn & Chuẩn bị quần áo</h2>
-              <p className="mt-1 text-sm text-muted">
-                Quần áo còn nguyên vẹn, đã giặt sạch, không rách hỏng và không ố màu.
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent-dark font-bold">
-              2
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-ink">Đặt lịch hẹn hoặc mang tới cửa hàng</h2>
-              <p className="mt-1 text-sm text-muted">
-                Đến chi nhánh OCS gần nhất hoặc tạo lịch hẹn trên website để nhân viên tiếp nhận.
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent-dark font-bold">
-              3
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-ink">Kiểm định & Thỏa thuận giá niêm yết</h2>
-              <p className="mt-1 text-sm text-muted">
-                Nhân viên OCS phân loại sản phẩm, đánh giá mức độ mới và thống nhất giá bán niêm yết cùng tỷ lệ hoa hồng.
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent-dark font-bold">
-              4
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-ink">Theo dõi bán hàng & Nhận quyết toán</h2>
-              <p className="mt-1 text-sm text-muted">
-                Hệ thống thông báo tức thì khi sản phẩm được bán. Tiền hoa hồng ký gửi được cộng vào ví hoặc chuyển khoản định kỳ.
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
+    <div className="customer-page landing-container">
+      <div className="customer-breadcrumb"><Link to="/">Trang chủ</Link><span aria-hidden="true">/</span><span>Cách ký gửi</span></div>
+      <header className="consign-hero"><div><span className="landing-eyebrow"><span /> HOW IT WORKS</span><h1>Ký gửi gọn gàng.<br /><span>Đồ đẹp tiếp tục hành trình.</span></h1><p>Bắt đầu từ những món đồ bạn từng yêu thích, cùng OCS tìm cho chúng một chủ nhân mới.</p><a className="landing-button" href="#cac-buoc">Khám phá các bước <ArrowRight size={16} aria-hidden="true" /></a></div><div className="consign-hero__art" aria-hidden="true"><div><Recycle size={58} strokeWidth={1} /><span>MORE LIFE<br />FOR EVERY LOOK.</span></div></div></header>
+      <section id="cac-buoc" className="consign-steps" aria-labelledby="consign-title"><div className="customer-section-heading"><div><span className="landing-eyebrow">BẮT ĐẦU TỪ ĐÂY</span><h2 id="consign-title">Bốn bước thật đơn giản.</h2><p>Cùng xem hành trình của một món đồ tại OCS.</p></div></div><div className="consign-grid">{steps.map(({ number, title, description, icon: Icon }) => <article className="consign-step" key={number}><div className="consign-step__top"><span>{number}</span><Icon size={23} strokeWidth={1.5} aria-hidden="true" /></div><h3>{title}</h3><p>{description}</p></article>)}</div></section>
+      <section className="consign-note"><div className="consign-note__icon"><Shirt size={28} strokeWidth={1.4} aria-hidden="true" /></div><div><span className="landing-eyebrow">CHUẨN BỊ TRƯỚC KHI KÝ GỬI</span><h2>Một chút chăm chút cho món đồ.</h2><p>Hãy chọn những món còn sạch đẹp và nguyên vẹn để sẵn sàng cho hành trình tiếp theo.</p></div></section>
+      <section className="customer-cta"><div><span className="landing-eyebrow">KHÁM PHÁ THÊM</span><h2>Tìm cảm hứng cho tủ đồ của bạn.</h2><p>Khám phá những lựa chọn tại OCS.</p></div><Link to="/catalog" className="landing-button">Khám phá sản phẩm <ArrowRight size={16} aria-hidden="true" /></Link></section>
     </div>
   );
-};
+}
