@@ -4,6 +4,7 @@ import ShopNavBar, { type ShopNavId, type ShopNavItem } from '@/components/layou
 import { useAuth } from '@/context/AuthContext';
 import { Card, Button, Badge } from '@/components/shared';
 import { ShoppingCart, Package, FileText, Users, DollarSign, BarChart3, Settings, LogOut, ArrowLeft } from 'lucide-react';
+import { AppointmentManagement } from '@/components/shop/AppointmentManagement';
 
 interface ShopDashboardPageProps {
   initialTab?: ShopNavId;
@@ -121,7 +122,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         </div>
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
-        <Card className="p-6 mb-6">
+        {activeTab === 'consignment' ? <AppointmentManagement /> : <Card className="p-6 mb-6">
           <p className="text-sm text-muted">{currentTabInfo.desc}</p>
           <div className="mt-6 rounded-xl border border-dashed border-border p-8 text-center bg-white">
             <p className="text-sm font-semibold text-ink">
@@ -131,7 +132,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
               Dữ liệu được xác thực an toàn qua phiên HttpOnly cookie và bảo vệ CSRF.
             </p>
           </div>
-        </Card>
+        </Card>}
       </main>
     </div>
   );

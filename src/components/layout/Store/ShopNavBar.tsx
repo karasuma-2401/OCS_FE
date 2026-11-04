@@ -30,6 +30,7 @@ export interface ShopNavBarProps {
   onMaximize?: () => void;
   onClose?: () => void;
   disabledItems?: ShopNavId[];
+  actions?: React.ReactNode;
 }
 
 const navigation: ShopNavItem[] = [
@@ -61,6 +62,7 @@ export default function ShopNavBar({
   onNavigate,
   onProfileClick,
   disabledItems = [],
+  actions,
 }: ShopNavBarProps) {
   const [selected, setSelected] = useState<ShopNavId>(initialActive);
 
@@ -123,6 +125,7 @@ export default function ShopNavBar({
         </nav>
 
         <div className="shop-navbar__actions">
+          {actions}
           <button
             type="button"
             className="shop-navbar__profile"

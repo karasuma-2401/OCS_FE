@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { ArrowUpRight, CircleUserRound, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { NotificationBell } from '@/components/shared/NotificationBell';
 import '@/pages/HomePage.css';
 
 const links = [
   { to: '/', label: 'Trang chủ', end: true },
   { to: '/catalog', label: 'Khám phá', end: false },
   { to: '/consign', label: 'Cách ký gửi', end: false },
+  { to: '/appointments', label: 'Lịch hẹn', end: false },
 ];
 
 export function Navbar() {
@@ -34,6 +36,7 @@ export function Navbar() {
         <div className="landing-header__actions">
           {isAuthenticated ? <>
             <span className="landing-user"><CircleUserRound size={16} aria-hidden="true" /> {user?.fullName || user?.email}</span>
+            <NotificationBell />
             {isStaffOrAdmin && <Link className="landing-header__login landing-header__management" to="/admin">Quản lý</Link>}
             <button type="button" className="landing-header__login" onClick={handleLogout} disabled={loggingOut}><LogOut size={15} aria-hidden="true" /> {loggingOut ? 'Đang thoát...' : 'Đăng xuất'}</button>
           </> : <Link className="landing-header__login" to="/login">Đăng nhập</Link>}

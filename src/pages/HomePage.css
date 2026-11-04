@@ -93,4 +93,4 @@
   .landing-mobile-nav { display: grid; gap: .2rem; width: min(100% - 2.5rem, 1320px); margin: 0 auto; padding: 0 0 1rem; }
   .landing-mobile-nav a { padding: .7rem .3rem; color: #514b54; font-size: .85rem; font-weight: 600; }
 }
-@media (max-width: 600px) { .landing-header__management { display: none; } }
+@media (max-width: 600px) { .landing-header__management, .landing-user { display: none; } }

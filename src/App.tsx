@@ -14,6 +14,7 @@ import { VerifyOtpPage } from './pages/VerifyOtpPage';
 import { ShopDashboardPage } from './pages/ShopDashboardPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { AppointmentsPage } from './pages/AppointmentsPage';
 
 const CustomerLayout: React.FC = () => {
   return (
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/kham-pha" element={<CatalogPage />} />
         <Route path="/consign" element={<ConsignPage />} />
         <Route path="/cach-ky-gui" element={<ConsignPage />} />
+        <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
       </Route>
 
