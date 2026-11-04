@@ -69,6 +69,24 @@ export function parseProblemDetails(error: unknown): ProblemDetails {
 }
 
 /**
+ * Extracts a single field error message from a ProblemDetails errors dictionary,
+ * performing case-insensitive matching.
+ */
+export function extractFieldError(
+  errors: Record<string, string[]> | undefined,
+  field: string
+): string | undefined {
+  if (!errors) return undefined;
+  const lowerField = field.toLowerCase();
+  for (const [key, messages] of Object.entries(errors)) {
+    if (key.toLowerCase() === lowerField && Array.isArray(messages) && messages.length > 0) {
+      return messages[0];
+    }
+  }
+  return undefined;
+}
+
+/**
  * Login with email and password. Sets the HttpOnly session cookie on the browser.
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {

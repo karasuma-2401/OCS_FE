@@ -47,7 +47,7 @@ export interface RegisterResponse {
   maskedDestination: string;
   expiresAt: string;
   resendAvailableAt: string;
-  continuationToken: string;
+  continuationToken?: string;
 }
 
 export interface VerifyOtpResponse {
@@ -61,7 +61,7 @@ export interface ResendOtpResponse {
   maskedDestination: string;
   expiresAt: string;
   resendAvailableAt: string;
-  continuationToken: string;
+  continuationToken?: string;
 }
 
 // Deprecated: kept temporarily for backwards compatibility with existing UI types
