@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { verifyOtp, resendOtp, parseProblemDetails } from '@/api/auth';
-import { Card, Button, Toast } from '@/components/shared';
+import { Button, Toast } from '@/components/shared';
 import { MailCheck, ArrowLeft, RefreshCw, CheckCircle2, AlertCircle, Clock, ShieldAlert } from 'lucide-react';
 
 interface OtpLocationState {
@@ -238,24 +238,18 @@ export const VerifyOtpPage: React.FC = () => {
   // If visited directly with NO challenge context
   if (!challengeId || !continuationToken) {
     return (
-      <div className="flex min-h-[75vh] items-center justify-center bg-surface px-4 py-12">
-        <Card className="w-full max-w-md p-8 shadow-lg text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 mb-4">
+      <div className="text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-pink-light text-brand-highlight mb-4">
             <ShieldAlert size={28} />
           </div>
-          <h1 className="text-2xl font-black text-ink">Không tìm thấy phiên xác thực</h1>
-          <p className="mt-2 text-sm text-muted">
+          <h1 className="auth-panel__title">Không tìm thấy phiên xác thực</h1>
+          <p className="auth-panel__description">
             Trang này yêu cầu thông tin phiên xác thực từ bước Đăng ký hoặc Đăng nhập tài khoản chờ kích hoạt.
           </p>
           <div className="mt-6 flex flex-col gap-3">
-            <Link to="/login">
-              <Button className="w-full">Đăng nhập tài khoản</Button>
-            </Link>
-            <Link to="/register">
-              <Button variant="outline" className="w-full">Đăng ký mới</Button>
-            </Link>
+            <Link to="/login" className="auth-action">Đăng nhập tài khoản</Link>
+            <Link to="/register" className="auth-secondary-action">Đăng ký mới</Link>
           </div>
-        </Card>
       </div>
     );
   }
@@ -263,37 +257,33 @@ export const VerifyOtpPage: React.FC = () => {
   // Success state view
   if (isSuccess) {
     return (
-      <div className="flex min-h-[75vh] items-center justify-center bg-surface px-4 py-12">
-        <Card className="w-full max-w-md p-8 shadow-lg text-center animate-in fade-in zoom-in-95 duration-300">
+      <div className="text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-state-success-soft text-state-success-strong mb-4">
             <CheckCircle2 size={36} />
           </div>
-          <h1 className="text-2xl font-black text-ink">Kích hoạt thành công!</h1>
-          <p className="mt-2 text-sm text-muted">
+          <h1 className="auth-panel__title">Kích hoạt thành công!</h1>
+          <p className="auth-panel__description">
             Tài khoản của bạn đã được kích hoạt thành công. Bạn có thể đăng nhập ngay bây giờ để bắt đầu sử dụng OCS.
           </p>
           <div className="mt-6">
-            <Link to="/login">
-              <Button className="w-full">Chuyển đến trang Đăng nhập</Button>
-            </Link>
+            <Link to="/login" className="auth-action">Chuyển đến trang đăng nhập</Link>
           </div>
-        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-[75vh] items-center justify-center bg-surface px-4 py-12">
-      <Card className="w-full max-w-md p-8 shadow-lg">
-        <div className="text-center mb-6">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/20 text-accent-dark mb-3">
+    <div>
+        <div className="mb-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-pink-light text-brand-highlight mb-4">
             <MailCheck size={24} />
           </div>
-          <h1 className="text-2xl font-black text-ink">Xác thực Email OTP</h1>
-          <p className="mt-2 text-sm text-muted">
-            Mã gồm 6 chữ số đã được gửi tới địa chỉ:
+          <div className="auth-panel__eyebrow">CHỈ CÒN MỘT BƯỚC NỮA</div>
+          <h1 className="auth-panel__title">Kiểm tra email</h1>
+          <p className="auth-panel__description !mb-1">
+            Nhập mã gồm 6 chữ số đã được gửi đến:
           </p>
-          <p className="mt-0.5 text-sm font-bold text-ink">
+          <p className="text-sm font-bold text-brand-ink">
             {maskedDestination || 'email của bạn'}
           </p>
         </div>
@@ -321,8 +311,8 @@ export const VerifyOtpPage: React.FC = () => {
         )}
 
         {/* Expiration Timer Indicator */}
-        <div className="mb-6 flex items-center justify-between rounded-xl bg-slate-50 border border-border p-3 text-xs">
-          <div className="flex items-center gap-1.5 text-muted">
+        <div className="mb-6 flex items-center justify-between rounded-xl bg-brand-pink-surface border border-brand-pink-light p-3 text-xs">
+          <div className="flex items-center gap-1.5 text-brand-highlight">
             <Clock size={15} />
             <span>Thời hạn mã:</span>
           </div>
@@ -333,19 +323,19 @@ export const VerifyOtpPage: React.FC = () => {
                 Đã hết hạn
               </span>
             ) : (
-              <span className="text-accent-dark font-mono text-sm">
+              <span className="text-brand-highlight font-mono text-sm">
                 {formatCountdown(expirySecondsRemaining)}
               </span>
             )}
           </div>
         </div>
 
-        <form onSubmit={handleVerify} className="space-y-6">
+        <form onSubmit={handleVerify} className="auth-form space-y-6">
           {/* 6 Digit Inputs */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-muted text-center mb-3">
+            <p className="block text-xs font-bold text-brand-ink text-center mb-3">
               Nhập mã xác thực 6 chữ số
-            </label>
+            </p>
             <div className="flex justify-center gap-2 sm:gap-3" onPaste={handlePaste}>
               {digits.map((digit, index) => (
                 <input
@@ -355,16 +345,15 @@ export const VerifyOtpPage: React.FC = () => {
                   }}
                   type="text"
                   inputMode="numeric"
+                  autoComplete={index === 0 ? 'one-time-code' : 'off'}
                   maxLength={1}
                   value={digit}
                   disabled={isVerifying || isResending || isExpired}
                   onChange={(e) => handleDigitChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
-                  className={`h-12 w-10 sm:h-14 sm:w-12 rounded-xl border text-center font-mono text-xl sm:text-2xl font-bold transition outline-none ${
-                    digit
-                      ? 'border-accent bg-accent/5 text-ink shadow-sm'
-                      : 'border-border bg-white text-ink hover:border-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/20'
-                  } ${isExpired ? 'bg-slate-100 opacity-60' : ''}`}
+                  className={`auth-otp-input h-12 w-10 sm:h-14 sm:w-12 rounded-xl border text-center font-mono text-xl sm:text-2xl font-bold transition outline-none ${
+                    digit ? 'auth-otp-input--filled' : ''
+                  } ${isExpired ? 'opacity-60' : ''}`}
                   aria-label={`Số thứ ${index + 1}`}
                 />
               ))}
@@ -382,8 +371,8 @@ export const VerifyOtpPage: React.FC = () => {
         </form>
 
         {/* Resend Cooldown Section */}
-        <div className="mt-6 border-t border-border pt-5 text-center">
-          <p className="text-xs text-muted mb-3">
+        <div className="mt-6 border-t border-brand-pink-light pt-5 text-center">
+          <p className="text-xs text-text-secondary mb-3">
             Không nhận được mã hoặc mã đã hết hạn?
           </p>
           <Button
@@ -404,13 +393,12 @@ export const VerifyOtpPage: React.FC = () => {
         <div className="mt-6 text-center">
           <Link
             to="/login"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-muted hover:text-ink transition"
+            className="auth-panel__link inline-flex items-center gap-1 text-xs transition"
           >
             <ArrowLeft size={13} />
             Quay lại trang Đăng nhập
           </Link>
         </div>
-      </Card>
     </div>
   );
 };

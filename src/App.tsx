@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Outlet } from 'react-router-dom';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
+import { AuthLayout } from './components/layout/AuthLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { HomePage } from './pages/HomePage';
 import { CatalogPage } from './pages/CatalogPage';
@@ -29,18 +30,22 @@ const CustomerLayout: React.FC = () => {
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<HomePage />} />
+
       {/* Public Customer Layout routes */}
       <Route element={<CustomerLayout />}>
-        <Route path="/" element={<HomePage />} />
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/explore" element={<CatalogPage />} />
         <Route path="/kham-pha" element={<CatalogPage />} />
         <Route path="/consign" element={<ConsignPage />} />
         <Route path="/cach-ky-gui" element={<ConsignPage />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
+      </Route>
+
+      <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
-        <Route path="/unauthorized" element={<UnauthorizedPage />} />
       </Route>
 
       {/* UI Components Kit preview */}

@@ -9,8 +9,8 @@ import {
   validatePasswordPolicy,
   validateConfirmPassword,
 } from '@/utils/validation';
-import { Card, Form, Input, Button, Toast } from '@/components/shared';
-import { UserPlus } from 'lucide-react';
+import { Form, Input, Button, Toast } from '@/components/shared';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 interface RegisterFieldErrors {
   fullName?: string;
@@ -29,6 +29,8 @@ export const RegisterPage: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
@@ -148,17 +150,12 @@ export const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-[85vh] items-center justify-center bg-surface px-4 py-12">
-      <Card className="w-full max-w-lg p-8 shadow-lg">
-        <div className="text-center mb-6">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-pink-light text-brand-highlight mb-3 shadow-sm">
-            <UserPlus size={24} />
-          </div>
-          <h1 className="text-2xl font-black text-ink">Đăng ký tài khoản</h1>
-          <p className="mt-1 text-sm text-muted">
-            Tạo tài khoản khách hàng để trải nghiệm mua sắm và ký gửi quần áo cùng OCS
-          </p>
-        </div>
+    <div>
+        <div className="auth-panel__eyebrow">BẮT ĐẦU CÙNG OCS</div>
+        <h1 className="auth-panel__title">Tạo tài khoản</h1>
+        <p className="auth-panel__description">
+          Tạo tài khoản để bắt đầu hành trình cùng OCS.
+        </p>
 
         {formError && (
           <div className="mb-4">
@@ -171,7 +168,7 @@ export const RegisterPage: React.FC = () => {
           </div>
         )}
 
-        <Form onSubmit={handleSubmit} loading={isSubmitting} disabled={isSubmitting}>
+        <Form className="auth-form" onSubmit={handleSubmit} loading={isSubmitting} disabled={isSubmitting}>
           <Input
             label="Họ và tên"
             type="text"
@@ -190,7 +187,7 @@ export const RegisterPage: React.FC = () => {
           />
 
           <Input
-            label="Địa chỉ Email"
+            label="Địa chỉ email"
             type="email"
             value={email}
             onChange={(e) => {
@@ -226,7 +223,7 @@ export const RegisterPage: React.FC = () => {
 
           <Input
             label="Mật khẩu"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
@@ -240,11 +237,17 @@ export const RegisterPage: React.FC = () => {
             helperText="Từ 8–70 ký tự, gồm ít nhất một chữ hoa, một chữ thường và một chữ số hoặc ký tự đặc biệt"
             error={fieldErrors.password}
             disabled={isSubmitting}
+            endAdornment={
+              <button type="button" className="auth-password-toggle" onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-pressed={showPassword} disabled={isSubmitting}>
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            }
           />
 
           <Input
             label="Xác nhận mật khẩu"
-            type="password"
+            type={showConfirmPassword ? 'text' : 'password'}
             value={confirmPassword}
             onChange={(e) => {
               setConfirmPassword(e.target.value);
@@ -257,27 +260,33 @@ export const RegisterPage: React.FC = () => {
             autoComplete="new-password"
             error={fieldErrors.confirmPassword}
             disabled={isSubmitting}
+            endAdornment={
+              <button type="button" className="auth-password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                aria-label={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'} aria-pressed={showConfirmPassword} disabled={isSubmitting}>
+                {showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            }
           />
 
           <Button
             type="submit"
-            className="w-full mt-4"
+            className="w-full"
             loading={isSubmitting}
             disabled={isSubmitting}
+            endIcon={<ArrowRight size={16} aria-hidden="true" />}
           >
             Đăng ký tài khoản
           </Button>
         </Form>
 
-        <div className="mt-6 border-t border-border pt-4 text-center">
-          <p className="text-sm text-muted">
+        <div className="auth-panel__footer">
+          <p>
             Đã có tài khoản?{' '}
-            <Link to="/login" className="font-bold text-accent-dark hover:underline">
+            <Link to="/login">
               Đăng nhập ngay
             </Link>
           </p>
         </div>
-      </Card>
     </div>
   );
 };

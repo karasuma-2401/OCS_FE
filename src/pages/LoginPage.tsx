@@ -3,8 +3,8 @@ import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { parseProblemDetails, extractFieldError } from '@/api/auth';
 import { validateEmail } from '@/utils/validation';
-import { Card, Form, Input, Button, Toast } from '@/components/shared';
-import { LogIn } from 'lucide-react';
+import { Form, Input, Button, Toast } from '@/components/shared';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 interface FieldErrors {
   email?: string;
@@ -18,6 +18,7 @@ export const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -165,17 +166,12 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-[75vh] items-center justify-center bg-surface px-4 py-12">
-      <Card className="w-full max-w-md p-8 shadow-lg">
-        <div className="text-center mb-6">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-ink text-accent mb-3 font-black text-lg shadow-sm">
-            OCS
-          </div>
-          <h1 className="text-2xl font-black text-ink">Đăng nhập tài khoản</h1>
-          <p className="mt-1 text-sm text-muted">
-            Sử dụng email và mật khẩu của bạn để truy cập hệ thống
-          </p>
-        </div>
+    <div>
+        <div className="auth-panel__eyebrow">CHÀO MỪNG BẠN TRỞ LẠI</div>
+        <h1 className="auth-panel__title">Đăng nhập</h1>
+        <p className="auth-panel__description">
+          Đăng nhập để tiếp tục khám phá cùng OCS.
+        </p>
 
         {formError && (
           <div className="mb-4">
@@ -188,9 +184,9 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        <Form onSubmit={handleSubmit} loading={isSubmitting} disabled={isSubmitting}>
+        <Form className="auth-form" onSubmit={handleSubmit} loading={isSubmitting} disabled={isSubmitting}>
           <Input
-            label="Địa chỉ Email"
+            label="Địa chỉ email"
             type="email"
             value={email}
             onChange={(e) => {
@@ -208,7 +204,7 @@ export const LoginPage: React.FC = () => {
 
           <Input
             label="Mật khẩu"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
@@ -221,28 +217,33 @@ export const LoginPage: React.FC = () => {
             autoComplete="current-password"
             error={fieldErrors.password}
             disabled={isSubmitting}
+            endAdornment={
+              <button type="button" className="auth-password-toggle" onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-pressed={showPassword} disabled={isSubmitting}>
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            }
           />
 
           <Button
             type="submit"
-            className="w-full mt-2"
+            className="w-full"
             loading={isSubmitting}
             disabled={isSubmitting}
+            endIcon={<ArrowRight size={16} aria-hidden="true" />}
           >
-            <LogIn size={16} className="mr-2" />
             Đăng nhập
           </Button>
         </Form>
 
-        <div className="mt-6 border-t border-border pt-4 text-center">
-          <p className="text-sm text-muted">
+        <div className="auth-panel__footer">
+          <p>
             Chưa có tài khoản?{' '}
-            <Link to="/register" className="font-bold text-accent-dark hover:underline">
+            <Link to="/register">
               Đăng ký ngay
             </Link>
           </p>
         </div>
-      </Card>
     </div>
   );
 };

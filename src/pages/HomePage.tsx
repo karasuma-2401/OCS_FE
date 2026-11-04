@@ -1,100 +1,75 @@
-import React from 'react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, CircleUserRound, LogOut, Recycle, Shirt, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ShoppingBag, Store, Sparkles, ShieldCheck } from 'lucide-react';
-import { Button, Card } from '@/components/shared';
+import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import fashionHero from '@/assets/images/fashion-campaign.jpg';
+import './HomePage.css';
 
-export const HomePage: React.FC = () => {
-  const { isAuthenticated, isStaffOrAdmin, user } = useAuth();
+export function HomePage() {
+  const { isAuthenticated, isStaffOrAdmin, user, logout } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    setLogoutError(false);
+    try { await logout(); } catch { setLogoutError(true); } finally { setLoggingOut(false); }
+  }
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {/* Hero Section */}
-      <div className="text-center max-w-3xl mx-auto mb-16">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/20 text-accent-dark text-xs font-bold mb-4">
-          <Sparkles size={14} />
-          Nền tảng Ký gửi & Thời trang Bền vững
+    <div className="landing">
+      <header className="landing-header">
+        <div className="landing-header__inner">
+          <Link className="landing-logo" to="/" aria-label="OCS - Trang chủ">ocs<span>.</span></Link>
+          <nav className="landing-nav" aria-label="Điều hướng chính">
+            <Link to="/">Trang chủ</Link><Link to="/catalog">Khám phá</Link><Link to="/consign">Cách ký gửi</Link>
+          </nav>
+          <div className="landing-header__actions">
+            {isAuthenticated ? <>
+              <span className="landing-user"><CircleUserRound size={16} aria-hidden="true" /> {user?.fullName || user?.email}</span>
+              {isStaffOrAdmin && <Link className="landing-header__login" to="/admin">Quản lý</Link>}
+              <button className="landing-header__login" onClick={handleLogout} disabled={loggingOut}><LogOut size={15} aria-hidden="true" /> {loggingOut ? 'Đang thoát...' : 'Đăng xuất'}</button>
+            </> : <Link className="landing-header__login" to="/login">Đăng nhập</Link>}
+            <Link to="/consign" className="landing-button landing-button--small">Tìm hiểu ký gửi <ArrowUpRight size={15} aria-hidden="true" /></Link>
+          </div>
         </div>
-        <h1 className="text-4xl sm:text-5xl font-black text-ink tracking-tight">
-          Trao cuộc đời mới cho quần áo cũ cùng OCS
-        </h1>
-        <p className="mt-4 text-base sm:text-lg text-muted">
-          Minh bạch từng sản phẩm, định giá thông minh và quản lý ký gửi toàn diện từ trực tiếp đến trực tuyến.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-4">
-          <Link to="/catalog">
-            <Button size="lg" className="flex items-center gap-2">
-              <ShoppingBag size={18} />
-              Khám phá sản phẩm
-            </Button>
-          </Link>
-          <Link to="/consign">
-            <Button variant="outline" size="lg">
-              Cách thức ký gửi
-            </Button>
-          </Link>
-        </div>
-      </div>
+        {logoutError && <p className="landing-header__error" role="alert">Không thể đăng xuất. Vui lòng thử lại.</p>}
+      </header>
 
-      {/* Gateway Cards */}
-      <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
-        <Card className="p-6 transition hover:shadow-lg border-2 hover:border-accent">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-pink-light text-brand-highlight mb-4">
-            <ShoppingBag size={24} />
+      <main>
+        <section className="landing-hero landing-container">
+          <div className="landing-hero__copy">
+            <span className="landing-eyebrow"><span /> SECONDHAND, FIRST CHOICE</span>
+            <h1>Đồ đẹp.<br />Chuyện mới<span>.</span></h1>
+            <p>Món đồ bạn từng yêu thích có thể bắt đầu một hành trình mới, cùng một người mới.</p>
+            <div className="landing-hero__actions">
+              <Link to="/catalog" className="landing-button">Khám phá sản phẩm <ArrowRight size={17} aria-hidden="true" /></Link>
+              <Link to="/consign" className="landing-text-link">Tìm hiểu ký gửi <ArrowUpRight size={16} aria-hidden="true" /></Link>
+            </div>
+            <span className="landing-hero__note"><Recycle size={15} aria-hidden="true" /> Mặc theo cách của bạn, thêm một vòng đời mới.</span>
           </div>
-          <h2 className="text-xl font-bold text-ink">Dành cho Khách hàng</h2>
-          <p className="mt-2 text-sm text-muted">
-            Khám phá các sản phẩm quần áo vintage, retro độc bản đã được kiểm định chất lượng, hoặc theo dõi các đợt ký gửi của bạn.
-          </p>
-          <div className="mt-6 flex items-center justify-between">
-            <Link to="/catalog" className="text-sm font-bold text-accent-dark flex items-center gap-1.5 hover:underline">
-              Xem sản phẩm
-              <ArrowRight size={16} />
-            </Link>
+          <div className="landing-hero__visual">
+            <img src={fashionHero} alt="Thời trang thường ngày trong tông màu nhẹ nhàng" />
+            <div className="landing-hero__visual-label"><span>THE OCS EDIT</span><ArrowDownRight size={18} aria-hidden="true" /></div>
           </div>
-        </Card>
+        </section>
 
-        <Card className="p-6 transition hover:shadow-lg border-2 hover:border-accent">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-state-warning-soft text-accent-dark mb-4">
-            <Store size={24} />
+        <section className="landing-discover landing-container" id="kham-pha">
+          <div className="landing-section-heading"><div><span className="landing-eyebrow">EXPLORE OCS</span><h2>Mặc đẹp theo cách riêng.</h2></div><Link className="landing-text-link" to="/catalog">Xem danh mục <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+          <div className="landing-discover__grid">
+            <Link className="landing-discover__card landing-discover__card--one" to="/catalog"><span className="landing-discover__number">01 / KHÁM PHÁ</span><Shirt size={31} strokeWidth={1.2} aria-hidden="true" /><div><h3>Tìm món đồ hợp bạn</h3><p>Những lựa chọn cho phong cách mỗi ngày.</p></div><ArrowUpRight className="landing-discover__arrow" size={19} aria-hidden="true" /></Link>
+            <Link className="landing-discover__card landing-discover__card--two" to="/consign"><span className="landing-discover__number">02 / KÝ GỬI</span><Recycle size={31} strokeWidth={1.2} aria-hidden="true" /><div><h3>Trao đồ thêm hành trình</h3><p>Để những món đồ cũ tiếp tục được yêu thích.</p></div><ArrowUpRight className="landing-discover__arrow" size={19} aria-hidden="true" /></Link>
           </div>
-          <h2 className="text-xl font-bold text-ink">Phân hệ Cửa hàng & Quản lý</h2>
-          <p className="mt-2 text-sm text-muted">
-            Dành cho Nhân viên và Quản lý thực hiện bán hàng POS, quản lý kiểm định kho, quyết toán ký gửi và báo cáo kinh doanh.
-          </p>
-          <div className="mt-6 flex items-center justify-between">
-            <Link to="/admin" className="text-sm font-bold text-accent-dark flex items-center gap-1.5 hover:underline">
-              {isAuthenticated && isStaffOrAdmin ? 'Vào trang quản trị' : 'Yêu cầu đăng nhập quản trị'}
-              <ArrowRight size={16} />
-            </Link>
-            {!isAuthenticated && (
-              <span className="text-xs text-muted flex items-center gap-1">
-                <ShieldCheck size={14} />
-                Bảo vệ bởi hệ thống Auth
-              </span>
-            )}
-          </div>
-        </Card>
-      </div>
+        </section>
 
-      {/* Active User Status bar if logged in */}
-      {isAuthenticated && (
-        <div className="mt-12 max-w-4xl mx-auto p-4 rounded-xl border border-accent/30 bg-accent/5 flex items-center justify-between">
-          <div className="text-sm">
-            <span className="font-semibold text-ink">Đang đăng nhập: </span>
-            <span className="text-muted">{user?.fullName || user?.email}</span>
-            <span className="ml-2 px-2 py-0.5 rounded text-xs font-bold bg-accent text-ink">
-              {user?.roles?.join(', ')}
-            </span>
-          </div>
-          {isStaffOrAdmin && (
-            <Link to="/admin/pos">
-              <Button size="sm">Mở Web POS</Button>
-            </Link>
-          )}
-        </div>
-      )}
+        <section className="landing-process landing-container" id="ky-gui">
+          <div className="landing-process__intro"><span className="landing-eyebrow">HOW IT WORKS</span><h2>Ký gửi gọn gàng.<br />Bắt đầu thật dễ.</h2><Link to="/consign" className="landing-text-link">Tìm hiểu cách ký gửi <ArrowRight size={16} aria-hidden="true" /></Link></div>
+          <div className="landing-process__steps"><div><span>01</span><h3>Chuẩn bị</h3><p>Chọn và làm sạch những món đồ bạn muốn ký gửi.</p></div><div><span>02</span><h3>Mang đến OCS</h3><p>Cùng cửa hàng kiểm tra và thỏa thuận thông tin.</p></div><div><span>03</span><h3>Theo dõi</h3><p>Theo dõi hành trình của những món đồ ký gửi.</p></div></div>
+        </section>
+
+        <section className="landing-banner landing-container"><div><span className="landing-eyebrow"><Sparkles size={14} aria-hidden="true" /> MỘT VÒNG ĐỜI MỚI</span><h2>Một lựa chọn nhỏ.<br />Thêm nhiều điều thú vị.</h2><p>Khám phá thời trang secondhand cùng OCS.</p></div><Link to="/catalog" className="landing-button">Khám phá ngay <ArrowUpRight size={16} aria-hidden="true" /></Link></section>
+      </main>
+      <footer className="landing-footer landing-container"><Link className="landing-logo" to="/">ocs<span>.</span></Link><p>Old Clothes Store · Thời trang cho những hành trình tiếp theo.</p><div><Link to="/catalog">Khám phá</Link><Link to="/consign">Ký gửi</Link></div><small>© {new Date().getFullYear()} OCS</small></footer>
     </div>
   );
-};
-
+}
