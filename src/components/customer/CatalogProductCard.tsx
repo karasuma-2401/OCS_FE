@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { ArrowUpRight, Shirt } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatVndPrice, type PublicProduct } from '@/api/products';
@@ -7,6 +8,14 @@ export interface CatalogProductCardProps {
 }
 
 export function CatalogProductCard({ product }: CatalogProductCardProps) {
+  const [hasImageError, setHasImageError] = useState(false);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [product.coverImageUrl]);
+
+  const showPlaceholder = !product.coverImageUrl || hasImageError;
+
   return (
     <article className="product-card">
       <Link
@@ -15,8 +24,14 @@ export function CatalogProductCard({ product }: CatalogProductCardProps) {
         aria-label={`Xem chi tiết ${product.name}`}
       >
         <div className="product-card__image">
-          {product.coverImageUrl ? (
-            <img src={product.coverImageUrl} alt={product.name} loading="lazy" decoding="async" />
+          {!showPlaceholder ? (
+            <img
+              src={product.coverImageUrl!}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              onError={() => setHasImageError(true)}
+            />
           ) : (
             <div className="product-card__placeholder" aria-label="Sản phẩm chưa có ảnh bìa">
               <Shirt size={28} aria-hidden="true" />
