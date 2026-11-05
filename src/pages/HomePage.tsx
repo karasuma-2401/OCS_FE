@@ -22,9 +22,12 @@ export function HomePage() {
     setIsLoading(true);
     setError(null);
 
-    getPublicProducts({ page: 1, pageSize: 3, sort: 'newest' }, controller.signal)
+    getPublicProducts({ page: 1, pageSize: 6, sort: 'newest' }, controller.signal)
       .then((res) => {
-        setFeaturedProducts(res.items);
+        // Ưu tiên hiển thị các sản phẩm có ảnh bìa đầy đủ trên trang chủ
+        const withCover = res.items.filter((p) => Boolean(p.coverImageUrl));
+        const withoutCover = res.items.filter((p) => !p.coverImageUrl);
+        setFeaturedProducts([...withCover, ...withoutCover].slice(0, 3));
       })
       .catch(() => {
         if (controller.signal.aborted) return;
