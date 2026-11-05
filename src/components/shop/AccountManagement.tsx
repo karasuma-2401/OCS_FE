@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RefreshCw, Search, Users } from 'lucide-react';
-import { accountsApi, type AccountSummary, type AccountStatus, type CreateInternalAccount, type PagedAccounts, type UpdateAccountRequest, type UpdateEmployeeProfileRequest } from '@/api/accounts';
+import { Clock3, Eye, EyeOff, Plus, RefreshCw, Search, Users } from 'lucide-react';
+import { accountsApi, type AccountHistoryItem, type AccountSummary, type AccountStatus, type CreateInternalAccount, type PagedAccountHistory, type PagedAccounts, type UpdateAccountRequest, type UpdateEmployeeProfileRequest } from '@/api/accounts';
 import { parseProblemDetails, extractFieldError } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
+import type { RoleCode } from '@/types';
 import { validateEmail, validateFullName, validatePasswordPolicy, validatePhoneNumber } from '@/utils/validation';
 import { Badge, Button, Card, EmptyState, ErrorState, Input, Loading, Modal, Pagination, Select, Toast } from '@/components/shared';
 
@@ -18,6 +19,14 @@ const statusNames: Record<AccountStatus, string> = { PendingActivation: 'Chờ k
 const statusVariants = { PendingActivation: 'warning', Active: 'success', Locked: 'danger', Deactivated: 'neutral' } as const;
 const blankForm: CreateInternalAccount = { fullName: '', email: '', phoneNumber: '', username: '', password: '', jobTitle: '', hiredOn: '' };
 
+function todayLocalDate(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function errorMessage(error: unknown) {
   const problem = parseProblemDetails(error);
   if (problem.code === 'AUTH.CSRF_INVALID') return 'Phiên bảo mật đã thay đổi. Vui lòng thử lại.';
@@ -25,6 +34,8 @@ function errorMessage(error: unknown) {
   if (problem.status === 404) return 'Tài khoản không trong phạm vi quản lý.';
   if (problem.code === 'ACCOUNT.LAST_ADMIN') return 'Không thể thay đổi Admin đang hoạt động cuối cùng.';
   if (problem.code === 'ACCOUNT.PROTECTED_ADMIN') return 'Không thể thực hiện thao tác này với Admin gốc ocs_admin.';
+  if (problem.code === 'ACCOUNT.SELF_PASSWORD_RESET') return 'Bạn không thể đặt lại mật khẩu của chính mình từ màn hình này.';
+  if (problem.code === 'ACCOUNT.INVALID_ROLE') return 'Vai trò lọc không hợp lệ.';
   if (problem.code === 'ACCOUNT.IDENTITY_EXISTS') return 'Email, username hoặc số điện thoại đã tồn tại.';
   return problem.title || 'Thao tác không thành công. Vui lòng thử lại.';
 }
@@ -37,6 +48,7 @@ export function AccountManagement() {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'customer' | 'internal'>('internal');
   const [status, setStatus] = useState('');
+  const [roleFilter, setRoleFilter] = useState<RoleCode | ''>('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [data, setData] = useState<PagedAccounts | null>(null);
@@ -48,6 +60,8 @@ export function AccountManagement() {
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState<CreateInternalAccount>(blankForm);
   const [createRole, setCreateRole] = useState<InternalRole>('Staff');
+  const [useDefaultPassword, setUseDefaultPassword] = useState(true);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +77,21 @@ export function AccountManagement() {
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
   const [editSubmitting, setEditSubmitting] = useState(false);
+  const [resetTarget, setResetTarget] = useState<AccountSummary | null>(null);
+  const [resetUseDefault, setResetUseDefault] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetPasswordVisible, setResetPasswordVisible] = useState(false);
+  const [resetConfirming, setResetConfirming] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyAccountId, setHistoryAccountId] = useState<string | undefined>();
+  const [historyReturnAccount, setHistoryReturnAccount] = useState<AccountSummary | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [historyData, setHistoryData] = useState<PagedAccountHistory | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const handleError = useCallback((error: unknown) => {
     const problem = parseProblemDetails(error);
@@ -80,12 +109,23 @@ export function AccountManagement() {
     const quiet = quietRefreshRef.current;
     quietRefreshRef.current = false;
     if (!quiet) { setLoading(true); setLoadError(null); }
-    accountsApi.list({ page, pageSize, search: search || undefined, accountType: isAdmin ? (activeTab === 'customer' ? 0 : 1) : undefined, status: status ? Number(status) : undefined })
+    accountsApi.list({ page, pageSize, search: search || undefined, accountType: isAdmin ? (activeTab === 'customer' ? 0 : 1) : undefined, status: status ? Number(status) : undefined, role: roleFilter || undefined })
       .then(result => { if (alive) { setData(result); setLoadError(null); } })
       .catch(error => { if (alive) { const message = handleError(error); if (quiet) setNotice({ variant: 'error', message: `Không thể đồng bộ danh sách: ${message}` }); else setLoadError(message); } })
       .finally(() => { if (alive && !quiet) setLoading(false); });
     return () => { alive = false; };
-  }, [page, pageSize, search, activeTab, status, isAdmin, refreshKey, handleError]);
+  }, [page, pageSize, search, activeTab, status, roleFilter, isAdmin, refreshKey, handleError]);
+
+  useEffect(() => {
+    if (!historyOpen || !isAdmin) return;
+    let alive = true;
+    setHistoryLoading(true); setHistoryError(null);
+    accountsApi.history({ page: historyPage, pageSize: 20, accountId: historyAccountId })
+      .then(result => { if (alive) setHistoryData(result); })
+      .catch(error => { if (alive) setHistoryError(handleError(error)); })
+      .finally(() => { if (alive) setHistoryLoading(false); });
+    return () => { alive = false; };
+  }, [historyOpen, historyAccountId, historyPage, historyRefreshKey, isAdmin, handleError]);
 
   const refresh = (quiet = false) => { quietRefreshRef.current = quiet; setRefreshKey(value => value + 1); };
   const updateAccount = (account: AccountSummary) => {
@@ -95,7 +135,7 @@ export function AccountManagement() {
   const changeTab = (tab: 'customer' | 'internal') => {
     if (tab === activeTab) return;
     setActiveTab(tab);
-    setSearchInput(''); setSearch(''); setStatus(''); setPage(1);
+    setSearchInput(''); setSearch(''); setStatus(''); setRoleFilter(''); setPage(1);
     setSelected(null); setSelectedRowId(null); setNotice(null);
   };
   const updateForm = (key: keyof CreateInternalAccount, value: string) => {
@@ -103,7 +143,15 @@ export function AccountManagement() {
     setFieldErrors(current => ({ ...current, [key]: '' }));
   };
   const openCreate = () => {
-    setForm(blankForm); setCreateRole('Staff'); setFieldErrors({}); setFormError(null); setCreateOpen(true);
+    setForm({ ...blankForm, hiredOn: todayLocalDate() });
+    setCreateRole('Staff'); setUseDefaultPassword(true); setShowCreatePassword(false);
+    setFieldErrors({}); setFormError(null); setCreateOpen(true);
+  };
+  const changePasswordMode = (useDefault: boolean) => {
+    setUseDefaultPassword(useDefault);
+    setForm(current => ({ ...current, password: '' }));
+    setFieldErrors(current => ({ ...current, password: '' }));
+    setShowCreatePassword(false);
   };
   const create = async (event: FormEvent) => {
     event.preventDefault();
@@ -114,11 +162,11 @@ export function AccountManagement() {
     errors.fullName = validateFullName(form.fullName) || '';
     errors.email = validateEmail(form.email) || '';
     errors.phoneNumber = validatePhoneNumber(form.phoneNumber) || '';
-    errors.password = validatePasswordPolicy(form.password) || '';
+    if (!useDefaultPassword) errors.password = validatePasswordPolicy(form.password) || '';
     if (Object.values(errors).some(Boolean)) { setFieldErrors(errors); return; }
     setSubmitting(true); setFormError(null);
     try {
-      const created = await accountsApi.create({ ...form, fullName: form.fullName.trim(), email: form.email.trim(), phoneNumber: form.phoneNumber.trim(), username: form.username.trim(), jobTitle: form.jobTitle.trim() }, createRole, isAdmin);
+      const created = await accountsApi.create({ ...form, fullName: form.fullName.trim(), email: form.email.trim(), phoneNumber: form.phoneNumber.trim(), username: form.username.trim(), jobTitle: form.jobTitle.trim(), password: useDefaultPassword ? null : form.password, useDefaultPassword }, createRole, isAdmin);
       setCreateOpen(false); setForm(blankForm); setPage(1); setSelected(created); setSelectedRowId(created.id); refresh(true);
       setNotice({ variant: 'success', message: 'Đã tạo tài khoản. Người được cấp tài khoản cần đăng nhập, xác thực OTP rồi đăng nhập lại.' });
     } catch (error) {
@@ -205,6 +253,43 @@ export function AccountManagement() {
     } finally { setEditSubmitting(false); }
   };
 
+  const openPasswordReset = (account: AccountSummary) => {
+    setSelected(null);
+    setResetTarget(account);
+    setResetUseDefault(account.accountType === 'Internal');
+    setResetPassword(''); setResetPasswordVisible(false); setResetConfirming(false); setResetError(null);
+  };
+  const submitPasswordReset = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!resetTarget || resetSubmitting) return;
+    if (!resetConfirming) {
+      if (!resetUseDefault) {
+        const validationError = validatePasswordPolicy(resetPassword);
+        if (validationError) { setResetError(validationError); return; }
+      }
+      setResetError(null); setResetConfirming(true); return;
+    }
+    setResetSubmitting(true); setResetError(null);
+    try {
+      await accountsApi.resetPassword(resetTarget.id, resetUseDefault ? null : resetPassword, resetUseDefault);
+      setResetTarget(null); setResetPassword(''); setResetConfirming(false); setSelected(resetTarget);
+      setNotice({ variant: 'success', message: 'Đã đặt lại mật khẩu. Các phiên đăng nhập của tài khoản đã bị thu hồi.' });
+    } catch (error) { setResetError(handleError(error)); }
+    finally { setResetSubmitting(false); }
+  };
+  const closePasswordReset = () => {
+    if (resetSubmitting) return;
+    setResetTarget(null); setResetPassword(''); setResetConfirming(false);
+    if (resetTarget) setSelected(resetTarget);
+  };
+  const openHistory = (accountId?: string) => {
+    const returnAccount = accountId ? selected : null;
+    setHistoryReturnAccount(returnAccount);
+    if (returnAccount) setSelected(null);
+    setHistoryAccountId(accountId); setHistoryPage(1); setHistoryData(null); setHistoryOpen(true);
+  };
+  const closeHistory = () => { setHistoryOpen(false); if (historyReturnAccount) setSelected(historyReturnAccount); setHistoryReturnAccount(null); };
+
   const runAction = async () => {
     if (!action || submitting) return;
     setSubmitting(true);
@@ -232,7 +317,10 @@ export function AccountManagement() {
     <Card className="bg-gradient-to-r from-brand-pink-surface to-white">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3"><span className="shrink-0 rounded-xl bg-brand-pink-light p-3 text-brand-highlight"><Users size={24} /></span><div><h2 className="text-lg font-bold text-brand-ink">Quản lý tài khoản</h2><p className="text-sm text-muted">{isAdmin ? 'Quản lý khách hàng và nhân sự nội bộ.' : 'Quản lý tài khoản nhân viên Staff.'}</p></div></div>
-        {(!isAdmin || activeTab === 'internal') && <Button className="shrink-0 self-start sm:self-auto" onClick={openCreate} startIcon={<Plus size={16} />}>{isAdmin ? 'Tạo tài khoản nội bộ' : 'Tạo nhân viên'}</Button>}
+        <div className="flex shrink-0 flex-wrap gap-2 self-start sm:self-auto">
+          {isAdmin && <Button variant="outline" onClick={() => openHistory()} startIcon={<Clock3 size={16} />}>Lịch sử thao tác</Button>}
+          {(!isAdmin || activeTab === 'internal') && <Button onClick={openCreate} startIcon={<Plus size={16} />}>{isAdmin ? 'Tạo tài khoản nội bộ' : 'Tạo nhân viên'}</Button>}
+        </div>
       </div>
     </Card>
     <Card>
@@ -244,6 +332,7 @@ export function AccountManagement() {
       <div className="mb-5 flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1"><Input label="Tìm kiếm" value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Tên, email, số điện thoại, username" startAdornment={<Search size={16} />} /></div>
         <div className="w-44"><Select label="Trạng thái" value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>{statusOptions.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></div>
+        {isAdmin && activeTab === 'internal' && <div className="w-44"><Select label="Vai trò" value={roleFilter} onChange={e => { setRoleFilter(e.target.value as RoleCode | ''); setPage(1); }}><option value="">Mọi vai trò</option>{(['Admin', 'Manager', 'Staff'] as RoleCode[]).map(role => <option key={role} value={role}>{role}</option>)}</Select></div>}
         <div className="w-32"><Select label="Mỗi trang" value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}><option value="10">10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option></Select></div>
         <Button variant="outline" aria-label="Tải lại danh sách" onClick={() => refresh()} startIcon={<RefreshCw size={16} />}>Tải lại</Button>
       </div>
@@ -260,7 +349,20 @@ export function AccountManagement() {
         <Input label="Email" type="email" required value={form.email} onChange={e => updateForm('email', e.target.value)} error={fieldErrors.email} />
         <Input label="Số điện thoại" required value={form.phoneNumber} onChange={e => updateForm('phoneNumber', e.target.value)} error={fieldErrors.phoneNumber} />
         <Input label="Username" required value={form.username} onChange={e => updateForm('username', e.target.value)} error={fieldErrors.username} />
-        <Input label="Mật khẩu" type="password" required value={form.password} onChange={e => updateForm('password', e.target.value)} error={fieldErrors.password} helperText="8–70 ký tự, chữ hoa, chữ thường, số hoặc ký tự đặc biệt; tối đa 72 byte." />
+        <div className="sm:col-span-2">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink">Cách đặt mật khẩu</p>
+          <div role="radiogroup" aria-label="Cách đặt mật khẩu" className="grid gap-2 sm:grid-cols-2">
+            <label className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 text-sm transition ${useDefaultPassword ? 'border-brand-pink bg-brand-pink-surface text-brand-ink' : 'border-border bg-paper text-muted hover:border-brand-lavender'}`}>
+              <input type="radio" name="create-password-mode" checked={useDefaultPassword} onChange={() => changePasswordMode(true)} className="mt-0.5 accent-brand-highlight" />
+              <span><strong className="block">Mật khẩu mặc định</strong><span className="text-xs">Ocs@123456</span></span>
+            </label>
+            <label className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 text-sm transition ${!useDefaultPassword ? 'border-brand-pink bg-brand-pink-surface text-brand-ink' : 'border-border bg-paper text-muted hover:border-brand-lavender'}`}>
+              <input type="radio" name="create-password-mode" checked={!useDefaultPassword} onChange={() => changePasswordMode(false)} className="mt-0.5 accent-brand-highlight" />
+              <span><strong className="block">Mật khẩu tự đặt</strong><span className="text-xs">Nhập mật khẩu riêng cho tài khoản này</span></span>
+            </label>
+          </div>
+        </div>
+        {!useDefaultPassword && <Input label="Mật khẩu" type={showCreatePassword ? 'text' : 'password'} autoComplete="new-password" required value={form.password} onChange={e => updateForm('password', e.target.value)} error={fieldErrors.password} helperText="8–70 ký tự, chữ hoa, chữ thường, số hoặc ký tự đặc biệt; tối đa 72 byte." endAdornment={<button type="button" aria-label={showCreatePassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-pressed={showCreatePassword} onClick={() => setShowCreatePassword(value => !value)} className="rounded p-1 text-muted hover:text-brand-highlight focus-visible:outline-2 focus-visible:outline-brand-pink-focus">{showCreatePassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>} />}
         <Input label="Chức danh" required value={form.jobTitle} onChange={e => updateForm('jobTitle', e.target.value)} error={fieldErrors.jobTitle} />
         <Input label="Ngày vào làm" type="date" required value={form.hiredOn} onChange={e => updateForm('hiredOn', e.target.value)} error={fieldErrors.hiredOn} />
         {isAdmin && <Select label="Vai trò" value={createRole} onChange={e => setCreateRole(e.target.value as InternalRole)}>{roleOptions.map(role => <option key={role} value={role}>{role}</option>)}</Select>}
@@ -276,6 +378,8 @@ export function AccountManagement() {
         <div className="flex flex-wrap gap-2">
           {isAdmin && <Button size="sm" variant="outline" onClick={() => openEditAccount(selected)}>Sửa thông tin tài khoản</Button>}
           {selected.accountType === 'Internal' && (isAdmin || canManage(selected)) && <Button size="sm" variant="outline" onClick={() => void openEditProfile(selected)}>Sửa hồ sơ nhân viên</Button>}
+          {isAdmin && selected.id !== user?.id && !selected.isProtected && <Button size="sm" variant="outline" onClick={() => openPasswordReset(selected)}>Đặt lại mật khẩu</Button>}
+          {isAdmin && <Button size="sm" variant="outline" onClick={() => openHistory(selected.id)} startIcon={<Clock3 size={14} />}>Lịch sử thao tác</Button>}
         </div>
         {canManage(selected) && <div><h3 className="mb-2 font-semibold">Trạng thái</h3><div className="flex flex-wrap gap-2">
           {selected.status === 'Active' && <Button size="sm" variant="outline" onClick={() => queueStatus(selected, 'Khóa tài khoản', () => accountsApi.lock(selected.id, true), 'Các phiên đăng nhập hiện tại sẽ bị thu hồi.')}>Khóa</Button>}
@@ -303,5 +407,20 @@ export function AccountManagement() {
       </form>}
     </Modal>
     <Modal open={!!action} onClose={returnFromAction} title={`Xác nhận ${action?.label.toLowerCase() || 'thao tác'}`} description={action ? `${action.account.fullName} · ${action.account.email || action.account.phoneNumber}` : undefined} loading={submitting} footer={<><Button variant="outline" onClick={returnFromAction} disabled={submitting}>Quay lại chi tiết</Button><Button variant="danger" onClick={() => void runAction()} loading={submitting}>Xác nhận</Button></>}><p className="text-sm text-ink">{action?.impact}</p></Modal>
+    <Modal open={!!resetTarget} onClose={closePasswordReset} title="Đặt lại mật khẩu" description={resetTarget ? `${resetTarget.fullName} · ${resetTarget.email || resetTarget.phoneNumber}` : undefined} loading={resetSubmitting} footer={resetConfirming ? <><Button variant="outline" onClick={() => setResetConfirming(false)} disabled={resetSubmitting}>Quay lại</Button><Button variant="danger" type="submit" form="password-reset-form" loading={resetSubmitting}>Đặt lại mật khẩu</Button></> : <><Button variant="outline" onClick={closePasswordReset}>Quay lại chi tiết</Button><Button type="submit" form="password-reset-form">Tiếp tục</Button></>}>
+      {resetTarget && <form id="password-reset-form" onSubmit={event => void submitPasswordReset(event)} className="space-y-4">
+        {resetConfirming ? <div className="space-y-3 rounded-xl bg-state-warning-soft p-4 text-sm text-state-warning-strong"><p>Bạn sắp đặt lại mật khẩu cho <strong>{resetTarget.fullName}</strong>.</p><p>Mọi phiên đăng nhập của tài khoản sẽ bị thu hồi. Mật khẩu sẽ không được hiển thị lại sau khi hoàn tất.</p><p>{resetUseDefault ? 'Mật khẩu mặc định sẽ là Ocs@123456.' : 'Tài khoản sẽ dùng mật khẩu tự chọn vừa nhập.'}</p></div> : <>
+          {resetTarget.accountType === 'Internal' ? <div role="radiogroup" aria-label="Mật khẩu mới" className="grid gap-2 sm:grid-cols-2">
+            <label className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 text-sm ${resetUseDefault ? 'border-brand-pink bg-brand-pink-surface text-brand-ink' : 'border-border text-muted'}`}><input type="radio" name="reset-password-mode" checked={resetUseDefault} onChange={() => { setResetUseDefault(true); setResetPassword(''); setResetError(null); }} className="mt-0.5 accent-brand-highlight" /><span><strong className="block">Mật khẩu mặc định</strong><span className="text-xs">Ocs@123456</span></span></label>
+            <label className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 text-sm ${!resetUseDefault ? 'border-brand-pink bg-brand-pink-surface text-brand-ink' : 'border-border text-muted'}`}><input type="radio" name="reset-password-mode" checked={!resetUseDefault} onChange={() => { setResetUseDefault(false); setResetPassword(''); setResetError(null); }} className="mt-0.5 accent-brand-highlight" /><span><strong className="block">Mật khẩu tự chọn</strong><span className="text-xs">Đặt mật khẩu mới</span></span></label>
+          </div> : <p className="rounded-lg bg-brand-pink-surface p-3 text-sm text-brand-ink">Customer cần được đặt mật khẩu tự chọn.</p>}
+          {(!resetUseDefault || resetTarget.accountType === 'Customer') && <Input label="Mật khẩu mới" type={resetPasswordVisible ? 'text' : 'password'} autoComplete="new-password" required value={resetPassword} onChange={event => { setResetPassword(event.target.value); setResetError(null); }} error={resetError} helperText="8–70 ký tự, chữ hoa, chữ thường, số hoặc ký tự đặc biệt; tối đa 72 byte." endAdornment={<button type="button" aria-label={resetPasswordVisible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-pressed={resetPasswordVisible} onClick={() => setResetPasswordVisible(value => !value)} className="rounded p-1 text-muted hover:text-brand-highlight focus-visible:outline-2 focus-visible:outline-brand-pink-focus">{resetPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}</button>} />}
+        </>}
+        {resetError && resetConfirming && <p role="alert" className="text-sm text-state-danger">{resetError}</p>}
+      </form>}
+    </Modal>
+    <Modal open={historyOpen} onClose={closeHistory} title="Lịch sử thao tác tài khoản" description={historyAccountId ? `Lịch sử cho ${historyReturnAccount?.fullName || 'tài khoản đã chọn'}` : 'Các thay đổi được ghi nhận trong hệ thống.'} className="!max-w-[90vw]" footer={<div className="flex w-full items-center justify-between"><span className="text-sm text-muted">{historyData?.totalCount ?? 0} sự kiện</span><div className="flex items-center gap-3"><Pagination page={historyPage} totalPages={historyData?.totalPages ?? 0} onPageChange={setHistoryPage} /><Button variant="outline" onClick={closeHistory}>{historyReturnAccount ? 'Quay lại chi tiết' : 'Đóng'}</Button></div></div>}>
+      {historyError ? <ErrorState title="Không thể tải lịch sử" description={historyError} onRetry={() => { setHistoryData(null); setHistoryRefreshKey(value => value + 1); }} /> : historyLoading ? <Loading label="Đang tải lịch sử..." className="py-10" /> : !historyData?.items.length ? <EmptyState title="Chưa có lịch sử thao tác" description="Các thay đổi đã được ghi nhận sẽ xuất hiện ở đây." /> : <div className="max-h-[65vh] overflow-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="sticky top-0 bg-brand-pink-surface text-xs uppercase tracking-wide text-muted"><tr>{['Thời điểm', 'Người thực hiện', 'Thao tác', 'Loại dữ liệu', 'Nguồn', 'Thay đổi'].map(label => <th key={label} className="px-3 py-3">{label}</th>)}</tr></thead><tbody className="divide-y divide-border">{historyData.items.map((item: AccountHistoryItem) => <tr key={item.id} className="align-top"><td className="whitespace-nowrap px-3 py-3">{new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(item.occurredAt))}</td><td className="max-w-36 break-all px-3 py-3 text-xs">{item.actorAccountId}</td><td className="px-3 py-3 font-semibold">{item.action}</td><td className="px-3 py-3">{item.entityType}</td><td className="px-3 py-3">{item.source}</td><td className="max-w-sm px-3 py-3"><pre className="max-h-36 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface p-2 text-xs">{JSON.stringify(item.changes ?? {}, null, 2)}</pre></td></tr>)}</tbody></table></div>}
+    </Modal>
   </div>;
 }

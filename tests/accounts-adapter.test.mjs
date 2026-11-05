@@ -37,3 +37,14 @@ test('account and employee edits use the documented endpoints and full payloads'
     { method: 'PATCH', path: '/accounts/id-1/employee-profile', body: profile },
   ]);
 });
+
+test('account creation sends default and custom password modes to the correct endpoints', async () => {
+  requests.length = 0;
+  const fields = { fullName: 'An', email: 'an@example.com', phoneNumber: '0900000000', username: 'an', jobTitle: 'Nhân viên', hiredOn: '2026-11-05' };
+  await accountsApi.create({ ...fields, password: null, useDefaultPassword: true }, 'Staff', false);
+  await accountsApi.create({ ...fields, password: 'Example123!', useDefaultPassword: false }, 'Manager', true);
+  assert.deepEqual(requests, [
+    { method: 'POST', path: '/accounts/staff', body: { ...fields, password: null, useDefaultPassword: true } },
+    { method: 'POST', path: '/accounts/internal', body: { ...fields, password: 'Example123!', useDefaultPassword: false, role: 'Manager' } },
+  ]);
+});
