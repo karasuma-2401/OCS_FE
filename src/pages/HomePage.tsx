@@ -1,9 +1,12 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Recycle, Shirt, Sparkles } from 'lucide-react';
+import { lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import fashionHero from '@/assets/images/fashion-campaign.jpg';
 import './HomePage.css';
+
+const LandingRail = lazy(() => import('@/components/customer/LandingRail'));
 
 export function HomePage() {
   return (
@@ -35,6 +38,10 @@ export function HomePage() {
             <Link className="landing-discover__card landing-discover__card--two" to="/consign"><span className="landing-discover__number">02 / KÝ GỬI</span><Recycle size={31} strokeWidth={1.2} aria-hidden="true" /><div><h3>Trao đồ thêm hành trình</h3><p>Để những món đồ cũ tiếp tục được yêu thích.</p></div><ArrowUpRight className="landing-discover__arrow" size={19} aria-hidden="true" /></Link>
           </div>
         </section>
+
+        <Suspense fallback={<div className="landing-rail landing-rail--loading landing-container" aria-hidden="true" />}>
+          <LandingRail />
+        </Suspense>
 
         <section className="landing-process landing-container" id="ky-gui">
           <div className="landing-process__intro"><span className="landing-eyebrow">HOW IT WORKS</span><h2>Ký gửi gọn gàng.<br />Bắt đầu thật dễ.</h2><Link to="/consign" className="landing-text-link">Tìm hiểu cách ký gửi <ArrowRight size={16} aria-hidden="true" /></Link></div>

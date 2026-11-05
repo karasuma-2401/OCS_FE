@@ -16,6 +16,8 @@ import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 
+const ProductRailPreviewPage = React.lazy(() => import('./pages/ProductRailPreviewPage'));
+
 const CustomerLayout: React.FC = () => {
   return (
     <div className="landing customer-layout">
@@ -52,6 +54,7 @@ export default function App() {
 
       {/* UI Components Kit preview */}
       <Route path="/ui-components" element={<UIComponentsPage />} />
+      <Route path="/ui-components/product-rail-gallery" element={<React.Suspense fallback={null}><ProductRailPreviewPage /></React.Suspense>} />
 
       {/* Protected Shop / Admin routes */}
       <Route

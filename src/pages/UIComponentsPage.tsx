@@ -44,6 +44,12 @@ export const UIComponentsPage: React.FC = () => {
         </div>
 
         <div className="mt-8 grid gap-5 md:grid-cols-2">
+          <Card title="Product Rail Gallery" description="Preview tương tác toàn màn hình với dữ liệu mẫu">
+            <Link to="/ui-components/product-rail-gallery" className="inline-flex rounded-control bg-ink px-4 py-2 text-sm font-semibold text-paper hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+              Xem Product Rail Gallery
+            </Link>
+          </Card>
+
           <Card title="Button" description="Biến thể, disabled và loading">
             <div className="flex flex-wrap gap-2">
               <Button>Primary</Button>
