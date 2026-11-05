@@ -15,6 +15,7 @@ import { ShopDashboardPage } from './pages/ShopDashboardPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
+import { ProfilePage } from './pages/ProfilePage';
 
 const ProductRailPreviewPage = React.lazy(() => import('./pages/ProductRailPreviewPage'));
 
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/consign" element={<ConsignPage />} />
         <Route path="/cach-ky-gui" element={<ConsignPage />} />
         <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
       </Route>
 

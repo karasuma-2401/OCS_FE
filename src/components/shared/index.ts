@@ -1,5 +1,7 @@
 export { Button } from "./grdBtn";
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./grdBtn";
+export { Combobox } from "./Combobox";
+export type { ComboboxOption, ComboboxProps } from "./Combobox";
 export {
   Badge,
   Card,

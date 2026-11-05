@@ -3,8 +3,11 @@ import { lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { CatalogProductCard } from '@/components/customer/CatalogProductCard';
+import { catalogProducts } from '@/data/catalogProducts';
 import fashionHero from '@/assets/images/fashion-campaign.jpg';
 import './HomePage.css';
+import './CustomerPages.css';
 
 const LandingRail = lazy(() => import('@/components/customer/LandingRail'));
 
@@ -42,6 +45,15 @@ export function HomePage() {
         <Suspense fallback={<div className="landing-rail landing-rail--loading landing-container" aria-hidden="true" />}>
           <LandingRail />
         </Suspense>
+
+        <section className="landing-featured landing-container" aria-labelledby="landing-featured-title">
+          <div className="landing-section-heading">
+            <div><span className="landing-eyebrow">THE OCS EDIT</span><h2 id="landing-featured-title">Một chút cảm hứng cho bạn.</h2><p>Những món đồ nhỏ, thêm nhiều cách thể hiện chính mình.</p></div>
+            <Link className="landing-text-link" to="/catalog">Xem tất cả <ArrowUpRight size={16} aria-hidden="true" /></Link>
+          </div>
+          <p className="landing-featured__note">Sản phẩm và giá hiển thị chỉ mang tính minh họa.</p>
+          <div className="catalog-grid">{catalogProducts.map((product) => <CatalogProductCard key={product.code} product={product} />)}</div>
+        </section>
 
         <section className="landing-process landing-container" id="ky-gui">
           <div className="landing-process__intro"><span className="landing-eyebrow">HOW IT WORKS</span><h2>Ký gửi gọn gàng.<br />Bắt đầu thật dễ.</h2><Link to="/consign" className="landing-text-link">Tìm hiểu cách ký gửi <ArrowRight size={16} aria-hidden="true" /></Link></div>
