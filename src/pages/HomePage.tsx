@@ -1,9 +1,10 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Recycle, Shirt, Sparkles } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { CatalogProductCard } from '@/components/customer/CatalogProductCard';
+import { ProductDetailModal } from '@/components/customer/ProductDetailModal';
 import { LandingProcess } from '@/components/customer/LandingProcess';
 import { getPublicProducts, type PublicProduct } from '@/api/products';
 import fashionHero from '@/assets/images/fashion-campaign.jpg';
@@ -13,9 +14,24 @@ import './CustomerPages.css';
 const LandingRail = lazy(() => import('@/components/customer/LandingRail'));
 
 export function HomePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedProductId = searchParams.get('product');
+
   const [featuredProducts, setFeaturedProducts] = useState<PublicProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  function handleSelectProduct(product: PublicProduct) {
+    const next = new URLSearchParams(searchParams);
+    next.set('product', product.id);
+    setSearchParams(next, { replace: true });
+  }
+
+  function handleCloseDetail() {
+    const next = new URLSearchParams(searchParams);
+    next.delete('product');
+    setSearchParams(next, { replace: true });
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -100,7 +116,11 @@ export function HomePage() {
           ) : (
             <div className="catalog-grid">
               {featuredProducts.map((product) => (
-                <CatalogProductCard key={product.id} product={product} />
+                <CatalogProductCard
+                  key={product.id}
+                  product={product}
+                  onSelect={handleSelectProduct}
+                />
               ))}
             </div>
           )}
@@ -111,6 +131,11 @@ export function HomePage() {
         <section className="landing-banner landing-container"><div><span className="landing-eyebrow"><Sparkles size={14} aria-hidden="true" /> MỘT VÒNG ĐỜI MỚI</span><h2>Một lựa chọn nhỏ.<br />Thêm nhiều điều thú vị.</h2><p>Khám phá thời trang secondhand cùng OCS.</p></div><Link to="/catalog" className="landing-button">Khám phá ngay <ArrowUpRight size={16} aria-hidden="true" /></Link></section>
       </main>
       <Footer />
+
+      <ProductDetailModal
+        productId={selectedProductId}
+        onClose={handleCloseDetail}
+      />
     </div>
   );
 }

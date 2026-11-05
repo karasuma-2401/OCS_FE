@@ -2,24 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight, RefreshCw, RotateCcw, Search, Sparkles, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CatalogProductCard } from '@/components/customer/CatalogProductCard';
-import { ProductImageGallery } from '@/components/customer/ProductImageGallery';
-import { Combobox, Modal } from '@/components/shared';
+import { ProductDetailModal } from '@/components/customer/ProductDetailModal';
+import { Combobox } from '@/components/shared';
 import {
   CATEGORY_NAMES,
   CATEGORY_SEED_MAP,
-  formatVndPrice,
   getCategoryNameById,
-  getPublicProductDetail,
   getPublicProducts,
   type PagedResponse,
   type ProductSortOption,
   type PublicProduct,
-  type PublicProductDetail,
 } from '@/api/products';
 import './CustomerPages.css';
-
-const EMPTY_IMAGE_PLACEHOLDER =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500' viewBox='0 0 400 500'%3E%3Crect width='400' height='500' fill='%23f2e8e9'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23a89aa1' font-family='sans-serif' font-size='16'%3ECh%C6%B0a c%C3%B3 %E1%BA%A3nh%3C/text%3E%3C/svg%3E";
 
 const SIZE_OPTIONS = [
   { value: '', label: 'Tất cả size' },
@@ -125,11 +119,6 @@ export function CatalogPage() {
   const [error, setError] = useState<string | null>(null);
   const [reloadCounter, setReloadCounter] = useState(0);
 
-  // Detail Modal state
-  const [detailProduct, setDetailProduct] = useState<PublicProductDetail | null>(null);
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
-
   // Fetch Catalog items
   useEffect(() => {
     const controller = new AbortController();
@@ -183,40 +172,6 @@ export function CatalogPage() {
 
     return () => controller.abort();
   }, [urlPage, urlQ, resolvedCategory.id, urlSize, urlCondition, urlPrice, urlSort, reloadCounter]);
-
-  // Fetch product detail modal when ?product=<id> is present
-  useEffect(() => {
-    if (!selectedProductId) {
-      setDetailProduct(null);
-      setIsDetailLoading(false);
-      setDetailError(null);
-      return;
-    }
-
-    const controller = new AbortController();
-    setIsDetailLoading(true);
-    setDetailError(null);
-
-    getPublicProductDetail(selectedProductId, controller.signal)
-      .then((detail) => {
-        setDetailProduct(detail);
-      })
-      .catch((err) => {
-        if (controller.signal.aborted) return;
-        if (err?.response?.status === 404 || err?.response?.data?.code === 'PRODUCT.NOT_FOUND') {
-          setDetailError('Không tìm thấy sản phẩm hoặc sản phẩm không còn mở bán công khai.');
-        } else {
-          setDetailError('Không thể tải thông tin chi tiết sản phẩm. Vui lòng thử lại sau.');
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsDetailLoading(false);
-        }
-      });
-
-    return () => controller.abort();
-  }, [selectedProductId]);
 
   // Helper to update URL search parameters
   function updateUrlParams(updates: Record<string, string | number | undefined>) {
@@ -274,19 +229,13 @@ export function CatalogPage() {
     setSearchParams(next, { replace: true });
   }
 
-  const hasFilters = Boolean(urlQ || resolvedCategory.name !== 'Tất cả' || urlSize || urlCondition || urlPrice || urlSort !== 'newest');
+  function handleSelectProduct(product: PublicProduct) {
+    const next = new URLSearchParams(searchParams);
+    next.set('product', product.id);
+    setSearchParams(next, { replace: true });
+  }
 
-  // Prepare images for gallery
-  const galleryImages = useMemo(() => {
-    if (!detailProduct) return [];
-    if (!detailProduct.images || detailProduct.images.length === 0) {
-      return [{ src: EMPTY_IMAGE_PLACEHOLDER, label: 'Ảnh sản phẩm' }];
-    }
-    return detailProduct.images.map((img, index) => ({
-      src: img.url,
-      label: img.imageType === 'Cover' ? 'Ảnh bìa' : (index > 0 ? `Ảnh chi tiết ${index}` : 'Ảnh chi tiết'),
-    }));
-  }, [detailProduct]);
+  const hasFilters = Boolean(urlQ || resolvedCategory.name !== 'Tất cả' || urlSize || urlCondition || urlPrice || urlSort !== 'newest');
 
   return (
     <div className="customer-page landing-container">
@@ -418,7 +367,11 @@ export function CatalogPage() {
           <>
             <div className="catalog-grid">
               {data.items.map((product) => (
-                <CatalogProductCard key={product.id} product={product} />
+                <CatalogProductCard
+                  key={product.id}
+                  product={product}
+                  onSelect={handleSelectProduct}
+                />
               ))}
             </div>
 
@@ -477,61 +430,10 @@ export function CatalogPage() {
       </section>
 
       {/* Modal chi tiết sản phẩm kết nối API Public Detail */}
-      <Modal
-        open={Boolean(selectedProductId)}
+      <ProductDetailModal
+        productId={selectedProductId}
         onClose={closeDetails}
-        title={detailProduct?.name ?? (isDetailLoading ? 'Đang tải thông tin...' : 'Chi tiết sản phẩm')}
-        description="Thông tin sản phẩm đang bán tại OCS"
-      >
-        {isDetailLoading ? (
-          <div className="catalog-detail" aria-label="Đang tải chi tiết sản phẩm">
-            <div className="catalog-skeleton-image" style={{ width: '100%', height: '240px', borderRadius: 9 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              <div className="catalog-skeleton-line catalog-skeleton-line--short" />
-              <div className="catalog-skeleton-line catalog-skeleton-line--title" />
-              <div className="catalog-skeleton-line" />
-              <div className="catalog-skeleton-line catalog-skeleton-line--price" />
-            </div>
-          </div>
-        ) : detailError ? (
-          <div className="catalog-error-state" style={{ margin: '1rem 0' }}>
-            <h3>Không thể hiển thị sản phẩm</h3>
-            <p>{detailError}</p>
-            <button type="button" onClick={closeDetails}>
-              Đóng
-            </button>
-          </div>
-        ) : detailProduct ? (
-          <div className="catalog-detail">
-            <ProductImageGallery
-              key={detailProduct.id}
-              productName={detailProduct.name}
-              images={galleryImages}
-            />
-            <div>
-              <span className="catalog-detail__category">
-                {detailProduct.category?.name || 'Sản phẩm'} · {detailProduct.brand?.name || 'Chính hãng'}
-              </span>
-              <p>{detailProduct.description || 'Chưa có mô tả chi tiết cho sản phẩm này.'}</p>
-              <dl>
-                <div>
-                  <dt>Size</dt>
-                  <dd>{detailProduct.size}</dd>
-                </div>
-                <div>
-                  <dt>Tình trạng</dt>
-                  <dd>{detailProduct.conditionPercentage}%</dd>
-                </div>
-                <div>
-                  <dt>Trạng thái</dt>
-                  <dd>Đang bán</dd>
-                </div>
-              </dl>
-              <strong>{formatVndPrice(detailProduct.listedPrice)}</strong>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
+      />
     </div>
   );
 }

@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, Shirt } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { formatVndPrice, type PublicProduct } from '@/api/products';
 
 export interface CatalogProductCardProps {
   product: PublicProduct;
+  onSelect?: (product: PublicProduct) => void;
 }
 
-export function CatalogProductCard({ product }: CatalogProductCardProps) {
+export function CatalogProductCard({ product, onSelect }: CatalogProductCardProps) {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [hasImageError, setHasImageError] = useState(false);
 
   useEffect(() => {
@@ -16,11 +19,29 @@ export function CatalogProductCard({ product }: CatalogProductCardProps) {
 
   const showPlaceholder = !product.coverImageUrl || hasImageError;
 
+  // Build target URL by keeping all existing search parameters and adding/updating `product`
+  const targetUrl = useMemo(() => {
+    const next = new URLSearchParams(searchParams);
+    next.set('product', product.id);
+    return `${location.pathname}?${next.toString()}`;
+  }, [location.pathname, searchParams, product.id]);
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Only intercept standard left-click without modifier keys (allow middle click or Ctrl/Cmd click to open in new tab)
+    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+      if (onSelect) {
+        e.preventDefault();
+        onSelect(product);
+      }
+    }
+  };
+
   return (
     <article className="product-card">
       <Link
         className="product-card__link"
-        to={`/catalog?product=${encodeURIComponent(product.id)}`}
+        to={targetUrl}
+        onClick={handleClick}
         aria-label={`Xem chi tiết ${product.name}`}
       >
         <div className="product-card__image">
