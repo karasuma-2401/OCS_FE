@@ -1,11 +1,11 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Recycle, Shirt, Sparkles } from 'lucide-react';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { CatalogProductCard } from '@/components/customer/CatalogProductCard';
 import { LandingProcess } from '@/components/customer/LandingProcess';
-import { catalogProducts } from '@/data/catalogProducts';
+import { getPublicProducts, type PublicProduct } from '@/api/products';
 import fashionHero from '@/assets/images/fashion-campaign.jpg';
 import './HomePage.css';
 import './CustomerPages.css';
@@ -13,6 +13,32 @@ import './CustomerPages.css';
 const LandingRail = lazy(() => import('@/components/customer/LandingRail'));
 
 export function HomePage() {
+  const [featuredProducts, setFeaturedProducts] = useState<PublicProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setIsLoading(true);
+    setError(null);
+
+    getPublicProducts({ page: 1, pageSize: 4, sort: 'newest' }, controller.signal)
+      .then((res) => {
+        setFeaturedProducts(res.items);
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setError('Không thể tải danh sách sản phẩm nổi bật.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
+
   return (
     <div className="landing">
       <Navbar />
@@ -52,8 +78,29 @@ export function HomePage() {
             <div><span className="landing-eyebrow">THE OCS EDIT</span><h2 id="landing-featured-title">Một chút cảm hứng cho bạn.</h2><p>Những món đồ nhỏ, thêm nhiều cách thể hiện chính mình.</p></div>
             <Link className="landing-text-link" to="/catalog">Xem tất cả <ArrowUpRight size={16} aria-hidden="true" /></Link>
           </div>
-          <p className="landing-featured__note">Sản phẩm và giá hiển thị chỉ mang tính minh họa.</p>
-          <div className="catalog-grid">{catalogProducts.map((product) => <CatalogProductCard key={product.code} product={product} />)}</div>
+          {isLoading ? (
+            <div className="catalog-grid" aria-label="Đang tải sản phẩm nổi bật">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="catalog-skeleton-card">
+                  <div className="catalog-skeleton-image" />
+                  <div className="catalog-skeleton-line catalog-skeleton-line--short" />
+                  <div className="catalog-skeleton-line catalog-skeleton-line--title" />
+                  <div className="catalog-skeleton-line catalog-skeleton-line--price" />
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="catalog-error-state">
+              <p>{error}</p>
+              <Link to="/catalog" className="landing-button">Khám phá danh mục</Link>
+            </div>
+          ) : (
+            <div className="catalog-grid">
+              {featuredProducts.map((product) => (
+                <CatalogProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </section>
 
         <LandingProcess />
