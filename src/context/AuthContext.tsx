@@ -17,6 +17,7 @@ export interface AuthContextType {
   login: (credentials: LoginRequest) => Promise<LoginResponse>;
   logout: () => Promise<void>;
   retryBootstrap: () => Promise<void>;
+  revalidateSession: () => Promise<void>;
   hasRole: (role: RoleCode) => boolean;
 }
 
@@ -44,9 +45,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Check current session against /me
-  const checkAuth = useCallback(async () => {
-    setStatus('checking');
-    setBootstrapError(false);
+  const checkAuth = useCallback(async (foreground = false) => {
+    if (foreground) {
+      setStatus('checking');
+      setBootstrapError(false);
+    }
     try {
       const data = await getMe();
       setUser(data.user);
@@ -60,15 +63,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setStatus('anonymous');
       } else {
         // Network error / timeout / 5xx: do NOT assume cookie was revoked
-        setBootstrapError(true);
-        setStatus('anonymous');
+        if (foreground) {
+          setBootstrapError(true);
+          setStatus('anonymous');
+        }
       }
     }
   }, []);
 
   // Initial bootstrap on mount
   useEffect(() => {
-    void checkAuth();
+    void checkAuth(true);
   }, [checkAuth]);
 
   // Hook into apiClient 401 interceptor
@@ -98,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setStatus('anonymous');
           clearCsrfToken();
         } else if (event.data === 'LOGIN') {
-          void checkAuth();
+          void checkAuth(true);
         }
       };
     } catch {
@@ -171,6 +176,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Retry bootstrap action
   const retryBootstrap = useCallback(async () => {
+    await checkAuth(true);
+  }, [checkAuth]);
+
+  const revalidateSession = useCallback(async () => {
     await checkAuth();
   }, [checkAuth]);
 
@@ -199,6 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         retryBootstrap,
+        revalidateSession,
         hasRole,
       }}
     >

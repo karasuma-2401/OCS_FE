@@ -54,6 +54,8 @@ export default function App() {
       <Route path="/ui-components" element={<UIComponentsPage />} />
 
       {/* Protected Shop / Admin routes */}
+      <Route path="/admin/accounts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ShopDashboardPage initialTab="accounts" /></ProtectedRoute>} />
+      <Route path="/shop/accounts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ShopDashboardPage initialTab="accounts" /></ProtectedRoute>} />
       <Route
         path="/admin"
         element={

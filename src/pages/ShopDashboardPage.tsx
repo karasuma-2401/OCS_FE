@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ShopNavBar, { type ShopNavId, type ShopNavItem } from '@/components/layout/Store/ShopNavBar';
 import { useAuth } from '@/context/AuthContext';
 import { Card, Button, Badge } from '@/components/shared';
 import { ShoppingCart, Package, FileText, Users, DollarSign, BarChart3, Settings, LogOut, ArrowLeft } from 'lucide-react';
 import { AppointmentManagement } from '@/components/shop/AppointmentManagement';
+import { AccountManagement } from '@/components/shop/AccountManagement';
 
 interface ShopDashboardPageProps {
   initialTab?: ShopNavId;
@@ -46,6 +47,11 @@ const tabTitles: Record<ShopNavId, { title: string; desc: string; icon: React.Re
     desc: 'Thiết lập tỷ lệ hoa hồng mặc định, quy định thời hạn ký gửi và cấu hình máy in hóa đơn.',
     icon: <Settings size={24} className="text-accent" />,
   },
+  accounts: {
+    title: 'Quản lý tài khoản',
+    desc: 'Danh sách tài khoản và phân quyền nhân sự.',
+    icon: <Users size={24} className="text-accent" />,
+  },
 };
 
 export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab = 'pos' }) => {
@@ -58,17 +64,24 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
     if (location.pathname.includes('/admin/pos')) return 'pos';
     if (location.pathname.includes('/admin/products') || location.pathname.includes('/shop/kho')) return 'inventory';
     if (location.pathname.includes('/admin/contracts') || location.pathname.includes('/shop/ky-gui')) return 'consignment';
+    if (location.pathname.includes('/admin/customers') || location.pathname.includes('/shop/khach-hang')) return 'customers';
     if (location.pathname.includes('/admin/settlement') || location.pathname.includes('/shop/quyet-toan')) return 'settlement';
     if (location.pathname.includes('/admin/reports') || location.pathname.includes('/shop/bao-cao')) return 'reports';
     if (location.pathname.includes('/admin/settings') || location.pathname.includes('/shop/cau-hinh')) return 'settings';
+    if (location.pathname.includes('/admin/accounts') || location.pathname.includes('/shop/accounts')) return 'accounts';
     return initialTab;
   };
 
   const [activeTab, setActiveTab] = useState<ShopNavId>(getTabFromPath());
   const [logoutError, setLogoutError] = useState(false);
 
+  useEffect(() => {
+    setActiveTab(getTabFromPath());
+  }, [location.pathname]);
+
   const handleNavigate = (item: ShopNavItem) => {
     setActiveTab(item.id);
+    navigate(item.href);
   };
 
   const currentTabInfo = tabTitles[activeTab];
@@ -77,6 +90,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
     <div className="min-h-screen bg-surface-dashboard px-3 pt-[11px] pb-12">
       <ShopNavBar
         activeItem={activeTab}
+        showAccounts={user?.roles?.includes('Admin') || user?.roles?.includes('Manager')}
         profileName={user?.fullName || user?.email || 'Nhân viên'}
         onNavigate={handleNavigate}
         onProfileClick={() => navigate('/admin')}
@@ -122,7 +136,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         </div>
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
-        {activeTab === 'consignment' ? <AppointmentManagement /> : <Card className="p-6 mb-6">
+        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : <Card className="p-6 mb-6">
           <p className="text-sm text-muted">{currentTabInfo.desc}</p>
           <div className="mt-6 rounded-xl border border-dashed border-border p-8 text-center bg-white">
             <p className="text-sm font-semibold text-ink">
