@@ -95,6 +95,9 @@ let isHandling401 = false;
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response?.status === 403 && error.response?.data?.code === 'AUTH.CSRF_INVALID') {
+      clearCsrfToken();
+    }
     if (error.response?.status === 401) {
       const requestUrl = (error.config as AxiosRequestConfig)?.url || '';
       const isLoginRequest = requestUrl.includes('/auth/login');
