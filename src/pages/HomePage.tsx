@@ -22,7 +22,7 @@ export function HomePage() {
     setIsLoading(true);
     setError(null);
 
-    getPublicProducts({ page: 1, pageSize: 4, sort: 'newest' }, controller.signal)
+    getPublicProducts({ page: 1, pageSize: 3, sort: 'newest' }, controller.signal)
       .then((res) => {
         setFeaturedProducts(res.items);
       })
@@ -80,7 +80,7 @@ export function HomePage() {
           </div>
           {isLoading ? (
             <div className="catalog-grid" aria-label="Đang tải sản phẩm nổi bật">
-              {[...Array(4)].map((_, i) => (
+              {[...Array(3)].map((_, i) => (
                 <div key={i} className="catalog-skeleton-card">
                   <div className="catalog-skeleton-image" />
                   <div className="catalog-skeleton-line catalog-skeleton-line--short" />

@@ -117,7 +117,7 @@ export function CatalogPage() {
   const [data, setData] = useState<PagedResponse<PublicProduct>>({
     items: [],
     page: 1,
-    pageSize: 6,
+    pageSize: 9,
     totalCount: 0,
     totalPages: 0,
   });
@@ -153,7 +153,7 @@ export function CatalogPage() {
     getPublicProducts(
       {
         page: urlPage,
-        pageSize: 6,
+        pageSize: 9,
         q: urlQ || undefined,
         categoryId: resolvedCategory.id,
         size: urlSize || undefined,
@@ -397,7 +397,7 @@ export function CatalogPage() {
 
         {isLoading ? (
           <div className="catalog-grid" aria-label="Đang tải danh sách sản phẩm">
-            {[...Array(6)].map((_, i) => (
+            {[...Array(9)].map((_, i) => (
               <div key={i} className="catalog-skeleton-card">
                 <div className="catalog-skeleton-image" />
                 <div className="catalog-skeleton-line catalog-skeleton-line--short" />
