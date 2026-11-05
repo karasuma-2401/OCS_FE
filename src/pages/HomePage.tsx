@@ -1,9 +1,16 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Recycle, Shirt, Sparkles } from 'lucide-react';
+import { lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { CatalogProductCard } from '@/components/customer/CatalogProductCard';
+import { LandingProcess } from '@/components/customer/LandingProcess';
+import { catalogProducts } from '@/data/catalogProducts';
 import fashionHero from '@/assets/images/fashion-campaign.jpg';
 import './HomePage.css';
+import './CustomerPages.css';
+
+const LandingRail = lazy(() => import('@/components/customer/LandingRail'));
 
 export function HomePage() {
   return (
@@ -36,10 +43,20 @@ export function HomePage() {
           </div>
         </section>
 
-        <section className="landing-process landing-container" id="ky-gui">
-          <div className="landing-process__intro"><span className="landing-eyebrow">HOW IT WORKS</span><h2>Ký gửi gọn gàng.<br />Bắt đầu thật dễ.</h2><Link to="/consign" className="landing-text-link">Tìm hiểu cách ký gửi <ArrowRight size={16} aria-hidden="true" /></Link></div>
-          <div className="landing-process__steps"><div><span>01</span><h3>Chuẩn bị</h3><p>Chọn và làm sạch những món đồ bạn muốn ký gửi.</p></div><div><span>02</span><h3>Mang đến OCS</h3><p>Cùng cửa hàng kiểm tra và thỏa thuận thông tin.</p></div><div><span>03</span><h3>Theo dõi</h3><p>Theo dõi hành trình của những món đồ ký gửi.</p></div></div>
+        <Suspense fallback={<div className="landing-rail landing-rail--loading landing-container" aria-hidden="true" />}>
+          <LandingRail />
+        </Suspense>
+
+        <section className="landing-featured landing-container" aria-labelledby="landing-featured-title">
+          <div className="landing-section-heading">
+            <div><span className="landing-eyebrow">THE OCS EDIT</span><h2 id="landing-featured-title">Một chút cảm hứng cho bạn.</h2><p>Những món đồ nhỏ, thêm nhiều cách thể hiện chính mình.</p></div>
+            <Link className="landing-text-link" to="/catalog">Xem tất cả <ArrowUpRight size={16} aria-hidden="true" /></Link>
+          </div>
+          <p className="landing-featured__note">Sản phẩm và giá hiển thị chỉ mang tính minh họa.</p>
+          <div className="catalog-grid">{catalogProducts.map((product) => <CatalogProductCard key={product.code} product={product} />)}</div>
         </section>
+
+        <LandingProcess />
 
         <section className="landing-banner landing-container"><div><span className="landing-eyebrow"><Sparkles size={14} aria-hidden="true" /> MỘT VÒNG ĐỜI MỚI</span><h2>Một lựa chọn nhỏ.<br />Thêm nhiều điều thú vị.</h2><p>Khám phá thời trang secondhand cùng OCS.</p></div><Link to="/catalog" className="landing-button">Khám phá ngay <ArrowUpRight size={16} aria-hidden="true" /></Link></section>
       </main>

@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Card,
+  Combobox,
   EmptyState,
   ErrorState,
   Form,
@@ -21,6 +22,7 @@ export const UIComponentsPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [componentPage, setComponentPage] = useState(1);
+  const [selectedSize, setSelectedSize] = useState('');
 
   return (
     <main className="min-h-screen bg-surface-dashboard px-4 py-8 text-text-primary sm:px-6">
@@ -44,6 +46,12 @@ export const UIComponentsPage: React.FC = () => {
         </div>
 
         <div className="mt-8 grid gap-5 md:grid-cols-2">
+          <Card title="Product Rail Gallery" description="Preview tương tác toàn màn hình với dữ liệu mẫu">
+            <Link to="/ui-components/product-rail-gallery" className="inline-flex rounded-control bg-ink px-4 py-2 text-sm font-semibold text-paper hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+              Xem Product Rail Gallery
+            </Link>
+          </Card>
+
           <Card title="Button" description="Biến thể, disabled và loading">
             <div className="flex flex-wrap gap-2">
               <Button>Primary</Button>
@@ -54,6 +62,10 @@ export const UIComponentsPage: React.FC = () => {
               <Button loading>Đang lưu</Button>
               <Button disabled>Disabled</Button>
             </div>
+          </Card>
+
+          <Card title="Combobox" description="Chọn bằng chuột hoặc bàn phím">
+            <Combobox label="Size" value={selectedSize} onChange={setSelectedSize} placeholder="Chọn size" options={[{ value: 's', label: 'S' }, { value: 'm', label: 'M' }, { value: 'l', label: 'L' }, { value: 'xl', label: 'XL', disabled: true }]} helperText="Dùng phím mũi tên để di chuyển, Enter để chọn." />
           </Card>
 
           <Card title="Input & Select" description="Nhãn, trợ giúp và validation lỗi">

@@ -15,6 +15,9 @@ import { ShopDashboardPage } from './pages/ShopDashboardPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
+import { ProfilePage } from './pages/ProfilePage';
+
+const ProductRailPreviewPage = React.lazy(() => import('./pages/ProductRailPreviewPage'));
 
 const CustomerLayout: React.FC = () => {
   return (
@@ -41,6 +44,7 @@ export default function App() {
         <Route path="/consign" element={<ConsignPage />} />
         <Route path="/cach-ky-gui" element={<ConsignPage />} />
         <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
       </Route>
 
@@ -52,6 +56,7 @@ export default function App() {
 
       {/* UI Components Kit preview */}
       <Route path="/ui-components" element={<UIComponentsPage />} />
+      <Route path="/ui-components/product-rail-gallery" element={<React.Suspense fallback={null}><ProductRailPreviewPage /></React.Suspense>} />
 
       {/* Protected Shop / Admin routes */}
       <Route path="/admin/accounts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ShopDashboardPage initialTab="accounts" /></ProtectedRoute>} />

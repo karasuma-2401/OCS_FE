@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, CircleUserRound, LogOut, Menu, X } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, CircleUserRound, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import '@/pages/HomePage.css';
@@ -18,11 +18,34 @@ export function Navbar() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
+  const accountMenuId = useId();
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const handleOutside = (event: PointerEvent) => {
+      if (!accountRef.current?.contains(event.target as Node)) setAccountOpen(false);
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setAccountOpen(false);
+        accountButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', handleOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [accountOpen]);
 
   async function handleLogout() {
     setLoggingOut(true);
     setLogoutError(false);
-    try { await logout(); setMenuOpen(false); navigate('/'); } catch { setLogoutError(true); } finally { setLoggingOut(false); }
+    try { await logout(); setMenuOpen(false); setAccountOpen(false); navigate('/'); } catch { setLogoutError(true); } finally { setLoggingOut(false); }
   }
 
   return (
@@ -35,10 +58,19 @@ export function Navbar() {
         </nav>
         <div className="landing-header__actions">
           {isAuthenticated ? <>
-            <span className="landing-user"><CircleUserRound size={16} aria-hidden="true" /> {user?.fullName || user?.email}</span>
             <NotificationBell />
             {isStaffOrAdmin && <Link className="landing-header__login landing-header__management" to="/admin">Quản lý</Link>}
-            <button type="button" className="landing-header__login" onClick={handleLogout} disabled={loggingOut}><LogOut size={15} aria-hidden="true" /> {loggingOut ? 'Đang thoát...' : 'Đăng xuất'}</button>
+            <div className="landing-account" ref={accountRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAccountOpen(false); }}>
+              <button ref={accountButtonRef} type="button" className="landing-account__trigger" aria-label={`Tài khoản ${user?.fullName || user?.email || ''}`} aria-expanded={accountOpen} aria-controls={accountMenuId} onClick={() => setAccountOpen((open) => !open)}>
+                <CircleUserRound size={19} aria-hidden="true" />
+                <span className="landing-account__name">{user?.fullName || user?.email}</span>
+                <ChevronDown size={15} aria-hidden="true" className={accountOpen ? 'landing-account__chevron is-open' : 'landing-account__chevron'} />
+              </button>
+              {accountOpen && <div id={accountMenuId} className="landing-account__menu">
+                <Link to="/profile" className="landing-account__item" onClick={() => setAccountOpen(false)}><CircleUserRound size={17} aria-hidden="true" /> Hồ sơ cá nhân</Link>
+                <button type="button" className="landing-account__item landing-account__logout" onClick={handleLogout} disabled={loggingOut}><LogOut size={17} aria-hidden="true" /> {loggingOut ? 'Đang thoát...' : 'Đăng xuất'}</button>
+              </div>}
+            </div>
           </> : <Link className="landing-header__login" to="/login">Đăng nhập</Link>}
           <Link to="/consign" className="landing-button landing-button--small">Tìm hiểu ký gửi <ArrowUpRight size={15} aria-hidden="true" /></Link>
           <button type="button" className="landing-menu-toggle" aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={menuOpen} aria-controls="customer-mobile-menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
