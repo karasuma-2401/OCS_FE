@@ -22,6 +22,23 @@ export interface PagedAccounts {
   totalCount: number;
   totalPages: number;
 }
+export interface AccountHistoryItem {
+  id: string;
+  actorAccountId: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  changes: unknown;
+  occurredAt: string;
+  source: string;
+}
+export interface PagedAccountHistory {
+  items: AccountHistoryItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
 export interface CreateInternalAccount {
   fullName: string;
   email: string;
@@ -31,6 +48,10 @@ export interface CreateInternalAccount {
   jobTitle: string;
   hiredOn: string;
 }
+export type CreateInternalAccountRequest = Omit<CreateInternalAccount, 'password'> & {
+  password: string | null;
+  useDefaultPassword: boolean;
+};
 export interface UpdateAccountRequest {
   fullName: string;
   email: string;
@@ -58,7 +79,7 @@ export interface UpdateEmployeeProfileRequest {
 }
 
 export const accountsApi = {
-  async list(params: { page: number; pageSize: number; search?: string; accountType?: number; status?: number }) {
+  async list(params: { page: number; pageSize: number; search?: string; accountType?: number; status?: number; role?: RoleCode }) {
     const { data } = await apiClient.get<PagedAccounts>('/accounts', { params });
     return data;
   },
@@ -78,7 +99,7 @@ export const accountsApi = {
     const { data } = await apiClient.patch<EmployeeProfile>(`/accounts/${id}/employee-profile`, input);
     return data;
   },
-  async create(input: CreateInternalAccount, role: 'Admin' | 'Manager' | 'Staff', isAdmin: boolean) {
+  async create(input: CreateInternalAccountRequest, role: 'Admin' | 'Manager' | 'Staff', isAdmin: boolean) {
     const { data } = await apiClient.post<AccountSummary>(isAdmin ? '/accounts/internal' : '/accounts/staff', isAdmin ? { ...input, role } : input);
     return data;
   },
@@ -92,6 +113,13 @@ export const accountsApi = {
   },
   async roles(id: string, roles: Array<'Admin' | 'Manager' | 'Staff'>) {
     const { data } = await apiClient.put<AccountSummary>(`/accounts/${id}/roles`, { roles });
+    return data;
+  },
+  async resetPassword(id: string, password: string | null, useDefaultPassword: boolean) {
+    await apiClient.post<void>(`/accounts/${id}/reset-password`, { password, useDefaultPassword });
+  },
+  async history(params: { page: number; pageSize: number; accountId?: string }) {
+    const { data } = await apiClient.get<PagedAccountHistory>('/accounts/history', { params });
     return data;
   },
 };
