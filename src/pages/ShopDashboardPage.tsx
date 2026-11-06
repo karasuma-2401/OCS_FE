@@ -63,13 +63,13 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
   const knownPaths = [
     '/admin', '/admin/pos', '/admin/products', '/admin/contracts', '/admin/customers',
     '/admin/settlement', '/admin/reports', '/admin/settings', '/admin/accounts',
-    '/shop/kho', '/shop/ky-gui', '/shop/khach-hang', '/shop/quyet-toan',
+    '/shop/pos', '/shop/kho', '/shop/ky-gui', '/shop/khach-hang', '/shop/quyet-toan',
     '/shop/bao-cao', '/shop/cau-hinh', '/shop/accounts',
   ];
 
   // Determine active tab from URL path if possible
   const getTabFromPath = (): ShopNavId => {
-    if (location.pathname.includes('/admin/pos')) return 'pos';
+    if (location.pathname === '/admin/pos' || location.pathname === '/shop/pos') return 'pos';
     if (location.pathname.includes('/admin/products') || location.pathname.includes('/shop/kho')) return 'inventory';
     if (location.pathname.includes('/admin/contracts') || location.pathname.includes('/shop/ky-gui')) return 'consignment';
     if (location.pathname.includes('/admin/customers') || location.pathname.includes('/shop/khach-hang')) return 'customers';
