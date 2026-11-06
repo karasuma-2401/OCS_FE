@@ -41,7 +41,7 @@ function errorMessage(error: unknown) {
 }
 
 export function AccountManagement() {
-  const { user, retryBootstrap, revalidateSession } = useAuth();
+  const { user, retryBootstrap, revalidateSession, hasPermission } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.roles.includes('Admin') ?? false;
   const [searchInput, setSearchInput] = useState('');
@@ -308,7 +308,7 @@ export function AccountManagement() {
 
   const queueStatus = (account: AccountSummary, label: string, run: () => Promise<AccountSummary>, impact: string) => { setSelected(null); setAction({ account, label, run, impact }); };
   const returnFromAction = () => { if (action && !submitting) { setSelected(action.account); setAction(null); } };
-  const canManage = (account: AccountSummary) => !account.isProtected && account.id !== user?.id && (isAdmin || (account.accountType === 'Internal' && account.roles.length === 1 && account.roles[0] === 'Staff'));
+  const canManage = (account: AccountSummary) => hasPermission('accounts.status') && !account.isProtected && account.id !== user?.id && (isAdmin || (account.accountType === 'Internal' && account.roles.length === 1 && account.roles[0] === 'Staff'));
   const rolesChanged = selected && [...selected.roles].sort().join('|') !== [...chosenRoles].sort().join('|');
   const date = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short' }).format(new Date(value));
 
@@ -318,8 +318,8 @@ export function AccountManagement() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3"><span className="shrink-0 rounded-xl bg-brand-pink-light p-3 text-brand-highlight"><Users size={24} /></span><div><h2 className="text-lg font-bold text-brand-ink">Quản lý tài khoản</h2><p className="text-sm text-muted">{isAdmin ? 'Quản lý khách hàng và nhân sự nội bộ.' : 'Quản lý tài khoản nhân viên Staff.'}</p></div></div>
         <div className="flex shrink-0 flex-wrap gap-2 self-start sm:self-auto">
-          {isAdmin && <Button variant="outline" onClick={() => openHistory()} startIcon={<Clock3 size={16} />}>Lịch sử thao tác</Button>}
-          {(!isAdmin || activeTab === 'internal') && <Button onClick={openCreate} startIcon={<Plus size={16} />}>{isAdmin ? 'Tạo tài khoản nội bộ' : 'Tạo nhân viên'}</Button>}
+          {isAdmin && hasPermission('accounts.history') && <Button variant="outline" onClick={() => openHistory()} startIcon={<Clock3 size={16} />}>Lịch sử thao tác</Button>}
+          {hasPermission('accounts.create') && (!isAdmin || activeTab === 'internal') && <Button onClick={openCreate} startIcon={<Plus size={16} />}>{isAdmin ? 'Tạo tài khoản nội bộ' : 'Tạo nhân viên'}</Button>}
         </div>
       </div>
     </Card>
@@ -370,23 +370,23 @@ export function AccountManagement() {
       </form>
     </Modal>
 
-    <Modal open={!!selected} onClose={() => setSelected(null)} title="Chi tiết tài khoản" description={selected?.email || selected?.fullName} loading={detailLoading} footer={<Button variant="outline" onClick={() => setSelected(null)}>Đóng</Button>}>
+    <Modal open={!!selected} onClose={() => setSelected(null)} title="Chi tiết tài khoản" description={selected?.email || selected?.fullName} loading={detailLoading} footer={<div className="flex w-full flex-wrap justify-end gap-2"><Button variant="outline" onClick={() => setSelected(null)}>Đóng</Button>{selected && isAdmin && hasPermission('accounts.roles') && selected.accountType === 'Internal' && !selected.isProtected && <Button disabled={!rolesChanged || chosenRoles.length === 0} onClick={() => queueStatus(selected, 'Đổi vai trò', () => accountsApi.roles(selected.id, chosenRoles), `Vai trò cũ: ${selected.roles.join(', ')} → vai trò mới: ${chosenRoles.join(', ')}. Các phiên đăng nhập sẽ bị thu hồi.`)}>Lưu vai trò</Button>}</div>}>
       {selected && <div className="space-y-5 text-sm">
         {notice && <Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} />}
-        <div className="grid grid-cols-2 gap-3 rounded-xl bg-brand-pink-surface p-4"><span>Họ tên<br /><strong>{selected.fullName}</strong></span><span>Số điện thoại<br /><strong>{selected.phoneNumber}</strong></span><span>Loại tài khoản<br /><strong>{selected.accountType === 'Internal' ? 'Nội bộ' : 'Khách hàng'}</strong></span><span>Trạng thái<br /><Badge variant={statusVariants[selected.status]}>{statusNames[selected.status]}</Badge></span></div>
+        <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-brand-pink-surface p-4 sm:grid-cols-2"><div><span className="text-muted">Họ tên</span><strong className="block text-ink">{selected.fullName}</strong></div><div><span className="text-muted">Số điện thoại</span><strong className="block text-ink">{selected.phoneNumber}</strong></div><div><span className="text-muted">Loại tài khoản</span><strong className="block text-ink">{selected.accountType === 'Internal' ? 'Nội bộ' : 'Khách hàng'}</strong></div><div><span className="text-muted">Trạng thái</span><div className="mt-0.5"><Badge variant={statusVariants[selected.status]}>{statusNames[selected.status]}</Badge></div></div></div>
         {selected.isProtected && <p className="rounded-lg bg-state-info-soft p-3 text-state-info">Admin gốc được bảo vệ. Có thể sửa tên và số điện thoại; không thể đổi email, username, trạng thái hoặc vai trò.</p>}
         <div className="flex flex-wrap gap-2">
-          {isAdmin && <Button size="sm" variant="outline" onClick={() => openEditAccount(selected)}>Sửa thông tin tài khoản</Button>}
-          {selected.accountType === 'Internal' && (isAdmin || canManage(selected)) && <Button size="sm" variant="outline" onClick={() => void openEditProfile(selected)}>Sửa hồ sơ nhân viên</Button>}
-          {isAdmin && selected.id !== user?.id && !selected.isProtected && <Button size="sm" variant="outline" onClick={() => openPasswordReset(selected)}>Đặt lại mật khẩu</Button>}
-          {isAdmin && <Button size="sm" variant="outline" onClick={() => openHistory(selected.id)} startIcon={<Clock3 size={14} />}>Lịch sử thao tác</Button>}
+          {isAdmin && hasPermission('accounts.update') && <Button size="sm" variant="outline" onClick={() => openEditAccount(selected)}>Sửa thông tin tài khoản</Button>}
+          {selected.accountType === 'Internal' && hasPermission('accounts.update') && (isAdmin || (!selected.isProtected && selected.roles.length === 1 && selected.roles[0] === 'Staff')) && <Button size="sm" variant="outline" onClick={() => void openEditProfile(selected)}>Sửa hồ sơ nhân viên</Button>}
+          {isAdmin && hasPermission('accounts.reset-password') && selected.id !== user?.id && !selected.isProtected && <Button size="sm" variant="outline" onClick={() => openPasswordReset(selected)}>Đặt lại mật khẩu</Button>}
+          {isAdmin && hasPermission('accounts.history') && <Button size="sm" variant="outline" onClick={() => openHistory(selected.id)} startIcon={<Clock3 size={14} />}>Lịch sử thao tác</Button>}
         </div>
         {canManage(selected) && <div><h3 className="mb-2 font-semibold">Trạng thái</h3><div className="flex flex-wrap gap-2">
           {selected.status === 'Active' && <Button size="sm" variant="outline" onClick={() => queueStatus(selected, 'Khóa tài khoản', () => accountsApi.lock(selected.id, true), 'Các phiên đăng nhập hiện tại sẽ bị thu hồi.')}>Khóa</Button>}
           {selected.status === 'Locked' && <Button size="sm" variant="outline" onClick={() => queueStatus(selected, 'Mở khóa tài khoản', () => accountsApi.lock(selected.id, false), 'Người dùng cần đăng nhập lại.')}>Mở khóa</Button>}
           {selected.status !== 'Deactivated' ? <Button size="sm" variant="danger" onClick={() => queueStatus(selected, 'Vô hiệu hóa tài khoản', () => accountsApi.status(selected.id, 'Deactivated'), 'Các phiên đăng nhập hiện tại sẽ bị thu hồi.')}>Vô hiệu hóa</Button> : <Button size="sm" onClick={() => queueStatus(selected, 'Kích hoạt lại tài khoản', () => accountsApi.status(selected.id, 'Active'), 'Nếu email chưa xác thực, tài khoản sẽ trở về trạng thái chờ kích hoạt OTP.')}>Kích hoạt lại</Button>}
         </div></div>}
-        {isAdmin && selected.accountType === 'Internal' && !selected.isProtected && <div><h3 className="mb-2 font-semibold">Vai trò</h3><div className="flex flex-wrap gap-3">{roleOptions.map(role => <label key={role} className="flex items-center gap-2"><input type="checkbox" checked={chosenRoles.includes(role)} onChange={e => setChosenRoles(current => e.target.checked ? [...current, role] : current.filter(item => item !== role))} />{role}</label>)}</div><Button className="mt-3" size="sm" disabled={!rolesChanged || chosenRoles.length === 0} onClick={() => queueStatus(selected, 'Đổi vai trò', () => accountsApi.roles(selected.id, chosenRoles), `Vai trò cũ: ${selected.roles.join(', ')} → vai trò mới: ${chosenRoles.join(', ')}. Các phiên đăng nhập sẽ bị thu hồi.`)}>Lưu vai trò</Button></div>}
+        {isAdmin && hasPermission('accounts.roles') && selected.accountType === 'Internal' && !selected.isProtected && <div className="rounded-xl border border-border p-4"><h3 className="mb-3 font-semibold text-ink">Vai trò</h3><div className="flex flex-wrap gap-2">{roleOptions.map(role => <label key={role} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-paper px-3 py-2 text-ink transition hover:border-brand-lavender"><input type="checkbox" className="accent-brand-highlight" checked={chosenRoles.includes(role)} onChange={e => setChosenRoles(current => e.target.checked ? [...current, role] : current.filter(item => item !== role))} />{role}</label>)}</div><p className="mt-2 text-xs text-muted">Thay đổi vai trò sẽ thu hồi các phiên đăng nhập.</p></div>}
       </div>}
     </Modal>
     <Modal open={!!editing} onClose={returnToDetail} title={editing?.kind === 'profile' ? 'Sửa hồ sơ nhân viên' : 'Sửa thông tin tài khoản'} description={editing?.account.fullName} loading={editLoading || editSubmitting} footer={<><Button variant="outline" onClick={returnToDetail} disabled={editSubmitting || editLoading}>Quay lại chi tiết</Button><Button type="submit" form="account-edit-form" loading={editSubmitting || editLoading}>Lưu thay đổi</Button></>}>

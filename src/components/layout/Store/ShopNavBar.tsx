@@ -32,6 +32,7 @@ export interface ShopNavBarProps {
   onClose?: () => void;
   disabledItems?: ShopNavId[];
   showAccounts?: boolean;
+  allowedItems?: ShopNavId[];
   actions?: React.ReactNode;
 }
 
@@ -66,6 +67,7 @@ export default function ShopNavBar({
   onProfileClick,
   disabledItems = [],
   showAccounts = false,
+  allowedItems,
   actions,
 }: ShopNavBarProps) {
   const [selected, setSelected] = useState<ShopNavId>(initialActive);
@@ -102,7 +104,7 @@ export default function ShopNavBar({
         </div>
 
         <nav className="shop-navbar__menu" aria-label="Điều hướng cửa hàng">
-          {navigation.filter((item) => item.id !== 'accounts' || showAccounts).map((item) => {
+          {navigation.filter((item) => (item.id !== 'accounts' || showAccounts) && (!allowedItems || allowedItems.includes(item.id))).map((item) => {
             const isActive = currentActive === item.id;
             const isDisabled = item.disabled || disabledItems.includes(item.id);
 

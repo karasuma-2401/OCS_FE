@@ -19,6 +19,7 @@ export interface AuthContextType {
   retryBootstrap: () => Promise<void>;
   revalidateSession: () => Promise<void>;
   hasRole: (role: RoleCode) => boolean;
+  hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -148,6 +149,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.clearTimeout(timer);
   }, [status, expiresAt, checkAuth]);
 
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    const timer = window.setInterval(() => void checkAuth(), 30_000);
+    return () => window.clearInterval(timer);
+  }, [status, checkAuth]);
+
   // Set user after successful login
   const setAuthenticatedUser = useCallback((newUser: User, newExpiresAt: string) => {
     setUser(newUser);
@@ -188,6 +195,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return user?.roles?.includes(role) ?? false;
   }, [user]);
 
+  const hasPermission = useCallback((permission: string): boolean => {
+    return user?.permissions?.includes(permission) ?? false;
+  }, [user]);
+
   const isStaffOrAdmin =
     hasRole('Admin') || hasRole('Manager') || hasRole('Staff');
 
@@ -210,6 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         retryBootstrap,
         revalidateSession,
         hasRole,
+        hasPermission,
       }}
     >
       {children}

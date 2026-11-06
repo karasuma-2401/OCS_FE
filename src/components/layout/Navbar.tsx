@@ -4,6 +4,7 @@ import { ArrowUpRight, ChevronDown, CircleUserRound, LogOut, Menu, X } from 'luc
 import { useAuth } from '@/context/AuthContext';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import '@/pages/HomePage.css';
+import { firstAllowedScreen } from '@/auth/permissions';
 
 const links = [
   { to: '/', label: 'Trang chủ', end: true },
@@ -13,7 +14,10 @@ const links = [
 ];
 
 export function Navbar() {
-  const { user, isAuthenticated, isStaffOrAdmin, hasRole, logout } = useAuth();
+  const { user, isAuthenticated, hasPermission, logout } = useAuth();
+  const managementPath = firstAllowedScreen(user?.permissions ?? []);
+  const visibleLinks = links.filter(link => link.to !== '/appointments' || !isAuthenticated
+    || hasPermission('appointments.create') || hasPermission('appointments.own.read'));
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState(false);
@@ -53,13 +57,14 @@ export function Navbar() {
       <div className="landing-header__inner">
         <Link className="landing-logo" to="/" aria-label="OCS - Trang chủ" onClick={() => setMenuOpen(false)}>ocs<span>.</span></Link>
         <nav className="landing-nav" aria-label="Điều hướng chính">
-          {links.map((link) => <NavLink key={link.to} to={link.to} end={link.end}>{link.label}</NavLink>)}
-          {isStaffOrAdmin && <><Link to="/admin/pos">Web POS</Link><Link to="/admin/products">Kho hàng</Link></>}
+          {visibleLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.end}>{link.label}</NavLink>)}
+          {hasPermission('screens.pos') && <Link to="/admin/pos">Web POS</Link>}
+          {hasPermission('screens.inventory') && <Link to="/admin/products">Kho hàng</Link>}
         </nav>
         <div className="landing-header__actions">
           {isAuthenticated ? <>
             <NotificationBell />
-            {isStaffOrAdmin && <Link className="landing-header__login landing-header__management" to="/admin">Quản lý</Link>}
+            {managementPath && <Link className="landing-header__login landing-header__management" to={managementPath}>Quản lý</Link>}
             <div className="landing-account" ref={accountRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAccountOpen(false); }}>
               <button ref={accountButtonRef} type="button" className="landing-account__trigger" aria-label={`Tài khoản ${user?.fullName || user?.email || ''}`} aria-expanded={accountOpen} aria-controls={accountMenuId} onClick={() => setAccountOpen((open) => !open)}>
                 <CircleUserRound size={19} aria-hidden="true" />
@@ -77,8 +82,10 @@ export function Navbar() {
         </div>
       </div>
       {menuOpen && <nav id="customer-mobile-menu" className="landing-mobile-nav" aria-label="Điều hướng di động">
-        {links.map((link) => <NavLink key={link.to} to={link.to} end={link.end} onClick={() => setMenuOpen(false)}>{link.label}</NavLink>)}
-        {isStaffOrAdmin && <><Link to="/admin/pos" onClick={() => setMenuOpen(false)}>Web POS</Link><Link to="/admin/products" onClick={() => setMenuOpen(false)}>Kho hàng</Link>{(hasRole('Admin') || hasRole('Manager')) && <Link to="/admin" onClick={() => setMenuOpen(false)}>Quản lý</Link>}</>}
+        {visibleLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.end} onClick={() => setMenuOpen(false)}>{link.label}</NavLink>)}
+        {hasPermission('screens.pos') && <Link to="/admin/pos" onClick={() => setMenuOpen(false)}>Web POS</Link>}
+        {hasPermission('screens.inventory') && <Link to="/admin/products" onClick={() => setMenuOpen(false)}>Kho hàng</Link>}
+        {managementPath && <Link to={managementPath} onClick={() => setMenuOpen(false)}>Quản lý</Link>}
       </nav>}
       {logoutError && <p className="landing-header__error" role="alert">Không thể đăng xuất. Vui lòng thử lại.</p>}
     </header>

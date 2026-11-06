@@ -5,6 +5,8 @@ import { parseProblemDetails, extractFieldError } from '@/api/auth';
 import { validateEmail } from '@/utils/validation';
 import { Form, Input, Button, Toast } from '@/components/shared';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { firstAllowedScreen } from '@/auth/permissions';
+import type { User } from '@/types';
 
 interface FieldErrors {
   email?: string;
@@ -23,8 +25,8 @@ export const LoginPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Helper: determine safe return path or default based on role hierarchy
-  const getSafeDestination = (roles: string[]): string => {
+  // Use the current permission set to choose an accessible landing screen.
+  const getSafeDestination = (account: User): string => {
     const searchParams = new URLSearchParams(location.search);
     const fromQuery = searchParams.get('from');
     const fromState = (location.state as { from?: { pathname?: string; search?: string } })?.from;
@@ -39,19 +41,12 @@ export const LoginPage: React.FC = () => {
       return candidate;
     }
 
-    // Role priority: Admin / Manager -> /admin, Staff -> /admin/pos, Customer -> /
-    if (roles.includes('Admin') || roles.includes('Manager')) {
-      return '/admin';
-    }
-    if (roles.includes('Staff')) {
-      return '/admin/pos';
-    }
-    return '/';
+    return firstAllowedScreen(account.permissions ?? []) ?? '/';
   };
 
   // If already authenticated, redirect
   if (isAuthenticated && user) {
-    const destination = getSafeDestination(user.roles);
+    const destination = getSafeDestination(user);
     return <Navigate to={destination} replace />;
   }
 
@@ -85,7 +80,7 @@ export const LoginPage: React.FC = () => {
       const trimmedEmail = email.trim();
       const response = await login({ email: trimmedEmail, password });
 
-      const destination = getSafeDestination(response.user.roles);
+      const destination = getSafeDestination(response.user);
       navigate(destination, { replace: true });
     } catch (err: unknown) {
       const problem = parseProblemDetails(err);

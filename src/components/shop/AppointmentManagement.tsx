@@ -15,12 +15,16 @@ import type {
 } from '@/types';
 import { Button, Modal, Loading, Toast } from '@/components/shared';
 import { NotificationBell } from '@/components/shared/NotificationBell';
+import { useAuth } from '@/context/AuthContext';
 
 interface AppointmentManagementProps {
   onSwitchRole?: () => void;
 }
 
 export function AppointmentManagement({ onSwitchRole }: AppointmentManagementProps = {}) {
+  const { hasPermission } = useAuth();
+  const canUpdate = hasPermission('appointments.staff.update');
+  const canReceive = hasPermission('appointments.staff.reception');
   const [today] = useState(() => new Date());
   const calendarYear = today.getFullYear();
   const calendarMonth = today.getMonth() + 1;
@@ -453,7 +457,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
                 </p>
 
                 {/* Cancel Button (Figma 39-1195) */}
-                {activeAppointment.status !== 'Completed' &&
+                {canUpdate && activeAppointment.status !== 'Completed' &&
                   activeAppointment.status !== 'Cancelled' &&
                   activeAppointment.status !== 'NoShow' && (
                     <button
@@ -466,7 +470,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
                   )}
 
                 {/* Big Pill Button: "Bắt đầu tiếp nhận" (Exact Figma 39-1195) */}
-                <button
+                {canReceive && <button
                   type="button"
                   onClick={handleStartReception}
                   disabled={
@@ -480,7 +484,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
                   }}
                 >
                   Bắt đầu tiếp nhận
-                </button>
+                </button>}
               </div>
             ) : (
               <p className="text-xs text-gray-400 py-6 text-center">
@@ -493,7 +497,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
 
       {/* Bottom Button Bar: Both buttons in 1 row with equal size (Exact Image / Figma) */}
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-        <button
+        {canReceive && <button
           type="button"
           onClick={handleStartReception}
           className="w-full rounded-2xl py-3.5 px-6 text-center text-sm font-bold text-gray-900 shadow-sm transition hover:shadow-md active:scale-[0.99]"
@@ -502,7 +506,7 @@ export function AppointmentManagement({ onSwitchRole }: AppointmentManagementPro
           }}
         >
           Tiếp nhận lịch đã chọn
-        </button>
+        </button>}
 
         <button
           type="button"

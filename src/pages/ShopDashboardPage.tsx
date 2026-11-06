@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import ShopNavBar, { type ShopNavId, type ShopNavItem } from '@/components/layout/Store/ShopNavBar';
 import { useAuth } from '@/context/AuthContext';
 import { Card, Button, Badge } from '@/components/shared';
 import { ShoppingCart, Package, FileText, Users, DollarSign, BarChart3, Settings, LogOut, ArrowLeft } from 'lucide-react';
 import { AppointmentManagement } from '@/components/shop/AppointmentManagement';
 import { AccountManagement } from '@/components/shop/AccountManagement';
+import { FunctionPermissions } from '@/components/shop/FunctionPermissions';
+import { screenOrder, screenPaths, screenPermissions, screenRequirements } from '@/auth/permissions';
 
 interface ShopDashboardPageProps {
   initialTab?: ShopNavId;
@@ -44,7 +46,7 @@ const tabTitles: Record<ShopNavId, { title: string; desc: string; icon: React.Re
   },
   settings: {
     title: 'Cấu Hình Hệ Thống Cửa Hàng',
-    desc: 'Thiết lập tỷ lệ hoa hồng mặc định, quy định thời hạn ký gửi và cấu hình máy in hóa đơn.',
+    desc: 'Thiết lập vai trò và quyền sử dụng các chức năng trong hệ thống.',
     icon: <Settings size={24} className="text-accent" />,
   },
   accounts: {
@@ -55,9 +57,15 @@ const tabTitles: Record<ShopNavId, { title: string; desc: string; icon: React.Re
 };
 
 export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab = 'pos' }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const knownPaths = [
+    '/admin', '/admin/pos', '/admin/products', '/admin/contracts', '/admin/customers',
+    '/admin/settlement', '/admin/reports', '/admin/settings', '/admin/accounts',
+    '/shop/kho', '/shop/ky-gui', '/shop/khach-hang', '/shop/quyet-toan',
+    '/shop/bao-cao', '/shop/cau-hinh', '/shop/accounts',
+  ];
 
   // Determine active tab from URL path if possible
   const getTabFromPath = (): ShopNavId => {
@@ -85,12 +93,25 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
   };
 
   const currentTabInfo = tabTitles[activeTab];
+  const canOpenScreen = (id: ShopNavId) => {
+    const required = screenRequirements[id];
+    return hasPermission(screenPermissions[id]) && (!required || hasPermission(required));
+  };
+  const allowedItems = screenOrder.filter(canOpenScreen);
+  const defaultScreen = allowedItems.length > 0 ? screenPaths[allowedItems[0]] : '/unauthorized';
+  if (!knownPaths.includes(location.pathname)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  if (!canOpenScreen(activeTab)) {
+    return <Navigate to={location.pathname === '/admin' ? defaultScreen : '/unauthorized'} replace />;
+  }
 
   return (
     <div className="min-h-screen bg-surface-dashboard px-3 pt-[11px] pb-12">
       <ShopNavBar
         activeItem={activeTab}
-        showAccounts={user?.roles?.includes('Admin') || user?.roles?.includes('Manager')}
+        showAccounts={canOpenScreen('accounts')}
+        allowedItems={allowedItems}
         profileName={user?.fullName || user?.email || 'Nhân viên'}
         onNavigate={handleNavigate}
         onProfileClick={() => navigate('/admin')}
@@ -136,7 +157,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         </div>
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
-        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : <Card className="p-6 mb-6">
+        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'settings' ? <FunctionPermissions /> : <Card className="p-6 mb-6">
           <p className="text-sm text-muted">{currentTabInfo.desc}</p>
           <div className="mt-6 rounded-xl border border-dashed border-border p-8 text-center bg-white">
             <p className="text-sm font-semibold text-ink">
