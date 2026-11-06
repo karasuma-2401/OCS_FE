@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { appointmentApi } from '@/api/appointmentApi';
+import { useAuth } from '@/context/AuthContext';
 import type { Appointment, AppointmentStatus } from '@/types';
 import { Badge, Button, Modal, Loading, EmptyState } from '@/components/shared';
 
@@ -16,6 +17,8 @@ interface MyBookingsProps {
 }
 
 export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
+  const { hasPermission } = useAuth();
+  const canCancel = hasPermission('appointments.own.cancel');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -224,7 +227,7 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
                   Tạo lúc: {new Date(appt.createdAt).toLocaleDateString('vi-VN')}
                 </span>
 
-                {appt.canCancel && (
+                {canCancel && appt.canCancel && (
                   <button
                     type="button"
                     onClick={() => {

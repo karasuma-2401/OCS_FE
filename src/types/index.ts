@@ -7,6 +7,7 @@ export interface User {
   fullName: string;
   phoneNumber?: string | null;
   roles: RoleCode[];
+  permissions?: string[];
   username?: string | null;
 }
 
