@@ -3,6 +3,7 @@ import { Check, RotateCcw, Search, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, ErrorState, Input, SkeletonLoading, Modal, Toast } from '@/components/shared';
 import { rolePermissionsApi, type FunctionPermission, type RolePermissions } from '@/api/rolePermissions';
 import { parseProblemDetails } from '@/api/auth';
+import { useAuth } from '@/context/AuthContext';
 
 const groupNames: Record<string, string> = {
   accounts: 'Tài khoản',
@@ -22,6 +23,7 @@ function groupName(code: string) {
 }
 
 export function FunctionPermissions() {
+  const { user, revalidateSession } = useAuth();
   const [permissions, setPermissions] = useState<FunctionPermission[]>([]);
   const [roles, setRoles] = useState<RolePermissions[]>([]);
   const [activeRoleId, setActiveRoleId] = useState<string | null>(null);
@@ -121,6 +123,7 @@ export function FunctionPermissions() {
       setDraft(updated.permissionCodes);
       setConfirmSave(false);
       setNotice(`Đã lưu quyền cho vai trò ${updated.name}.`);
+      if (user?.roles.some(role => role === updated.code)) await revalidateSession();
     } catch (cause) {
       setConfirmSave(false);
       setError(parseProblemDetails(cause).title ?? 'Không thể lưu phân quyền. Vui lòng thử lại.');
