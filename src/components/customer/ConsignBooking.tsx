@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { appointmentApi } from '@/api/appointmentApi';
 import type { TimeSlot, Appointment } from '@/types';
-import { Button, Modal } from '@/components/shared';
+import { Button, Combobox, Modal, SkeletonLoading } from '@/components/shared';
 
 interface ConsignBookingProps {
   onBookingSuccess?: (appointment: Appointment) => void;
@@ -243,17 +243,15 @@ export function ConsignBooking({
                 </h3>
               </div>
 
-              <span className="rounded-full bg-pink-50 border border-pink-100 px-3 py-1 text-[11px] font-bold text-[#E53E8A]">
+              {!loadingSlots && <span className="rounded-full bg-pink-50 border border-pink-100 px-3 py-1 text-[11px] font-bold text-[#E53E8A]">
                 Còn {availableCountNumber} khung khả dụng
-              </span>
+              </span>}
             </div>
 
             <div className="space-y-3">
 
               {loadingSlots ? (
-                <p className="text-xs text-gray-400 py-4 text-center">
-                  Đang tải khung giờ...
-                </p>
+                <SkeletonLoading variant="slots" label="Đang tải khung giờ..." />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {timeSlots.map((slot) => {
@@ -325,23 +323,10 @@ export function ConsignBooking({
             </div>
 
             {/* Field 2: Hình thức tiếp nhận */}
-            <div>
-              <label className="block text-xs font-bold text-gray-800 mb-1.5">
-                Hình thức tiếp nhận
-              </label>
-              <select
-                value={submissionMethod}
-                onChange={(e) => setSubmissionMethod(e.target.value)}
-                className="w-full rounded-2xl border border-gray-100 bg-[#F2F6FC] px-4 py-3 text-xs font-semibold text-gray-900 outline-none focus:border-pink-300 focus:bg-white"
-              >
-                <option value="Mang trực tiếp tại cửa hàng">
-                  Mang trực tiếp tại cửa hàng
-                </option>
-                <option value="Gửi chuyển phát qua bưu điện">
-                  Gửi chuyển phát qua bưu điện
-                </option>
-              </select>
-            </div>
+            <Combobox label="Hình thức tiếp nhận" value={submissionMethod} onChange={setSubmissionMethod} options={[
+              { value: 'Mang trực tiếp tại cửa hàng', label: 'Mang trực tiếp tại cửa hàng' },
+              { value: 'Gửi chuyển phát qua bưu điện', label: 'Gửi chuyển phát qua bưu điện' },
+            ]} />
 
             {/* Field 3: Ghi chú */}
             <div>

@@ -51,23 +51,13 @@
 }
 
 .grd-btn--primary {
-  background: linear-gradient(
-    115deg,
-    var(--color-brand-pink-gradient),
-    var(--color-brand-lavender-gradient) 52%,
-    var(--color-brand-blue-gradient)
-  );
+  background: var(--color-button-pastel);
   color: var(--color-brand-ink);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-brand-lavender) 35%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-button-pastel) 35%, transparent);
 }
 
 .grd-btn--primary:hover:not(:disabled) {
-  background: linear-gradient(
-    115deg,
-    var(--color-brand-pink-hover),
-    var(--color-brand-lavender) 52%,
-    var(--color-brand-blue)
-  );
+  background: var(--color-button-pastel-hover);
   box-shadow: 0 3px 10px color-mix(in srgb, var(--color-brand-pink) 35%, transparent);
 }
 

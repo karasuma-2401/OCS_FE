@@ -180,35 +180,6 @@
   gap: 0.35rem;
   background: #f7f1f3;
 }
-.catalog-skeleton-card {
-  border-radius: 12px;
-  border: 1px solid #f0e9ec;
-  background: #fff;
-  padding: 0.65rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.catalog-skeleton-image {
-  aspect-ratio: 4 / 5;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #f0e6e8 25%, #f9f2f4 50%, #f0e6e8 75%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s infinite;
-}
-.catalog-skeleton-line {
-  height: 12px;
-  border-radius: 4px;
-  background: #f0e6e8;
-}
-.catalog-skeleton-line--title { height: 16px; width: 85%; }
-.catalog-skeleton-line--short { width: 50%; }
-.catalog-skeleton-line--price { width: 40%; height: 18px; margin-top: 0.5rem; }
-@keyframes skeleton-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
 /* Thanh phân trang Server-side */
 .catalog-pagination {
   display: flex;

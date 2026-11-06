@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal } from '@/components/shared';
+import { Modal, SkeletonLoading } from '@/components/shared';
 import { ProductImageGallery } from './ProductImageGallery';
 import { formatVndPrice, getPublicProductDetail, type PublicProductDetail } from '@/api/products';
 import '@/pages/CustomerPages.css';
@@ -69,15 +69,7 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
       description="Thông tin sản phẩm đang bán tại OCS"
     >
       {isDetailLoading ? (
-        <div className="catalog-detail" aria-label="Đang tải chi tiết sản phẩm">
-          <div className="catalog-skeleton-image" style={{ width: '100%', height: '240px', borderRadius: 9 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-            <div className="catalog-skeleton-line catalog-skeleton-line--short" />
-            <div className="catalog-skeleton-line catalog-skeleton-line--title" />
-            <div className="catalog-skeleton-line" />
-            <div className="catalog-skeleton-line catalog-skeleton-line--price" />
-          </div>
-        </div>
+        <SkeletonLoading variant="detail" label="Đang tải chi tiết sản phẩm..." />
       ) : detailError ? (
         <div className="catalog-error-state" style={{ margin: '1rem 0' }}>
           <h3>Không thể hiển thị sản phẩm</h3>

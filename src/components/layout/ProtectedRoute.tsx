@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import type { RoleCode } from '@/types';
-import { Loading, ErrorState } from '@/components/shared';
+import { SkeletonLoading, ErrorState } from '@/components/shared';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -15,9 +15,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
 
   if (isChecking) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center p-6">
-        <Loading label="Đang xác thực phiên làm việc..." />
-      </div>
+      <SkeletonLoading variant="page" label="Đang xác thực phiên làm việc..." className="min-h-[60vh] p-6" />
     );
   }
 

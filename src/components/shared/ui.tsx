@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "./grdBtn";
+import { SkeletonLoading } from "./Skeleton";
 
 function joinClasses(...classes: Array<string | undefined | false>) {
   return classes.filter(Boolean).join(" ");
@@ -405,7 +406,7 @@ export function Card({
           className="border-0 px-4 py-6 shadow-none"
         />
       ) : loading ? (
-        <Loading className="min-h-28" />
+        <SkeletonLoading variant="list" count={2} />
       ) : (
         children
       )}
@@ -546,6 +547,7 @@ export interface ModalProps {
   footer?: ReactNode;
   error?: ReactNode;
   loading?: boolean;
+  loadingFallback?: ReactNode;
   disabled?: boolean;
   closeOnBackdrop?: boolean;
   className?: string;
@@ -560,6 +562,7 @@ export function Modal({
   footer,
   error,
   loading = false,
+  loadingFallback,
   disabled = false,
   closeOnBackdrop = true,
   className,
@@ -649,18 +652,12 @@ export function Modal({
         aria-describedby={description ? descriptionId : undefined}
         aria-busy={loading || undefined}
         className={joinClasses(
-          "my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-brand-lavender/50 bg-paper shadow-2xl",
+          "my-auto w-full max-w-lg rounded-2xl border border-brand-lavender/50 bg-paper shadow-2xl",
           className,
         )}
       >
-        <div
-          className="h-1 w-full"
-          style={{
-            background:
-              "linear-gradient(90deg, var(--color-brand-pink-gradient), var(--color-brand-lavender-gradient) 52%, var(--color-brand-blue-gradient))",
-          }}
-        />
-        <header className="flex items-start justify-between gap-4 border-b border-brand-lavender/30 bg-brand-pink-surface px-5 py-4 sm:px-6">
+        <header className="relative flex items-start justify-between gap-4 overflow-hidden rounded-t-[15px] border-b border-brand-lavender/30 bg-brand-pink-surface px-5 py-4 sm:px-6">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1" style={{ background: "linear-gradient(90deg, var(--color-brand-pink-gradient), var(--color-brand-lavender-gradient) 52%, var(--color-brand-blue-gradient))" }} />
           <div>
             <h2 id={titleId} className="text-lg font-bold text-ink">{title}</h2>
             {description && (
@@ -687,7 +684,7 @@ export function Modal({
           className="min-w-0 border-0 p-0"
         >
           <div className="px-5 py-5 sm:px-6">
-            {loading ? <Loading /> : children}
+            {loading ? (loadingFallback ?? <Loading />) : children}
           </div>
         </fieldset>
         {footer && (
@@ -743,7 +740,7 @@ export function Table<T>({
   if (error) {
     content = <ErrorState title="Không thể tải bảng dữ liệu" description={error} className="border-0 shadow-none" />;
   } else if (loading) {
-    content = <Loading fullPage label="Đang tải dữ liệu..." />;
+    content = <SkeletonLoading variant="table" label="Đang tải dữ liệu..." className="p-4" />;
   } else if (data.length === 0) {
     content = <EmptyState title={emptyTitle} description={emptyMessage} className="border-0 shadow-none" />;
   } else {

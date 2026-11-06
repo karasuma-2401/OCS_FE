@@ -10,7 +10,7 @@ import {
 import { appointmentApi } from '@/api/appointmentApi';
 import { useAuth } from '@/context/AuthContext';
 import type { Appointment, AppointmentStatus } from '@/types';
-import { Badge, Button, Modal, Loading, EmptyState } from '@/components/shared';
+import { Badge, Button, Modal, SkeletonLoading, EmptyState } from '@/components/shared';
 
 interface MyBookingsProps {
   onNewBookingClick?: () => void;
@@ -109,9 +109,7 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
 
   if (loading) {
     return (
-      <div className="py-16 text-center">
-        <Loading label="Đang tải lịch hẹn từ hệ thống OCS..." />
-      </div>
+      <SkeletonLoading variant="cards" count={4} label="Đang tải lịch hẹn từ hệ thống OCS..." />
     );
   }
 

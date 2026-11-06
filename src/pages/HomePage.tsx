@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer';
 import { CatalogProductCard } from '@/components/customer/CatalogProductCard';
 import { ProductDetailModal } from '@/components/customer/ProductDetailModal';
 import { LandingProcess } from '@/components/customer/LandingProcess';
+import { SkeletonLoading } from '@/components/shared';
 import { getPublicProducts, type PublicProduct } from '@/api/products';
 import fashionHero from '@/assets/images/fashion-campaign.jpg';
 import './HomePage.css';
@@ -88,7 +89,7 @@ export function HomePage() {
           </div>
         </section>
 
-        <Suspense fallback={<div className="landing-rail landing-rail--loading landing-container" aria-hidden="true" />}>
+        <Suspense fallback={<SkeletonLoading variant="rail" label="Đang tải bộ sưu tập..." className="landing-rail landing-rail--loading landing-container" />}>
           <LandingRail />
         </Suspense>
 
@@ -98,16 +99,7 @@ export function HomePage() {
             <Link className="landing-text-link" to="/catalog">Xem tất cả <ArrowUpRight size={16} aria-hidden="true" /></Link>
           </div>
           {isLoading ? (
-            <div className="catalog-grid" aria-label="Đang tải sản phẩm nổi bật">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="catalog-skeleton-card">
-                  <div className="catalog-skeleton-image" />
-                  <div className="catalog-skeleton-line catalog-skeleton-line--short" />
-                  <div className="catalog-skeleton-line catalog-skeleton-line--title" />
-                  <div className="catalog-skeleton-line catalog-skeleton-line--price" />
-                </div>
-              ))}
-            </div>
+            <SkeletonLoading variant="products" label="Đang tải sản phẩm nổi bật..." />
           ) : error ? (
             <div className="catalog-error-state">
               <p>{error}</p>

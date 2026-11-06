@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, RotateCcw, Search, ShieldCheck } from 'lucide-react';
-import { Badge, Button, Card, EmptyState, ErrorState, Input, Loading, Modal, Toast } from '@/components/shared';
+import { Badge, Button, Card, EmptyState, ErrorState, Input, SkeletonLoading, Modal, Toast } from '@/components/shared';
 import { rolePermissionsApi, type FunctionPermission, type RolePermissions } from '@/api/rolePermissions';
 import { parseProblemDetails } from '@/api/auth';
 
@@ -129,7 +129,7 @@ export function FunctionPermissions() {
     }
   }
 
-  if (loading) return <Card><Loading label="Đang tải phân quyền..." className="py-12" /></Card>;
+  if (loading) return <SkeletonLoading variant="permissions" label="Đang tải phân quyền..." />;
   if (error && roles.length === 0) return <Card><ErrorState title="Không thể tải phân quyền" description={error} onRetry={() => void load()} /></Card>;
 
   return (

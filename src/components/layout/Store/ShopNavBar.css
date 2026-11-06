@@ -4,22 +4,9 @@
   width: calc(100% - 10px);
   min-height: 56px;
   margin: 8px 5px 0;
-  border: 0px solid
-    color-mix(in srgb, var(--color-brand-blue) 40%, var(--color-brand-pink));
-  border-radius: 6px;
-  background: linear-gradient(
-    105deg,
-    color-mix(
-      in srgb,
-      var(--color-brand-pink) 38%,
-      var(--color-surface-default)
-    ),
-    color-mix(
-      in srgb,
-      var(--color-brand-blue) 42%,
-      var(--color-surface-default)
-    )
-  );
+  border: 1px solid #efd7e0;
+  border-radius: 10px;
+  background: #f9e9ef;
   box-shadow: var(--shadow-navbar);
   font-family: var(--font-sans);
 }
@@ -34,14 +21,9 @@
   right: 0;
   bottom: 0;
   left: 0;
-  height: 3px;
-  border-radius: 0 0 5px 5px;
-  background: linear-gradient(
-    90deg,
-    var(--color-brand-pink-gradient) 0%,
-    var(--color-brand-lavender-gradient) 52%,
-    var(--color-brand-blue-gradient) 100%
-  );
+  height: 2px;
+  border-radius: 0 0 10px 10px;
+  background: #e9b8ca;
   content: "";
 }
 
@@ -61,12 +43,8 @@
   place-items: center;
   border: 0;
   border-radius: 6px;
-  background: linear-gradient(
-    135deg,
-    var(--color-brand-pink),
-    var(--color-brand-blue)
-  );
-  color: var(--color-surface-default);
+  background: var(--color-button-pastel);
+  color: var(--color-brand-ink);
   box-shadow: 0 2px 5px
     color-mix(in srgb, var(--color-brand-pink) 35%, transparent);
   cursor: pointer;
@@ -76,6 +54,7 @@
 }
 
 .shop-navbar__back:hover {
+  background: var(--color-button-pastel-hover);
   transform: translateY(-1px);
   box-shadow: 0 3px 7px
     color-mix(in srgb, var(--color-brand-pink) 45%, transparent);
@@ -145,16 +124,14 @@
 }
 
 .shop-navbar__item:hover:not(.is-disabled) {
-  background: color-mix(in srgb, var(--color-brand-pink) 10%, transparent);
+  background: #f1d4df;
+  color: #813d5a;
 }
 
 .shop-navbar__item.is-active {
-  background: color-mix(
-    in srgb,
-    var(--color-brand-pink) 8%,
-    var(--color-surface-default)
-  );
-  color: var(--color-text-secondary);
+  background: #edcad8;
+  color: #793852;
+  font-weight: 700;
 }
 
 .shop-navbar__item:active:not(.is-disabled) {
@@ -175,40 +152,39 @@
   margin-left: auto;
 }
 
+.shop-navbar__account { position: relative; }
+
 .shop-navbar__profile {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-primary);
+  gap: .5rem;
+  min-height: 40px;
+  padding: .5rem .65rem;
+  border: 1px solid #eee6e9;
+  border-radius: 10px;
+  background: #fff;
+  color: #514b54;
   cursor: pointer;
 }
 
-.shop-navbar__profile-icon {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(
-    135deg,
-    var(--color-brand-pink),
-    var(--color-brand-lavender)
-  );
-  color: var(--color-surface-default);
-  transition: box-shadow 0.2s ease;
+.shop-navbar__profile:hover, .shop-navbar__profile[aria-expanded='true'] {
+  background: #fbf3f6;
+  border-color: #ead2dc;
 }
 
-.shop-navbar__profile:hover .shop-navbar__profile-icon {
-  box-shadow: 0 2px 6px
-    color-mix(in srgb, var(--color-brand-pink) 35%, transparent);
-}
+.shop-navbar__chevron { transition: transform .2s; }
+.shop-navbar__chevron.is-open { transform: rotate(180deg); }
+.shop-navbar__account-menu { position: absolute; z-index: 110; top: calc(100% + .55rem); right: 0; width: 210px; padding: .4rem; border: 1px solid #eee6e9; border-radius: 12px; background: #fff; box-shadow: 0 12px 32px rgba(56, 37, 48, .13); }
+.shop-navbar__account-item { display: flex; width: 100%; align-items: center; gap: .7rem; padding: .8rem .75rem; border: 0; border-radius: 8px; background: transparent; color: #514b54; text-align: left; font-size: .8rem; font-weight: 600; cursor: pointer; }
+.shop-navbar__account-item:hover { background: #fbf3f6; color: #ae6580; }
+.shop-navbar__account-item:disabled { opacity: .6; cursor: wait; }
+.shop-navbar__logout { border-top: 1px solid #f0eaed; border-radius: 0 0 8px 8px; }
 
 .shop-navbar__profile-name {
-  font-size: 10px;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: .78rem;
   line-height: 1.2;
   font-weight: 600;
   white-space: nowrap;

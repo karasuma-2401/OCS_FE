@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   Combobox,
+  DatePicker,
   EmptyState,
   ErrorState,
   Form,
@@ -13,7 +14,7 @@ import {
   Loading,
   Modal,
   Pagination,
-  Select,
+  SkeletonLoading,
   Table,
   Toast,
 } from '@/components/shared';
@@ -23,6 +24,8 @@ export const UIComponentsPage: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [componentPage, setComponentPage] = useState(1);
   const [selectedSize, setSelectedSize] = useState('');
+  const [productStatus, setProductStatus] = useState('active');
+  const [exampleDate, setExampleDate] = useState('');
 
   return (
     <main className="min-h-screen bg-surface-dashboard px-4 py-8 text-text-primary sm:px-6">
@@ -68,7 +71,11 @@ export const UIComponentsPage: React.FC = () => {
             <Combobox label="Size" value={selectedSize} onChange={setSelectedSize} placeholder="Chọn size" options={[{ value: 's', label: 'S' }, { value: 'm', label: 'M' }, { value: 'l', label: 'L' }, { value: 'xl', label: 'XL', disabled: true }]} helperText="Dùng phím mũi tên để di chuyển, Enter để chọn." />
           </Card>
 
-          <Card title="Input & Select" description="Nhãn, trợ giúp và validation lỗi">
+          <Card title="Date picker" description="Nhập ngày hoặc chọn trên lịch">
+            <DatePicker label="Ngày vào làm" value={exampleDate} onChange={setExampleDate} helperText="Định dạng ngày/tháng/năm." />
+          </Card>
+
+          <Card title="Input & Combobox" description="Nhãn, trợ giúp và validation lỗi">
             <div className="space-y-4">
               <Input
                 label="Tên sản phẩm"
@@ -80,13 +87,8 @@ export const UIComponentsPage: React.FC = () => {
                 defaultValue="OCS-001"
                 error="Mã sản phẩm đã tồn tại."
               />
-              <Select label="Trạng thái" defaultValue="active">
-                <option value="active">Đang bán</option>
-                <option value="hidden">Đang ẩn</option>
-              </Select>
-              <Select label="Đang tải danh mục" loading disabled>
-                <option>Đang tải...</option>
-              </Select>
+              <Combobox label="Trạng thái" value={productStatus} onChange={setProductStatus} options={[{ value: 'active', label: 'Đang bán' }, { value: 'hidden', label: 'Đang ẩn' }]} />
+              <Combobox label="Đang tải danh mục" value="" onChange={() => {}} disabled placeholder="Đang tải..." options={[]} />
             </div>
           </Card>
 
@@ -134,6 +136,7 @@ export const UIComponentsPage: React.FC = () => {
 
           <Card title="Loading & Empty State">
             <Loading label="Đang tải danh sách..." />
+            <SkeletonLoading variant="list" count={2} label="Đang tải danh sách..." className="mt-4" />
             <EmptyState
               className="mt-4"
               title="Chưa có sản phẩm"
