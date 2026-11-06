@@ -1,5 +1,5 @@
-import { useState, type MouseEvent } from "react";
-import { UserRound } from "lucide-react";
+import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
+import { ChevronDown, CircleUserRound, Home, LogOut } from "lucide-react";
 import mascotLogo from "../../../assets/images/mascot-logo.png";
 import "./ShopNavBar.css";
 
@@ -27,6 +27,9 @@ export interface ShopNavBarProps {
   onNavigate?: (item: ShopNavItem) => void;
   onBack?: () => void;
   onProfileClick?: () => void;
+  onHome?: () => void;
+  onLogout?: () => void;
+  loggingOut?: boolean;
   onMinimize?: () => void;
   onMaximize?: () => void;
   onClose?: () => void;
@@ -65,12 +68,38 @@ export default function ShopNavBar({
   profileName = "Nguyễn Văn A",
   onNavigate,
   onProfileClick,
+  onHome,
+  onLogout,
+  loggingOut = false,
   disabledItems = [],
   showAccounts = false,
   allowedItems,
   actions,
 }: ShopNavBarProps) {
   const [selected, setSelected] = useState<ShopNavId>(initialActive);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
+  const accountMenuId = useId();
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const handleOutside = (event: PointerEvent) => {
+      if (!accountRef.current?.contains(event.target as Node)) setAccountOpen(false);
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setAccountOpen(false);
+        accountButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', handleOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [accountOpen]);
 
   const currentActive = activeItem ?? selected;
 
@@ -132,17 +161,18 @@ export default function ShopNavBar({
 
         <div className="shop-navbar__actions">
           {actions}
-          <button
-            type="button"
-            className="shop-navbar__profile"
-            aria-label={`Tài khoản ${profileName}`}
-            onClick={onProfileClick}
-          >
-            <span className="shop-navbar__profile-icon" aria-hidden="true">
-              <UserRound size={13} strokeWidth={2} />
-            </span>
-            <span className="shop-navbar__profile-name">{profileName}</span>
-          </button>
+          <div className="shop-navbar__account" ref={accountRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAccountOpen(false); }}>
+            <button ref={accountButtonRef} type="button" className="shop-navbar__profile" aria-label={`Tài khoản ${profileName}`} aria-expanded={accountOpen} aria-controls={accountMenuId} onClick={() => setAccountOpen((open) => !open)}>
+              <CircleUserRound size={19} aria-hidden="true" />
+              <span className="shop-navbar__profile-name">{profileName}</span>
+              <ChevronDown size={15} aria-hidden="true" className={accountOpen ? 'shop-navbar__chevron is-open' : 'shop-navbar__chevron'} />
+            </button>
+            {accountOpen && <div id={accountMenuId} className="shop-navbar__account-menu">
+              <button type="button" className="shop-navbar__account-item" onClick={() => { setAccountOpen(false); onProfileClick?.(); }}><CircleUserRound size={17} aria-hidden="true" /> Hồ sơ cá nhân</button>
+              <button type="button" className="shop-navbar__account-item" onClick={() => { setAccountOpen(false); onHome?.(); }}><Home size={17} aria-hidden="true" /> Về trang chủ</button>
+              <button type="button" className="shop-navbar__account-item shop-navbar__logout" onClick={onLogout} disabled={loggingOut}><LogOut size={17} aria-hidden="true" /> {loggingOut ? 'Đang thoát...' : 'Đăng xuất'}</button>
+            </div>}
+          </div>
         </div>
       </div>
     </header>

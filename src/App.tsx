@@ -16,6 +16,7 @@ import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { SkeletonLoading } from './components/shared';
 
 const ProductRailPreviewPage = React.lazy(() => import('./pages/ProductRailPreviewPage'));
 
@@ -56,7 +57,7 @@ export default function App() {
 
       {/* UI Components Kit preview */}
       <Route path="/ui-components" element={<UIComponentsPage />} />
-      <Route path="/ui-components/product-rail-gallery" element={<React.Suspense fallback={null}><ProductRailPreviewPage /></React.Suspense>} />
+      <Route path="/ui-components/product-rail-gallery" element={<React.Suspense fallback={<SkeletonLoading variant="page" label="Đang tải thư viện sản phẩm..." className="p-6" />}><ProductRailPreviewPage /></React.Suspense>} />
 
       {/* Protected Shop / Admin routes */}
       <Route path="/admin/accounts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ShopDashboardPage initialTab="accounts" /></ProtectedRoute>} />

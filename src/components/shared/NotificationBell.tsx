@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell, Check, Clock, Info } from 'lucide-react';
 import { notificationApi } from '@/api/notificationApi';
 import type { Notification } from '@/types';
+import { SkeletonLoading } from './Skeleton';
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -109,7 +110,7 @@ export function NotificationBell() {
           {error && <p role="alert" className="mt-3 text-xs text-state-danger">{error}</p>}
           <div className="mt-3 max-h-80 overflow-y-auto space-y-2.5 divide-y divide-border/50">
             {loading && notifications.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted">Đang tải thông báo...</p>
+              <SkeletonLoading variant="list" count={3} label="Đang tải thông báo..." />
             ) : notifications.length === 0 && !error ? (
               <div className="py-8 text-center text-xs text-muted">
                 <Info size={28} className="mx-auto mb-2 text-muted/60" />

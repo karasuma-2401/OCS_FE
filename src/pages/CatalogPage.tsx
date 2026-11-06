@@ -3,7 +3,7 @@ import { ArrowRight, ChevronLeft, ChevronRight, RefreshCw, RotateCcw, Search, Sp
 import { Link, useSearchParams } from 'react-router-dom';
 import { CatalogProductCard } from '@/components/customer/CatalogProductCard';
 import { ProductDetailModal } from '@/components/customer/ProductDetailModal';
-import { Combobox } from '@/components/shared';
+import { Combobox, SkeletonLoading } from '@/components/shared';
 import {
   CATEGORY_NAMES,
   CATEGORY_SEED_MAP,
@@ -345,16 +345,7 @@ export function CatalogPage() {
         </div>
 
         {isLoading ? (
-          <div className="catalog-grid" aria-label="Đang tải danh sách sản phẩm">
-            {[...Array(9)].map((_, i) => (
-              <div key={i} className="catalog-skeleton-card">
-                <div className="catalog-skeleton-image" />
-                <div className="catalog-skeleton-line catalog-skeleton-line--short" />
-                <div className="catalog-skeleton-line catalog-skeleton-line--title" />
-                <div className="catalog-skeleton-line catalog-skeleton-line--price" />
-              </div>
-            ))}
-          </div>
+          <SkeletonLoading variant="products" count={9} label="Đang tải danh sách sản phẩm..." />
         ) : error ? (
           <div className="catalog-error-state">
             <h3>Đã có lỗi xảy ra</h3>
