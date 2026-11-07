@@ -6,6 +6,7 @@ import { Card } from '@/components/shared';
 import { AppointmentManagement } from '@/components/shop/AppointmentManagement';
 import { AccountManagement } from '@/components/shop/AccountManagement';
 import { FunctionPermissions } from '@/components/shop/FunctionPermissions';
+import { InventoryManagement } from '@/components/shop/InventoryManagement';
 import { screenOrder, screenPaths, screenPermissions, screenRequirements, type ShopNavId } from '@/auth/permissions';
 
 interface ShopDashboardPageProps {
@@ -127,7 +128,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         {activeTab !== 'consignment' && <h1 className="sr-only">{currentTabInfo.title}</h1>}
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
-        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'settings' ? <FunctionPermissions /> : <Card className="p-6 mb-6">
+        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'settings' ? <FunctionPermissions /> : <Card className="p-6 mb-6">
           <p className="text-sm text-muted">{currentTabInfo.desc}</p>
           <div className="mt-6 rounded-xl border border-dashed border-border p-8 text-center bg-white">
             <p className="text-sm font-semibold text-ink">
