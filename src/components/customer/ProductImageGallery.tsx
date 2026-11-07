@@ -44,9 +44,10 @@ export function ProductImageGallery({ productName, images }: ProductImageGallery
 
   return (
     <div className="product-gallery" role="group" aria-label={`Ảnh sản phẩm ${productName}`}>
-      <div className="product-gallery__main relative grid h-[clamp(190px,36vh,300px)] place-items-center overflow-hidden rounded-[9px] bg-[#f2e8e9] [&>img]:size-full [&>img]:object-contain">
+      <div className="product-gallery__main relative h-[clamp(190px,36vh,300px)] overflow-hidden rounded-[9px] bg-[#f2e8e9]">
         {!isMainBroken ? (
           <img
+            className="absolute inset-0 h-full w-full object-contain"
             src={active.src}
             alt={`${productName} - ${active.label}`}
             onError={() => markBroken(active.src)}

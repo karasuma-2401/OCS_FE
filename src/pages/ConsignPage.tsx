@@ -1,15 +1,19 @@
 import { ArrowRight, Recycle, Shirt } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { consignmentSteps } from '@/data/consignmentSteps';
+import { useAuth } from '@/context/AuthContext';
 
 const questions = [
   { question: 'Mình cần chuẩn bị đồ như thế nào?', answer: 'Hãy chọn quần áo còn nguyên vẹn, đã giặt sạch, không rách hỏng hoặc ố màu trước khi mang đến cửa hàng.' },
   { question: 'Giá bán được xác định như thế nào?', answer: 'Bạn và cửa hàng sẽ cùng kiểm tra tình trạng món đồ và thống nhất giá bán khi tiếp nhận.' },
   { question: 'Mình có cần tài khoản để tìm hiểu trước không?', answer: 'Không cần. Bạn có thể xem hướng dẫn và khám phá sản phẩm trước khi đăng nhập.' },
-  { question: 'Làm thế nào để đặt lịch ký gửi?', answer: 'Chọn “Đặt lịch ký gửi” để đến trang lịch hẹn. Nếu chưa đăng nhập, bạn sẽ được hướng dẫn đăng nhập trước khi tiếp tục.' },
+  { question: 'Làm thế nào để đặt lịch ký gửi?', answer: 'Đăng ký hoặc đăng nhập bằng tài khoản khách hàng, sau đó chọn “Lịch hẹn” để đặt lịch ký gửi.' },
 ];
 
 export function ConsignPage() {
+  const { isAuthenticated, isChecking, hasRole, hasPermission } = useAuth();
+  const canBook = isAuthenticated && hasRole('Customer') && hasPermission('appointments.create');
+  const canRegister = !isChecking && !isAuthenticated;
   return (
     <div className={`
       customer-page pt-8 pb-20 max-[600px]:pt-6 max-[600px]:pb-12 [&_h1]:mt-5 [&_h1]:mb-4
@@ -76,16 +80,16 @@ export function ConsignPage() {
           [&_details_p]:text-[#827880]
         `}>{questions.map(({ question, answer }) => <details key={question}><summary>{question}<span aria-hidden="true">+</span></summary><p>{answer}</p></details>)}</div>
       </section>
-      <section className={`
+      {(canBook || canRegister) && <section className={`
         consign-booking mb-4 flex items-center justify-between gap-8 rounded-xl border border-[#eee5e9] bg-white
         p-12 max-[600px]:flex-col max-[600px]:items-start max-[600px]:p-8 [&_h2]:!mt-3
         [&_h2]:!text-[clamp(1.6rem,2.6vw,2.25rem)] [&_h2]:!tracking-[-.045em] [&_h2]:text-[#302a32]
         [&_p]:mt-[.8rem] [&_p]:text-[.8rem] [&_p]:leading-[1.7] [&_p]:text-[#827880] [&_.landing-button]:shrink-0
-      `}><div><span className="landing-eyebrow inline-flex items-center gap-2 text-[.65rem] font-bold tracking-[.13em] text-[#9b7281] [&>span]:h-0.5 [&>span]:w-6 [&>span]:bg-[#dfa0b5]">SẴN SÀNG BẮT ĐẦU?</span><h2>Trao món đồ thêm một hành trình.</h2><p>Chọn thời gian phù hợp để mang những món đồ bạn yêu thích đến OCS.</p></div><Link to="/appointments" className={`
+      `}><div><span className="landing-eyebrow inline-flex items-center gap-2 text-[.65rem] font-bold tracking-[.13em] text-[#9b7281] [&>span]:h-0.5 [&>span]:w-6 [&>span]:bg-[#dfa0b5]">SẴN SÀNG BẮT ĐẦU?</span><h2>Trao món đồ thêm một hành trình.</h2><p>{canBook ? 'Chọn thời gian phù hợp để mang những món đồ bạn yêu thích đến OCS.' : 'Tạo tài khoản khách hàng để bắt đầu đặt lịch ký gửi.'}</p></div><Link to={canBook ? '/appointments' : '/register'} className={`
         landing-button inline-flex min-h-12 items-center justify-center gap-4 rounded-[7px] bg-button-pastel px-5
         py-[.8rem] text-[.8rem] font-bold text-[#332832] transition-[background,transform] duration-200
         hover:-translate-y-px hover:bg-button-pastel-hover
-      `}>Đặt lịch ký gửi <ArrowRight size={16} aria-hidden="true" /></Link></section>
+      `}>{canBook ? 'Đặt lịch ký gửi' : 'Đăng ký tài khoản'} <ArrowRight size={16} aria-hidden="true" /></Link></section>}
       <section className={`
         customer-cta flex items-center justify-between gap-8 rounded-xl bg-[#f0e1e5] px-12 py-11
         max-[600px]:flex-col max-[600px]:items-start max-[600px]:p-8 [&_h2]:!mt-[.65rem]

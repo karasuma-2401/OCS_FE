@@ -13,10 +13,12 @@ const links = [
 ];
 
 export function Navbar() {
-  const { user, isAuthenticated, hasPermission, logout } = useAuth();
-  const managementPath = firstAllowedScreen(user?.permissions ?? []);
-  const visibleLinks = links.filter(link => link.to !== '/appointments' || !isAuthenticated
-    || hasPermission('appointments.create') || hasPermission('appointments.own.read'));
+  const { user, isAuthenticated, hasRole, hasPermission, logout } = useAuth();
+  const isCustomer = isAuthenticated && hasRole('Customer');
+  const managementPath = isAuthenticated && (hasRole('Admin') || hasRole('Manager') || hasRole('Staff'))
+    ? firstAllowedScreen(user?.permissions ?? []) : null;
+  const visibleLinks = links.filter(link => link.to !== '/appointments' || (isCustomer
+    && (hasPermission('appointments.create') || hasPermission('appointments.own.read'))));
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState(false);
@@ -65,17 +67,10 @@ export function Navbar() {
           [&_a[aria-current=page]]:text-[#ae6580]
         `} aria-label="Điều hướng chính">
           {visibleLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.end}>{link.label}</NavLink>)}
-          {hasPermission('screens.pos') && <Link to="/admin/pos">Web POS</Link>}
-          {hasPermission('screens.inventory') && <Link to="/admin/products">Kho hàng</Link>}
         </nav>
         <div className="landing-header__actions flex items-center gap-[clamp(1.2rem,2.5vw,2.5rem)] max-[600px]:gap-[.8rem] max-[600px]:[&_.landing-button]:hidden">
           {isAuthenticated ? <>
             <NotificationBell />
-            {managementPath && <Link className={`
-              landing-header__login inline-flex cursor-pointer items-center gap-[.4rem] border-0 bg-transparent
-              text-[.78rem] font-semibold text-[#514b54] hover:text-[#ae6580] disabled:opacity-60
-              landing-header__management max-[600px]:hidden
-            `} to={managementPath}>Quản lý</Link>}
             <div className="landing-account relative shrink-0" ref={accountRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAccountOpen(false); }}>
               <button ref={accountButtonRef} type="button" className={`
                 landing-account__trigger inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-[10px] border
@@ -92,6 +87,7 @@ export function Navbar() {
                   bg-transparent px-3 py-[.8rem] text-left text-[.8rem] font-semibold text-[#514b54] hover:bg-[#fbf3f6]
                   hover:text-[#ae6580] disabled:cursor-wait disabled:opacity-60
                 `} onClick={() => setAccountOpen(false)}><CircleUserRound size={17} aria-hidden="true" /> Hồ sơ cá nhân</Link>
+                {managementPath && <Link to={managementPath} className="landing-account__item flex w-full items-center gap-[.7rem] rounded-lg px-3 py-[.8rem] text-left text-[.8rem] font-semibold text-[#514b54] hover:bg-[#fbf3f6] hover:text-[#ae6580]" onClick={() => setAccountOpen(false)}>Trang cửa hàng</Link>}
                 <button type="button" className={`
                   landing-account__item flex w-full cursor-pointer items-center gap-[.7rem] rounded-lg border-0
                   bg-transparent px-3 py-[.8rem] text-left text-[.8rem] font-semibold text-[#514b54] hover:bg-[#fbf3f6]
@@ -119,9 +115,6 @@ export function Navbar() {
         [&_a[aria-current=page]]:text-[#ae6580]
       `} aria-label="Điều hướng di động">
         {visibleLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.end} onClick={() => setMenuOpen(false)}>{link.label}</NavLink>)}
-        {hasPermission('screens.pos') && <Link to="/admin/pos" onClick={() => setMenuOpen(false)}>Web POS</Link>}
-        {hasPermission('screens.inventory') && <Link to="/admin/products" onClick={() => setMenuOpen(false)}>Kho hàng</Link>}
-        {managementPath && <Link to={managementPath} onClick={() => setMenuOpen(false)}>Quản lý</Link>}
       </nav>}
       {logoutError && <p className="landing-header__error pb-2 text-center text-[.8rem] text-[#a3223c]" role="alert">Không thể đăng xuất. Vui lòng thử lại.</p>}
     </header>

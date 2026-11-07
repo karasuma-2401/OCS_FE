@@ -164,7 +164,8 @@ export function AccountManagement() {
     setSubmitting(true); setFormError(null);
     try {
       const created = await accountsApi.create({ ...form, fullName: form.fullName.trim(), email: form.email.trim(), phoneNumber: form.phoneNumber.trim(), username: form.username.trim(), jobTitle: form.jobTitle.trim(), password: useDefaultPassword ? null : form.password, useDefaultPassword }, createRole, isAdmin);
-      setCreateOpen(false); setForm(blankForm); setPage(1); setSelected(created); setSelectedRowId(created.id); refresh(true);
+      setCreateOpen(false); setForm(blankForm); setPage(1); setSelected(created); setSelectedRowId(created.id);
+      setChosenRoles(created.roles.filter((role): role is InternalRole => roleOptions.includes(role as InternalRole))); refresh(true);
       setNotice({ variant: 'success', message: 'Đã tạo tài khoản. Người được cấp tài khoản cần đăng nhập, xác thực OTP rồi đăng nhập lại.' });
     } catch (error) {
       const problem = parseProblemDetails(error);
@@ -307,6 +308,11 @@ export function AccountManagement() {
   const returnFromAction = () => { if (action && !submitting) { setSelected(action.account); setAction(null); } };
   const canManage = (account: AccountSummary) => hasPermission('accounts.status') && !account.isProtected && account.id !== user?.id && (isAdmin || (account.accountType === 'Internal' && account.roles.length === 1 && account.roles[0] === 'Staff'));
   const rolesChanged = selected && [...selected.roles].sort().join('|') !== [...chosenRoles].sort().join('|');
+  const canEditAccount = !!selected && isAdmin && hasPermission('accounts.update');
+  const canEditEmployee = !!selected && selected.accountType === 'Internal' && hasPermission('accounts.update') && (isAdmin || (!selected.isProtected && selected.roles.length === 1 && selected.roles[0] === 'Staff'));
+  const canResetPassword = !!selected && isAdmin && hasPermission('accounts.reset-password') && selected.id !== user?.id && !selected.isProtected;
+  const canViewHistory = !!selected && isAdmin && hasPermission('accounts.history');
+  const canEditRoles = !!selected && isAdmin && hasPermission('accounts.roles') && selected.accountType === 'Internal' && !selected.isProtected;
   const date = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short' }).format(new Date(value));
 
   return <div className="space-y-5">
@@ -367,23 +373,53 @@ export function AccountManagement() {
       </form>
     </Modal>
 
-    <Modal open={!!selected} onClose={() => setSelected(null)} title="Chi tiết tài khoản" description={selected?.email || selected?.fullName} loading={detailLoading} loadingFallback={<SkeletonLoading variant="list" count={3} label="Đang tải chi tiết tài khoản..." />} footer={<div className="flex w-full flex-wrap justify-end gap-2"><Button variant="outline" onClick={() => setSelected(null)}>Đóng</Button>{selected && isAdmin && hasPermission('accounts.roles') && selected.accountType === 'Internal' && !selected.isProtected && <Button disabled={!rolesChanged || chosenRoles.length === 0} onClick={() => queueStatus(selected, 'Đổi vai trò', () => accountsApi.roles(selected.id, chosenRoles), `Vai trò cũ: ${selected.roles.join(', ')} → vai trò mới: ${chosenRoles.join(', ')}. Các phiên đăng nhập sẽ bị thu hồi.`)}>Lưu vai trò</Button>}</div>}>
+    <Modal open={!!selected} onClose={() => setSelected(null)} appearance="simple" className="focus:outline-none" title="Chi tiết tài khoản" description="Thông tin và quyền truy cập của tài khoản." loading={detailLoading} loadingFallback={<SkeletonLoading variant="list" count={3} label="Đang tải chi tiết tài khoản..." />} footer={<>
+      <Button variant="outline" onClick={() => setSelected(null)}>Đóng</Button>
+      {selected && canEditRoles && <Button disabled={!rolesChanged || chosenRoles.length === 0} onClick={() => queueStatus(selected, 'Đổi vai trò', () => accountsApi.roles(selected.id, chosenRoles), `Vai trò cũ: ${selected.roles.join(', ')} → vai trò mới: ${chosenRoles.join(', ')}. Các phiên đăng nhập sẽ bị thu hồi.`)}>Lưu vai trò</Button>}
+    </>}>
       {selected && <div className="space-y-5 text-sm">
         {notice && <Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} />}
-        <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-brand-pink-surface p-4 sm:grid-cols-2"><div><span className="text-muted">Họ tên</span><strong className="block text-ink">{selected.fullName}</strong></div><div><span className="text-muted">Số điện thoại</span><strong className="block text-ink">{selected.phoneNumber}</strong></div><div><span className="text-muted">Loại tài khoản</span><strong className="block text-ink">{selected.accountType === 'Internal' ? 'Nội bộ' : 'Khách hàng'}</strong></div><div><span className="text-muted">Trạng thái</span><div className="mt-0.5"><Badge variant={statusVariants[selected.status]}>{statusNames[selected.status]}</Badge></div></div></div>
-        {selected.isProtected && <p className="rounded-lg bg-state-info-soft p-3 text-state-info">Admin gốc được bảo vệ. Có thể sửa tên và số điện thoại; không thể đổi email, username, trạng thái hoặc vai trò.</p>}
-        <div className="flex flex-wrap gap-2">
-          {isAdmin && hasPermission('accounts.update') && <Button size="sm" variant="outline" onClick={() => openEditAccount(selected)}>Sửa thông tin tài khoản</Button>}
-          {selected.accountType === 'Internal' && hasPermission('accounts.update') && (isAdmin || (!selected.isProtected && selected.roles.length === 1 && selected.roles[0] === 'Staff')) && <Button size="sm" variant="outline" onClick={() => void openEditProfile(selected)}>Sửa hồ sơ nhân viên</Button>}
-          {isAdmin && hasPermission('accounts.reset-password') && selected.id !== user?.id && !selected.isProtected && <Button size="sm" variant="outline" onClick={() => openPasswordReset(selected)}>Đặt lại mật khẩu</Button>}
-          {isAdmin && hasPermission('accounts.history') && <Button size="sm" variant="outline" onClick={() => openHistory(selected.id)} startIcon={<Clock3 size={14} />}>Lịch sử thao tác</Button>}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0"><h3 className="break-words text-lg font-bold text-brand-ink">{selected.fullName}</h3><p className="mt-1 text-sm text-text-secondary">{selected.accountType === 'Internal' ? 'Tài khoản nội bộ' : 'Khách hàng'} · {selected.roles.join(', ') || 'Chưa có vai trò'}</p></div>
+          <Badge variant={statusVariants[selected.status]}>{statusNames[selected.status]}</Badge>
         </div>
-        {canManage(selected) && <div><h3 className="mb-2 font-semibold">Trạng thái</h3><div className="flex flex-wrap gap-2">
-          {selected.status === 'Active' && <Button size="sm" variant="outline" onClick={() => queueStatus(selected, 'Khóa tài khoản', () => accountsApi.lock(selected.id, true), 'Các phiên đăng nhập hiện tại sẽ bị thu hồi.')}>Khóa</Button>}
-          {selected.status === 'Locked' && <Button size="sm" variant="outline" onClick={() => queueStatus(selected, 'Mở khóa tài khoản', () => accountsApi.lock(selected.id, false), 'Người dùng cần đăng nhập lại.')}>Mở khóa</Button>}
-          {selected.status !== 'Deactivated' ? <Button size="sm" variant="danger" onClick={() => queueStatus(selected, 'Vô hiệu hóa tài khoản', () => accountsApi.status(selected.id, 'Deactivated'), 'Các phiên đăng nhập hiện tại sẽ bị thu hồi.')}>Vô hiệu hóa</Button> : <Button size="sm" onClick={() => queueStatus(selected, 'Kích hoạt lại tài khoản', () => accountsApi.status(selected.id, 'Active'), 'Nếu email chưa xác thực, tài khoản sẽ trở về trạng thái chờ kích hoạt OTP.')}>Kích hoạt lại</Button>}
-        </div></div>}
-        {isAdmin && hasPermission('accounts.roles') && selected.accountType === 'Internal' && !selected.isProtected && <div className="rounded-xl border border-border p-4"><h3 className="mb-3 font-semibold text-ink">Vai trò</h3><div className="flex flex-wrap gap-2">{roleOptions.map(role => <label key={role} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-paper px-3 py-2 text-ink transition hover:border-brand-lavender"><input type="checkbox" className="accent-brand-highlight" checked={chosenRoles.includes(role)} onChange={e => setChosenRoles(current => e.target.checked ? [...current, role] : current.filter(item => item !== role))} />{role}</label>)}</div><p className="mt-2 text-xs text-muted">Thay đổi vai trò sẽ thu hồi các phiên đăng nhập.</p></div>}
+
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-4 border-t border-border pt-4 sm:gap-x-6">
+          <div className="min-w-0"><dt className="text-xs text-text-secondary">Email</dt><dd className="mt-1 break-all font-semibold text-brand-ink">{selected.email || 'Chưa cập nhật'}</dd></div>
+          <div className="min-w-0"><dt className="text-xs text-text-secondary">Số điện thoại</dt><dd className="mt-1 break-words font-semibold text-brand-ink">{selected.phoneNumber || 'Chưa cập nhật'}</dd></div>
+          {selected.accountType === 'Internal' && <div className="min-w-0"><dt className="text-xs text-text-secondary">Tên đăng nhập</dt><dd className="mt-1 break-all font-semibold text-brand-ink">{selected.username || 'Chưa cập nhật'}</dd></div>}
+          <div><dt className="text-xs text-text-secondary">Ngày tạo</dt><dd className="mt-1 font-semibold text-brand-ink">{date(selected.createdAt)}</dd></div>
+        </dl>
+
+        {selected.isProtected && <p className="rounded-lg bg-state-info-soft p-3 text-state-info">Admin gốc được bảo vệ. Có thể sửa tên và số điện thoại; không thể đổi email, username, trạng thái hoặc vai trò.</p>}
+
+        {(canEditAccount || canEditEmployee || canResetPassword || canViewHistory) && <section className="border-t border-border pt-4" aria-labelledby="account-actions-title">
+          <h3 id="account-actions-title" className="font-semibold text-brand-ink">Thao tác</h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {canEditAccount && <Button className="min-h-10" size="sm" variant="outline" onClick={() => openEditAccount(selected)}>Sửa thông tin tài khoản</Button>}
+            {canEditEmployee && <Button className="min-h-10" size="sm" variant="outline" onClick={() => void openEditProfile(selected)}>Sửa hồ sơ nhân viên</Button>}
+            {canResetPassword && <Button className="min-h-10" size="sm" variant="outline" onClick={() => openPasswordReset(selected)}>Đặt lại mật khẩu</Button>}
+            {canViewHistory && <Button className="min-h-10" size="sm" variant="outline" onClick={() => openHistory(selected.id)} startIcon={<Clock3 size={14} />}>Lịch sử thao tác</Button>}
+          </div>
+        </section>}
+
+        {canEditRoles && <fieldset className="min-w-0 border-t border-border pt-4">
+          <legend className="sr-only">Vai trò tài khoản</legend>
+          <h3 className="font-semibold text-brand-ink">Vai trò</h3>
+          <p id="account-role-help" className="mt-1 text-xs leading-5 text-text-secondary">Thay đổi vai trò sẽ thu hồi các phiên đăng nhập.</p>
+          <div className="mt-3 flex flex-wrap gap-2">{roleOptions.map(role => <label key={role} className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-control border px-3 text-sm transition-colors ${chosenRoles.includes(role) ? 'border-brand-pink-focus bg-brand-pink-surface text-brand-ink' : 'border-border text-text-secondary hover:border-brand-pink-focus'}`}><input type="checkbox" aria-describedby="account-role-help" className="size-4 accent-brand-highlight" checked={chosenRoles.includes(role)} onChange={e => setChosenRoles(current => e.target.checked ? [...current, role] : current.filter(item => item !== role))} />{role}</label>)}</div>
+          {chosenRoles.length === 0 && <p className="mt-2 text-xs text-state-danger" role="status">Chọn ít nhất một vai trò để lưu.</p>}
+        </fieldset>}
+
+        {canManage(selected) && <section className="border-t border-border pt-4" aria-labelledby="account-status-title">
+          <h3 id="account-status-title" className="font-semibold text-brand-ink">Quản lý trạng thái</h3>
+          <p className="mt-1 text-xs leading-5 text-text-secondary">Thay đổi quyền đăng nhập của tài khoản.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selected.status === 'Active' && <Button className="min-h-10" size="sm" variant="outline" onClick={() => queueStatus(selected, 'Khóa tài khoản', () => accountsApi.lock(selected.id, true), 'Các phiên đăng nhập hiện tại sẽ bị thu hồi.')}>Khóa tài khoản</Button>}
+            {selected.status === 'Locked' && <Button className="min-h-10" size="sm" variant="outline" onClick={() => queueStatus(selected, 'Mở khóa tài khoản', () => accountsApi.lock(selected.id, false), 'Người dùng cần đăng nhập lại.')}>Mở khóa tài khoản</Button>}
+            {selected.status !== 'Deactivated' ? <Button className="min-h-10 !text-state-danger" size="sm" variant="outline" onClick={() => queueStatus(selected, 'Vô hiệu hóa tài khoản', () => accountsApi.status(selected.id, 'Deactivated'), 'Các phiên đăng nhập hiện tại sẽ bị thu hồi.')}>Vô hiệu hóa</Button> : <Button className="min-h-10" size="sm" onClick={() => queueStatus(selected, 'Kích hoạt lại tài khoản', () => accountsApi.status(selected.id, 'Active'), 'Nếu email chưa xác thực, tài khoản sẽ trở về trạng thái chờ kích hoạt OTP.')}>Kích hoạt lại</Button>}
+          </div>
+        </section>}
       </div>}
     </Modal>
     <Modal open={!!editing} onClose={returnToDetail} title={editing?.kind === 'profile' ? 'Sửa hồ sơ nhân viên' : 'Sửa thông tin tài khoản'} description={editing?.account.fullName} loading={editLoading || editSubmitting} loadingFallback={editLoading ? <SkeletonLoading variant="list" count={3} label="Đang tải hồ sơ nhân viên..." /> : undefined} footer={<><Button variant="outline" onClick={returnToDetail} disabled={editSubmitting || editLoading}>Quay lại chi tiết</Button><Button type="submit" form="account-edit-form" loading={editSubmitting || editLoading}>Lưu thay đổi</Button></>}>

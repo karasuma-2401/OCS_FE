@@ -49,10 +49,8 @@ export default function App() {
       <Route element={<CustomerLayout />}>
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/explore" element={<CatalogPage />} />
-        <Route path="/kham-pha" element={<CatalogPage />} />
         <Route path="/consign" element={<ConsignPage />} />
-        <Route path="/cach-ky-gui" element={<ConsignPage />} />
-        <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
+        <Route path="/appointments" element={<ProtectedRoute allowedRoles={['Customer']}><AppointmentsPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
       </Route>
