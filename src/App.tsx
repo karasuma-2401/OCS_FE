@@ -11,6 +11,7 @@ import { UIComponentsPage } from './pages/UIComponentsPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { VerifyOtpPage } from './pages/VerifyOtpPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ShopDashboardPage } from './pages/ShopDashboardPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -22,7 +23,14 @@ const ProductRailPreviewPage = React.lazy(() => import('./pages/ProductRailPrevi
 
 const CustomerLayout: React.FC = () => {
   return (
-    <div className="landing customer-layout">
+    <div className={`
+      landing bg-[#f9f7f8] font-sans text-[#28252e] [&_a]:no-underline [&_a:focus-visible]:outline-2
+      [&_a:focus-visible]:outline-offset-4 [&_a:focus-visible]:outline-[#bd6b8a]
+      [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4
+      [&_button:focus-visible]:outline-[#bd6b8a] [&_h2]:mt-3 [&_h2]:text-[clamp(1.7rem,2.8vw,2.55rem)]
+      [&_h2]:leading-[1.16] [&_h2]:font-bold [&_h2]:tracking-[-.045em] motion-reduce:[&_*]:!duration-[0.01ms]
+      customer-layout flex min-h-screen flex-col
+    `}>
       <Navbar />
       <main className="flex-1">
         <Outlet />
@@ -53,6 +61,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       </Route>
 
       {/* UI Components Kit preview */}

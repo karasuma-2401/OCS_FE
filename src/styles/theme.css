@@ -72,6 +72,34 @@
   --radius-pill: 9999px;
 
   --shadow-navbar: 0 2px 12px rgba(200, 185, 226, 0.2);
+  --animate-rail-caption-in: rail-caption-in 300ms ease-out;
+  --animate-auth-view-enter: auth-view-enter .35s cubic-bezier(.2, .7, .2, 1) both;
+  --animate-process-marker: process-marker-in .45s ease-out both;
+  --animate-process-line: process-line-across .4s ease-out both;
+  --animate-process-line-down: process-line-down .4s ease-out both;
+
+  @keyframes rail-caption-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes auth-view-enter {
+    from { opacity: 0; transform: translateX(var(--auth-view-offset, -12px)); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes process-marker-in {
+    from { transform: scale(.88); opacity: .6; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  @keyframes process-line-across {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  @keyframes process-line-down {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
 
   --breakpoint-xs: 30rem;
   --breakpoint-sm: 40rem;
@@ -85,8 +113,4 @@
   body {
     @apply font-sans bg-surface text-ink;
   }
-}
-
-.bg-shop-gradient {
-  background: linear-gradient(135deg, #FCE8F2 0%, #ECE7F9 45%, #D4E8FC 100%);
 }

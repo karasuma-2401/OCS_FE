@@ -1,0 +1,25 @@
+// Shared Tailwind styles for the authentication screens.
+export const authStyles = {
+  eyebrow: 'mb-[.65rem] text-[.6rem] font-bold tracking-[.12em] text-[#b07a8d] uppercase',
+  title: 'm-0 text-[clamp(1.9rem,2.5vw,2.35rem)] leading-[1.15] font-bold tracking-[-.055em] text-[#2d2930]',
+  description: 'mt-[.6rem] mb-[1.7rem] text-[.8rem] leading-[1.65] text-[#817980]',
+  footer: 'mt-[1.4rem] border-t border-[#f0ebed] pt-[1.2rem] text-center text-xs text-[#898188] [&_a]:font-bold [&_a]:text-[#a75574] [&_a]:no-underline [&_a:hover]:underline',
+  link: 'font-bold text-[#a75574] no-underline hover:underline',
+  action: 'flex min-h-[46px] items-center justify-center rounded-[7px] bg-button-pastel text-[.82rem] font-bold text-[#372a31] no-underline hover:bg-button-pastel-hover',
+  secondaryAction: 'flex min-h-[46px] items-center justify-center rounded-[7px] border border-[#eadde2] bg-white text-[.82rem] font-bold text-brand-highlight no-underline hover:bg-[#fbf3f6]',
+  form: [
+    '[&_label]:text-[.7rem] [&_label]:font-bold [&_label]:tracking-normal [&_label]:text-[#514a50] [&_label]:normal-case',
+    '[&_input:not(.auth-otp-input)]:min-h-[44px] [&_input:not(.auth-otp-input)]:rounded-[7px]',
+    '[&_input:not(.auth-otp-input)]:border-[#e8e2e5] [&_input:not(.auth-otp-input)]:bg-white [&_input:not(.auth-otp-input)]:text-[#2d2930]',
+    '[&_input:not(.auth-otp-input)::placeholder]:text-[#b7adb3] [&_input:not(.auth-otp-input):focus]:border-[#d58da6]',
+    '[&_input[aria-invalid=true]]:border-[#b91c1c] [&_input:disabled]:!bg-[#f8f4f5]',
+    '[&_fieldset]:grid [&_fieldset]:gap-[.85rem] [&_fieldset>*+*]:mt-0',
+    '[&_.ocs-button--primary]:min-h-[46px] [&_.ocs-button--primary]:rounded-[7px] [&_.ocs-button--primary]:bg-button-pastel',
+    '[&_.ocs-button--primary]:text-[.8rem] [&_.ocs-button--primary]:text-[#372a31] [&_.ocs-button--primary]:shadow-none',
+    '[&_.ocs-button--primary:hover:not(:disabled)]:bg-button-pastel-hover [&_.ocs-button--primary:hover:not(:disabled)]:shadow-none',
+    '[&_.ocs-button--primary:disabled]:opacity-60',
+  ].join(' '),
+  otpGrid: 'mx-auto grid w-[min(100%,21rem)] grid-cols-6 gap-[clamp(.3rem,1.3vw,.65rem)] p-1',
+  otpInput: 'auth-otp-input h-[3.25rem] w-full min-w-0 rounded-xl border border-[#eadde2] bg-white p-0 text-center font-mono text-[1.35rem] font-bold text-brand-ink outline-none transition-[border-color,background-color,box-shadow] duration-200 focus:border-[#d68eaa] focus:shadow-[0_0_0_3px_rgba(250,155,191,.2)]',
+  otpFilled: '!border-[#d68eaa] !bg-[#fdf6f8]',
+} as const;

@@ -1,3 +1,4 @@
+import { authStyles } from '@/components/layout/authStyles';
 import React, { useId, useState } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -10,8 +11,8 @@ import {
   getPasswordRequirements,
   validateConfirmPassword,
 } from '@/utils/validation';
-import { Form, Input, Button, Toast } from '@/components/shared';
-import { ArrowRight, Check, Eye, EyeOff } from 'lucide-react';
+import { Form, Input, PasswordInput, Button, Toast } from '@/components/shared';
+import { ArrowRight, Check } from 'lucide-react';
 
 interface RegisterFieldErrors {
   fullName?: string;
@@ -31,8 +32,6 @@ export const RegisterPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const passwordRequirementsId = useId();
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
@@ -160,9 +159,9 @@ export const RegisterPage: React.FC = () => {
 
   return (
     <div>
-        <div className="auth-panel__eyebrow">BẮT ĐẦU CÙNG OCS</div>
-        <h1 className="auth-panel__title">Tạo tài khoản</h1>
-        <p className="auth-panel__description">
+        <div className={authStyles.eyebrow}>BẮT ĐẦU CÙNG OCS</div>
+        <h1 className={authStyles.title}>Tạo tài khoản</h1>
+        <p className={authStyles.description}>
           Tạo tài khoản để bắt đầu hành trình cùng OCS.
         </p>
 
@@ -177,7 +176,7 @@ export const RegisterPage: React.FC = () => {
           </div>
         )}
 
-        <Form className="auth-form" onSubmit={handleSubmit} loading={isSubmitting} disabled={isSubmitting}>
+        <Form className={authStyles.form} onSubmit={handleSubmit} loading={isSubmitting} disabled={isSubmitting}>
           <Input
             label="Họ và tên"
             type="text"
@@ -230,10 +229,9 @@ export const RegisterPage: React.FC = () => {
             disabled={isSubmitting}
           />
 
-          <div className="auth-password-field">
-          <Input
+          <div>
+          <PasswordInput
             label="Mật khẩu"
-            type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
@@ -247,26 +245,19 @@ export const RegisterPage: React.FC = () => {
             aria-describedby={passwordRequirementsId}
             error={fieldErrors.password}
             disabled={isSubmitting}
-            endAdornment={
-              <button type="button" className="auth-password-toggle" onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-pressed={showPassword} disabled={isSubmitting}>
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
-            }
           />
-          <ul id={passwordRequirementsId} className="auth-password-requirements" aria-label="Điều kiện mật khẩu">
+          <ul id={passwordRequirementsId} className="mt-[.7rem] grid list-none gap-[.35rem] p-0" aria-label="Điều kiện mật khẩu">
             {passwordChecklist.map((requirement) => (
-              <li key={requirement.label} className={requirement.met ? 'is-met' : undefined}>
-                <span className="auth-password-requirements__icon" aria-hidden="true">{requirement.met && <Check size={11} strokeWidth={3} />}</span>
+              <li key={requirement.label} className={`flex items-start gap-[.55rem] text-[.7rem] leading-[1.45] ${requirement.met ? 'text-[#627d6b]' : 'text-[#817780]'}`}>
+                <span className={`mt-px grid size-[15px] shrink-0 place-items-center rounded-full border text-white ${requirement.met ? 'border-[#83a28d] bg-[#83a28d]' : 'border-[#d5c6cc]'}`} aria-hidden="true">{requirement.met && <Check size={11} strokeWidth={3} />}</span>
                 <span><span className="sr-only">{requirement.met ? 'Đã đạt: ' : 'Chưa đạt: '}</span>{requirement.label}</span>
               </li>
             ))}
           </ul>
           </div>
 
-          <Input
+          <PasswordInput
             label="Xác nhận mật khẩu"
-            type={showConfirmPassword ? 'text' : 'password'}
             value={confirmPassword}
             onChange={(e) => {
               setConfirmPassword(e.target.value);
@@ -279,12 +270,6 @@ export const RegisterPage: React.FC = () => {
             autoComplete="new-password"
             error={fieldErrors.confirmPassword}
             disabled={isSubmitting}
-            endAdornment={
-              <button type="button" className="auth-password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                aria-label={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'} aria-pressed={showConfirmPassword} disabled={isSubmitting}>
-                {showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
-            }
           />
 
           <Button
@@ -298,7 +283,7 @@ export const RegisterPage: React.FC = () => {
           </Button>
         </Form>
 
-        <div className="auth-panel__footer">
+        <div className={authStyles.footer}>
           <p>
             Đã có tài khoản?{' '}
             <Link to="/login">

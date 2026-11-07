@@ -15,8 +15,9 @@ function loadSource(relativePath, mocks = {}) {
   return module.exports;
 }
 const requests = [];
-const client = { apiClient: { post: async (path, body) => { requests.push({ path, body }); return { data: {} }; } } };
-const { parseProblemDetails, extractFieldError, verifyOtp, resendOtp } = loadSource('../src/api/auth.ts', { './client': client });
+let responseHeaders = {};
+const client = { apiClient: { post: async (path, body) => { requests.push({ path, body }); return { data: {}, headers: responseHeaders }; } } };
+const { parseProblemDetails, extractFieldError, verifyOtp, resendOtp, requestPasswordReset } = loadSource('../src/api/auth.ts', { './client': client });
 const { validateFullName, validateEmail, validatePhoneNumber, getPasswordRequirements, validatePasswordPolicy, validateConfirmPassword } = loadSource('../src/utils/validation.ts');
 
 test('OTP API sends the current continuation token for verification and resend', async () => {
@@ -27,6 +28,14 @@ test('OTP API sends the current continuation token for verification and resend',
     { path: '/auth/otp/verify', body: { challengeId: 'challenge', continuationToken: 'credential', code: '123456' } },
     { path: '/auth/otp/resend', body: { challengeId: 'challenge', continuationToken: 'credential' } },
   ]);
+});
+
+test('password reset reads OTP policy headers and tolerates older servers', async () => {
+  responseHeaders = { 'x-otp-expiry-minutes': '5', 'x-otp-resend-seconds': '60' };
+  assert.deepEqual(await requestPasswordReset('test@example.com'), { expiryMinutes: 5, resendSeconds: 60 });
+  responseHeaders = { 'x-otp-expiry-minutes': 'invalid', 'x-otp-resend-seconds': '0' };
+  assert.deepEqual(await requestPasswordReset('test@example.com'), { expiryMinutes: undefined, resendSeconds: undefined });
+  responseHeaders = {};
 });
 
 // Tests

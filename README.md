@@ -11,6 +11,22 @@
 - **Lucide React** (Bộ biểu tượng hiện đại)
 - **Axios** (Kết nối Web API)
 
+## Cấu trúc mã nguồn
+
+- `src/pages`: các trang tương ứng với route; `App.tsx` khai báo route và `main.tsx` khởi chạy ứng dụng.
+- `src/components/shared`: các thành phần UI dùng chung; `layout` chứa bố cục và thanh điều hướng; `customer`, `shop` và `notifications` chứa component theo chức năng. `components/ui` chứa component trưng bày trong UI kit.
+- `src/api`, `src/auth` và `src/context`: giao tiếp API, quyền truy cập và trạng thái đăng nhập.
+- `src/data`, `src/types` và `src/utils`: dữ liệu tĩnh, kiểu dữ liệu và hàm hỗ trợ. Ảnh nằm trong `src/assets`, còn theme chung nằm trong `src/styles`.
+
+Khi thêm chức năng, ưu tiên đặt component gắn với nghiệp vụ trong thư mục chức năng tương ứng; chỉ đưa vào `shared` khi component có thể dùng lại mà không phụ thuộc vào nghiệp vụ cụ thể.
+
+## Quy ước component và CSS
+
+- Component dùng chung nằm trong `src/components/shared`, mỗi component có file riêng và được xuất qua `@/components/shared`. Các import trực tiếp từ `shared/ui` cũ vẫn được hỗ trợ.
+- `Button` dùng `variant="primary"` với màu hồng pastel; các biến thể `secondary`, `outline`, `ghost` và `danger` phục vụ những mục đích khác nhau. Dùng `PasswordInput` cho trường mật khẩu có nút ẩn/hiện.
+- Tailwind được nạp từ `src/index.css`; token màu sắc, typography, breakpoint và keyframes dùng chung tập trung ở `src/styles/theme.css`. Các component sử dụng utility class trong `className`.
+- Ưu tiên token có sẵn thay vì lặp lại giá trị màu hoặc kích thước. Các hiệu ứng và trạng thái dùng biến thể Tailwind như `hover:`, `max-[600px]:` và `motion-reduce:`; style xác thực tái sử dụng được tập trung trong `src/components/layout/authStyles.ts`.
+
 ## Phân hệ chức năng
 
 1. **Khách hàng & Người ký gửi:**

@@ -1,3 +1,4 @@
+import { authStyles } from '@/components/layout/authStyles';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { verifyOtp, resendOtp, parseProblemDetails } from '@/api/auth';
@@ -242,13 +243,13 @@ export const VerifyOtpPage: React.FC = () => {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-pink-light text-brand-highlight mb-4">
             <ShieldAlert size={28} />
           </div>
-          <h1 className="auth-panel__title">Không tìm thấy phiên xác thực</h1>
-          <p className="auth-panel__description">
+          <h1 className={authStyles.title}>Không tìm thấy phiên xác thực</h1>
+          <p className={authStyles.description}>
             Trang này yêu cầu thông tin phiên xác thực từ bước Đăng ký hoặc Đăng nhập tài khoản chờ kích hoạt.
           </p>
           <div className="mt-6 flex flex-col gap-3">
-            <Link to="/login" className="auth-action">Đăng nhập tài khoản</Link>
-            <Link to="/register" className="auth-secondary-action">Đăng ký mới</Link>
+            <Link to="/login" className={authStyles.action}>Đăng nhập tài khoản</Link>
+            <Link to="/register" className={authStyles.secondaryAction}>Đăng ký mới</Link>
           </div>
       </div>
     );
@@ -261,12 +262,12 @@ export const VerifyOtpPage: React.FC = () => {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-state-success-soft text-state-success-strong mb-4">
             <CheckCircle2 size={36} />
           </div>
-          <h1 className="auth-panel__title">Kích hoạt thành công!</h1>
-          <p className="auth-panel__description">
+          <h1 className={authStyles.title}>Kích hoạt thành công!</h1>
+          <p className={authStyles.description}>
             Tài khoản của bạn đã được kích hoạt thành công. Bạn có thể đăng nhập ngay bây giờ để bắt đầu sử dụng OCS.
           </p>
           <div className="mt-6">
-            <Link to="/login" className="auth-action">Chuyển đến trang đăng nhập</Link>
+            <Link to="/login" className={authStyles.action}>Chuyển đến trang đăng nhập</Link>
           </div>
       </div>
     );
@@ -278,9 +279,9 @@ export const VerifyOtpPage: React.FC = () => {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-pink-light text-brand-highlight mb-4">
             <MailCheck size={24} />
           </div>
-          <div className="auth-panel__eyebrow">CHỈ CÒN MỘT BƯỚC NỮA</div>
-          <h1 className="auth-panel__title">Kiểm tra email</h1>
-          <p className="auth-panel__description !mb-1">
+          <div className={authStyles.eyebrow}>CHỈ CÒN MỘT BƯỚC NỮA</div>
+          <h1 className={authStyles.title}>Kiểm tra email</h1>
+          <p className={`${authStyles.description} !mb-1`}>
             Nhập mã gồm 6 chữ số đã được gửi đến:
           </p>
           <p className="text-sm font-bold text-brand-ink">
@@ -330,13 +331,13 @@ export const VerifyOtpPage: React.FC = () => {
           </div>
         </div>
 
-        <form onSubmit={handleVerify} className="auth-form space-y-6">
+        <form onSubmit={handleVerify} className={`${authStyles.form} space-y-6`}>
           {/* 6 Digit Inputs */}
           <div>
             <p className="block text-xs font-bold text-brand-ink text-center mb-3">
               Nhập mã xác thực 6 chữ số
             </p>
-            <div className="auth-otp-grid" onPaste={handlePaste}>
+            <div className={authStyles.otpGrid} onPaste={handlePaste}>
               {digits.map((digit, index) => (
                 <input
                   key={index}
@@ -351,9 +352,7 @@ export const VerifyOtpPage: React.FC = () => {
                   disabled={isVerifying || isResending || isExpired}
                   onChange={(e) => handleDigitChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
-                  className={`auth-otp-input ${
-                    digit ? 'auth-otp-input--filled' : ''
-                  } ${isExpired ? 'opacity-60' : ''}`}
+                  className={`${authStyles.otpInput} ${digit ? authStyles.otpFilled : ''} ${isExpired ? 'opacity-60' : ''}`}
                   aria-label={`Số thứ ${index + 1}`}
                 />
               ))}
@@ -393,7 +392,7 @@ export const VerifyOtpPage: React.FC = () => {
         <div className="mt-6 text-center">
           <Link
             to="/login"
-            className="auth-panel__link inline-flex items-center gap-1 text-xs transition"
+            className={`${authStyles.link} inline-flex items-center gap-1 text-xs transition`}
           >
             <ArrowLeft size={13} />
             Quay lại trang Đăng nhập

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
-import ShopNavBar, { type ShopNavId, type ShopNavItem } from '@/components/layout/Store/ShopNavBar';
+import ShopNavBar, { type ShopNavItem } from '@/components/layout/shop/ShopNavBar';
 import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/shared';
 import { AppointmentManagement } from '@/components/shop/AppointmentManagement';
 import { AccountManagement } from '@/components/shop/AccountManagement';
 import { FunctionPermissions } from '@/components/shop/FunctionPermissions';
-import { screenOrder, screenPaths, screenPermissions, screenRequirements } from '@/auth/permissions';
+import { screenOrder, screenPaths, screenPermissions, screenRequirements, type ShopNavId } from '@/auth/permissions';
 
 interface ShopDashboardPageProps {
   initialTab?: ShopNavId;
