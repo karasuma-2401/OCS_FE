@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { ArrowUpRight, ChevronDown, CircleUserRound, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { NotificationBell } from '@/components/shared/NotificationBell';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { firstAllowedScreen } from '@/auth/permissions';
 
 const links = [

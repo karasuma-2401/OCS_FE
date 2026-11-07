@@ -19,7 +19,7 @@ import {
   SkeletonLoading,
   Toast,
 } from "@/components/shared";
-import { NotificationBell } from "@/components/shared/NotificationBell";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/context/AuthContext";
 
 interface AppointmentManagementProps {

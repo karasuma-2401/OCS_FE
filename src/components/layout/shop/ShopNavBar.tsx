@@ -1,16 +1,9 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import { ChevronDown, CircleUserRound, Home, LogOut } from "lucide-react";
+import type { ShopNavId } from "@/auth/permissions";
 import mascotLogo from "../../../assets/images/mascot-logo.png";
 
-export type ShopNavId =
-  | "pos"
-  | "inventory"
-  | "consignment"
-  | "customers"
-  | "settlement"
-  | "reports"
-  | "settings"
-  | "accounts";
+export type { ShopNavId } from "@/auth/permissions";
 
 export interface ShopNavItem {
   id: ShopNavId;

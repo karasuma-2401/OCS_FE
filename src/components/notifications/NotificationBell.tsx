@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell, Check, Clock, Info } from 'lucide-react';
 import { notificationApi } from '@/api/notificationApi';
 import type { Notification } from '@/types';
-import { SkeletonLoading } from './Skeleton';
+import { SkeletonLoading } from '@/components/shared/Skeleton';
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);

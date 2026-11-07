@@ -1,4 +1,12 @@
-import type { ShopNavId } from '@/components/layout/Store/ShopNavBar';
+export type ShopNavId =
+  | 'pos'
+  | 'inventory'
+  | 'consignment'
+  | 'customers'
+  | 'settlement'
+  | 'reports'
+  | 'settings'
+  | 'accounts';
 
 export const screenPermissions: Record<ShopNavId, string> = {
   pos: 'screens.pos',
