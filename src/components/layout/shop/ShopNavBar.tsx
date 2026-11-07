@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import { ChevronDown, CircleUserRound, Home, LogOut } from "lucide-react";
-import type { ShopNavId } from "@/auth/permissions";
-import mascotLogo from "../../../assets/images/mascot-logo.png";
+import { screenPaths, type ShopNavId } from "@/auth/permissions";
 
 export type { ShopNavId } from "@/auth/permissions";
 
@@ -32,26 +31,26 @@ export interface ShopNavBarProps {
 }
 
 const navigation: ShopNavItem[] = [
-  { id: "pos", label: "POS Bán Hàng", href: "/shop/pos" },
-  { id: "inventory", label: "Quản Lý Kho", href: "/shop/kho" },
+  { id: "pos", label: "POS Bán Hàng", href: screenPaths.pos },
+  { id: "inventory", label: "Quản Lý Kho", href: screenPaths.inventory },
   {
     id: "consignment",
     label: "Tiếp Nhận Ký Gửi",
-    href: "/shop/ky-gui",
+    href: screenPaths.consignment,
   },
   {
     id: "customers",
     label: "Khách Hàng",
-    href: "/shop/khach-hang",
+    href: screenPaths.customers,
   },
   {
     id: "settlement",
     label: "Quyết Toán",
-    href: "/shop/quyet-toan",
+    href: screenPaths.settlement,
   },
-  { id: "reports", label: "Báo Cáo", href: "/shop/bao-cao" },
-  { id: "settings", label: "Cấu Hình", href: "/shop/cau-hinh" },
-  { id: "accounts", label: "Tài Khoản", href: "/admin/accounts" },
+  { id: "reports", label: "Báo Cáo", href: screenPaths.reports },
+  { id: "settings", label: "Cấu Hình", href: screenPaths.settings },
+  { id: "accounts", label: "Tài Khoản", href: screenPaths.accounts },
 ];
 
 export default function ShopNavBar({
@@ -70,6 +69,7 @@ export default function ShopNavBar({
 }: ShopNavBarProps) {
   const [selected, setSelected] = useState<ShopNavId>(initialActive);
   const [accountOpen, setAccountOpen] = useState(false);
+  const navigationRef = useRef<HTMLElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const accountMenuId = useId();
@@ -95,6 +95,16 @@ export default function ShopNavBar({
 
   const currentActive = activeItem ?? selected;
 
+  useEffect(() => {
+    const navigationElement = navigationRef.current;
+    const activeLink = navigationElement?.querySelector<HTMLElement>('a[aria-current="page"]');
+    if (!navigationElement || !activeLink) return;
+    const container = navigationElement.getBoundingClientRect();
+    const active = activeLink.getBoundingClientRect();
+    if (active.left < container.left) navigationElement.scrollLeft += active.left - container.left;
+    else if (active.right > container.right) navigationElement.scrollLeft += active.right - container.right;
+  }, [currentActive, showAccounts, allowedItems?.join('|')]);
+
   const handleSelect = (
     event: MouseEvent<HTMLAnchorElement>,
     item: ShopNavItem,
@@ -118,22 +128,20 @@ export default function ShopNavBar({
 
   return (
     <header className={`
-      relative z-[100] mx-[5px] mt-2 min-h-14 w-[calc(100%-10px)] rounded-[10px] border border-[#efd7e0]
-      bg-[#f9e9ef] font-sans shadow-navbar after:absolute after:inset-x-0 after:bottom-0 after:h-0.5
-      after:rounded-b-[10px] after:bg-[#e9b8ca] after:content-[''] [&_a:focus-visible]:outline-2
-      [&_a:focus-visible]:outline-offset-2 [&_a:focus-visible]:outline-brand-pink
+      relative z-[100] mx-[5px] mt-2 w-[calc(100%-10px)] rounded-card border border-brand-pink-light
+      bg-surface-default font-sans [&_a:focus-visible]:outline-2
+      [&_a:focus-visible]:outline-offset-[-2px] [&_a:focus-visible]:outline-brand-pink-focus
       [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-2
-      [&_button:focus-visible]:outline-brand-pink
+      [&_button:focus-visible]:outline-brand-pink-focus
     `}>
-      <div className="flex min-h-[54px] items-center gap-2 px-3 max-md:flex-wrap max-md:py-2 max-xs:px-2">
-        <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-text-primary">
-          <img src={mascotLogo} alt="" className="size-6 object-contain" />
-          <strong className="text-[13px] leading-none font-bold tracking-[-.25px]">OCS Vintage</strong>
+      <div className="flex min-h-[68px] items-center gap-4 px-4 max-[1100px]:flex-wrap max-[1100px]:gap-x-3 max-[1100px]:gap-y-0 max-[1100px]:pt-3 max-[1100px]:pb-2 max-xs:px-3">
+        <div className="flex shrink-0 items-center whitespace-nowrap text-brand-ink">
+          <strong className="text-base leading-none font-bold">OCS</strong>
         </div>
 
-        <nav className={`
-          ml-1 flex min-w-0 flex-auto items-center justify-evenly gap-0.5 overflow-x-auto [scrollbar-width:none]
-          [&::-webkit-scrollbar]:hidden max-md:order-4 max-md:ml-0 max-md:basis-full max-md:justify-start
+        <nav ref={navigationRef} className={`
+          flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-1 [scrollbar-width:thin]
+          max-[1100px]:order-3 max-[1100px]:basis-full max-[1100px]:pt-3
         `} aria-label="Điều hướng cửa hàng">
           {navigation.filter((item) => (item.id !== 'accounts' || showAccounts) && (!allowedItems || allowedItems.includes(item.id))).map((item) => {
             const isActive = currentActive === item.id;
@@ -144,9 +152,9 @@ export default function ShopNavBar({
                 key={item.id}
                 href={isDisabled ? undefined : item.href}
                 className={[
-                  "flex min-h-8 shrink-0 cursor-pointer items-center justify-center rounded-md px-2.5 text-[10px] leading-[1.2] font-medium whitespace-nowrap text-text-secondary no-underline transition-[background,color,transform] duration-200 max-xs:px-2 max-xs:text-[9px]",
-                  isActive ? "bg-[#edcad8] !font-bold text-[#793852]" : "",
-                  isDisabled ? "pointer-events-none cursor-not-allowed opacity-40" : "hover:bg-[#f1d4df] hover:text-[#813d5a] active:scale-[0.97]",
+                  "flex min-h-10 shrink-0 cursor-pointer items-center justify-center rounded-control px-3 text-[13px] leading-5 font-medium whitespace-nowrap text-text-secondary no-underline transition-colors duration-200",
+                  isActive ? "bg-brand-pink-light !font-semibold !text-brand-highlight" : "",
+                  isDisabled ? "pointer-events-none cursor-not-allowed opacity-40" : "hover:bg-brand-pink-surface hover:text-brand-highlight",
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -161,13 +169,13 @@ export default function ShopNavBar({
           })}
         </nav>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2.5">
+        <div className="ml-auto flex shrink-0 items-center gap-2.5 max-[1100px]:order-2">
           {actions}
           <div className="relative" ref={accountRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAccountOpen(false); }}>
             <button ref={accountButtonRef} type="button" className={`
-              inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-[10px] border border-[#eee6e9] bg-white
-              px-[.65rem] py-2 text-[#514b54] hover:border-[#ead2dc] hover:bg-[#fbf3f6] aria-expanded:border-[#ead2dc]
-              aria-expanded:bg-[#fbf3f6]
+              inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-control border border-brand-pink-light bg-white
+              px-3 py-2 text-text-secondary transition-colors hover:border-brand-pink-focus hover:bg-brand-pink-surface
+              aria-expanded:border-brand-pink-focus aria-expanded:bg-brand-pink-surface
             `} aria-label={`Tài khoản ${profileName}`} aria-expanded={accountOpen} aria-controls={accountMenuId} onClick={() => setAccountOpen((open) => !open)}>
               <CircleUserRound size={19} aria-hidden="true" />
               <span className="max-w-[130px] truncate text-[.78rem] leading-[1.2] font-semibold max-xs:max-w-[92px]">{profileName}</span>

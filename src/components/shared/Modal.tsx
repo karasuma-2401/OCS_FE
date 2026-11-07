@@ -18,6 +18,7 @@ export interface ModalProps {
   disabled?: boolean;
   closeOnBackdrop?: boolean;
   className?: string;
+  appearance?: "default" | "simple";
 }
 
 export function Modal({
@@ -33,6 +34,7 @@ export function Modal({
   disabled = false,
   closeOnBackdrop = true,
   className,
+  appearance = "default",
 }: ModalProps) {
   const titleId = useId();
   const descriptionId = useId();
@@ -108,7 +110,7 @@ export function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-ink/50 p-4 backdrop-blur-sm"
+      className={joinClasses("fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-ink/50 p-4", appearance === "default" && "backdrop-blur-sm")}
       onMouseDown={(event) => {
         if (
           closeOnBackdrop &&
@@ -128,19 +130,20 @@ export function Modal({
         aria-describedby={description ? descriptionId : undefined}
         aria-busy={loading || undefined}
         className={joinClasses(
-          "my-auto w-full max-w-lg rounded-2xl border border-brand-lavender/50 bg-paper shadow-2xl",
+          "my-auto w-full max-w-lg rounded-2xl bg-paper shadow-2xl",
+          appearance === "default" && "border border-brand-lavender/50",
           className,
         )}
       >
-        <header className="relative flex items-start justify-between gap-4 overflow-hidden rounded-t-[15px] border-b border-brand-lavender/30 bg-brand-pink-surface px-5 py-4 sm:px-6">
-          <div
+        <header className={joinClasses("relative flex items-start justify-between gap-4 overflow-hidden rounded-t-[15px] border-b px-5 py-4 sm:px-6", appearance === "default" ? "border-brand-lavender/30 bg-brand-pink-surface" : "border-border bg-paper")}>
+          {appearance === "default" && <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-x-0 top-0 h-1"
             style={{
               background:
                 "linear-gradient(90deg, var(--color-brand-pink-gradient), var(--color-brand-lavender-gradient) 52%, var(--color-brand-blue-gradient))",
             }}
-          />
+          />}
           <div>
             <h2 id={titleId} className="text-lg font-bold text-ink">
               {title}

@@ -20,14 +20,27 @@ export const screenPermissions: Record<ShopNavId, string> = {
 };
 
 export const screenPaths: Record<ShopNavId, string> = {
-  pos: '/admin/pos',
-  inventory: '/admin/products',
-  consignment: '/shop/ky-gui',
-  customers: '/shop/khach-hang',
-  settlement: '/shop/quyet-toan',
-  reports: '/admin',
-  settings: '/shop/cau-hinh',
+  pos: '/shop/pos',
+  inventory: '/shop/inventory',
+  consignment: '/shop/consignment',
+  customers: '/shop/customers',
+  settlement: '/shop/settlement',
+  reports: '/shop/reports',
+  settings: '/shop/settings',
   accounts: '/admin/accounts',
+};
+
+export const screenByPath: Record<string, ShopNavId> = {
+  ...Object.fromEntries(Object.entries(screenPaths).map(([screen, path]) => [path, screen as ShopNavId])),
+  '/admin': 'reports',
+  '/admin/pos': 'pos',
+  '/admin/products': 'inventory',
+  '/admin/contracts': 'consignment',
+  '/admin/customers': 'customers',
+  '/admin/settlement': 'settlement',
+  '/admin/reports': 'reports',
+  '/admin/settings': 'settings',
+  '/shop/accounts': 'accounts',
 };
 
 export const screenOrder: ShopNavId[] = [

@@ -23,9 +23,9 @@ export interface CusNavBarProps {
 
 const menuItems: MenuItem[] = [
   { id: "home", label: "Trang chủ", href: "/" },
-  { id: "explore", label: "Khám phá", href: "/kham-pha" },
-  { id: "consign", label: "Cách ký gửi", href: "/cach-ky-gui" },
-  { id: "login", label: "Đăng nhập", href: "/dang-nhap" },
+  { id: "explore", label: "Khám phá", href: "/catalog" },
+  { id: "consign", label: "Cách ký gửi", href: "/consign" },
+  { id: "login", label: "Đăng nhập", href: "/login" },
 ];
 
 const bookingButtonClasses = "inline-flex h-[27px] w-[116px] basis-[116px] cursor-pointer items-center justify-center gap-[5px] rounded-full border-0 bg-brand-pink text-[8px] leading-none font-semibold text-brand-ink shadow-[0_4px_10px_color-mix(in_srgb,var(--color-brand-pink)_35%,transparent)] transition-[background-color,transform,box-shadow] duration-200 enabled:hover:-translate-y-px enabled:hover:bg-brand-pink-hover enabled:hover:shadow-[0_5px_12px_color-mix(in_srgb,var(--color-brand-pink)_45%,transparent)] enabled:active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none";
