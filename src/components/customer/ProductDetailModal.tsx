@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal, SkeletonLoading } from '@/components/shared';
 import { ProductImageGallery } from './ProductImageGallery';
 import { formatVndPrice, getPublicProductDetail, type PublicProductDetail } from '@/api/products';
-import '@/pages/CustomerPages.css';
 
 const EMPTY_IMAGE_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500' viewBox='0 0 400 500'%3E%3Crect width='400' height='500' fill='%23f2e8e9'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23a89aa1' font-family='sans-serif' font-size='16'%3ECh%C6%B0a c%C3%B3 %E1%BA%A3nh%3C/text%3E%3C/svg%3E";
@@ -71,7 +70,13 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
       {isDetailLoading ? (
         <SkeletonLoading variant="detail" label="Đang tải chi tiết sản phẩm..." />
       ) : detailError ? (
-        <div className="catalog-error-state" style={{ margin: '1rem 0' }}>
+        <div className={`
+          catalog-error-state my-6 rounded-xl border border-[#f5d0d8] bg-[#fff8f9] px-6 py-12 text-center
+          text-[#8e536a] [&_h3]:my-2 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-[#7a2e46] [&_p]:mb-4
+          [&_p]:text-[.82rem] [&_p]:text-[#6a575f] [&_button]:cursor-pointer [&_button]:rounded-md
+          [&_button]:border-0 [&_button]:bg-[#8e536a] [&_button]:px-[1.2rem] [&_button]:py-2
+          [&_button]:text-[.8rem] [&_button]:font-semibold [&_button]:text-white [&_button:hover]:bg-[#733c51]
+        `} style={{ margin: '1rem 0' }}>
           <h3>Không thể hiển thị sản phẩm</h3>
           <p>{detailError}</p>
           <button type="button" onClick={onClose}>
@@ -79,14 +84,20 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
           </button>
         </div>
       ) : detailProduct ? (
-        <div className="catalog-detail">
+        <div className={`
+          catalog-detail grid gap-5 [&_p]:mt-[.6rem] [&_p]:text-[.8rem] [&_p]:leading-[1.65] [&_p]:text-[#756b72]
+          [&_dl]:my-4 [&_dl]:border-t [&_dl]:border-[#eee6e9] [&_dl_div]:flex [&_dl_div]:justify-between
+          [&_dl_div]:gap-4 [&_dl_div]:border-b [&_dl_div]:border-[#eee6e9] [&_dl_div]:py-[.55rem]
+          [&_dl_div]:text-xs [&_dt]:text-[#91838c] [&_dd]:font-semibold [&_dd]:text-[#453a43]
+          [&_strong]:text-[1.1rem] [&_strong]:text-[#a95676]
+        `}>
           <ProductImageGallery
             key={detailProduct.id}
             productName={detailProduct.name}
             images={galleryImages}
           />
           <div>
-            <span className="catalog-detail__category">
+            <span className="catalog-detail__category text-[.7rem] font-bold tracking-[.06em] text-[#a37989] uppercase">
               {detailProduct.category?.name || 'Sản phẩm'} · {detailProduct.brand?.name || 'Chính hãng'}
             </span>
             <p>{detailProduct.description || 'Chưa có mô tả chi tiết cho sản phẩm này.'}</p>

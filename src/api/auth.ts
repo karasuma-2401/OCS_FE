@@ -124,6 +124,27 @@ export async function resendOtp(data: ResendOtpRequest): Promise<ResendOtpRespon
   return response.data;
 }
 
+export async function requestPasswordReset(email: string): Promise<{ expiryMinutes?: number; resendSeconds?: number }> {
+  const response = await apiClient.post('/auth/password-reset/request', { email });
+  const positiveNumber = (value: unknown) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  };
+  return {
+    expiryMinutes: positiveNumber(response.headers['x-otp-expiry-minutes']),
+    resendSeconds: positiveNumber(response.headers['x-otp-resend-seconds']),
+  };
+}
+
+export async function verifyPasswordReset(email: string, code: string): Promise<string> {
+  const response = await apiClient.post<{ resetToken: string }>('/auth/password-reset/verify', { email, code });
+  return response.data.resetToken;
+}
+
+export async function completePasswordReset(email: string, resetToken: string, password: string): Promise<void> {
+  await apiClient.post('/auth/password-reset/complete', { email, resetToken, password });
+}
+
 /**
  * Get current authenticated user profile and remaining session time.
  */

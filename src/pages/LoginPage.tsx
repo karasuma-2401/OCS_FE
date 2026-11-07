@@ -1,10 +1,11 @@
+import { authStyles } from '@/components/layout/authStyles';
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { parseProblemDetails, extractFieldError } from '@/api/auth';
 import { validateEmail } from '@/utils/validation';
-import { Form, Input, Button, Toast } from '@/components/shared';
-import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Form, Input, PasswordInput, Button, Toast } from '@/components/shared';
+import { ArrowRight } from 'lucide-react';
 import { firstAllowedScreen } from '@/auth/permissions';
 import type { User } from '@/types';
 
@@ -20,7 +21,6 @@ export const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -162,9 +162,9 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div>
-        <div className="auth-panel__eyebrow">CHÀO MỪNG BẠN TRỞ LẠI</div>
-        <h1 className="auth-panel__title">Đăng nhập</h1>
-        <p className="auth-panel__description">
+        <div className={authStyles.eyebrow}>CHÀO MỪNG BẠN TRỞ LẠI</div>
+        <h1 className={authStyles.title}>Đăng nhập</h1>
+        <p className={authStyles.description}>
           Đăng nhập để tiếp tục khám phá cùng OCS.
         </p>
 
@@ -179,7 +179,7 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        <Form className="auth-form" onSubmit={handleSubmit} loading={isSubmitting} disabled={isSubmitting}>
+        <Form className={authStyles.form} onSubmit={handleSubmit} loading={isSubmitting} disabled={isSubmitting}>
           <Input
             label="Địa chỉ email"
             type="email"
@@ -197,9 +197,8 @@ export const LoginPage: React.FC = () => {
             disabled={isSubmitting}
           />
 
-          <Input
+          <PasswordInput
             label="Mật khẩu"
-            type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
@@ -212,13 +211,9 @@ export const LoginPage: React.FC = () => {
             autoComplete="current-password"
             error={fieldErrors.password}
             disabled={isSubmitting}
-            endAdornment={
-              <button type="button" className="auth-password-toggle" onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-pressed={showPassword} disabled={isSubmitting}>
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
-            }
           />
+
+          <div className="text-right"><Link className={`${authStyles.link} text-sm`} to="/forgot-password">Quên mật khẩu?</Link></div>
 
           <Button
             type="submit"
@@ -231,7 +226,7 @@ export const LoginPage: React.FC = () => {
           </Button>
         </Form>
 
-        <div className="auth-panel__footer">
+        <div className={authStyles.footer}>
           <p>
             Chưa có tài khoản?{' '}
             <Link to="/register">

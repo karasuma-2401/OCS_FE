@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import "./product-rail-gallery.css";
 
 export type GarmentKind = "tee" | "knit" | "hoodie" | "shirt" | "jacket" | "coat";
 
@@ -1045,7 +1044,7 @@ export function ClothingRailHero({
 
       <div className="relative z-10 flex flex-col items-center gap-4 px-6 pb-8 pt-4 text-center">
         <div id={`${uid}-caption`} aria-live="polite" className="min-h-[3.25rem]">
-          <p key={current?.id ?? "caption"} className="[animation:rail-caption-in_300ms_ease-out] text-sm font-medium motion-reduce:animate-none">{current ? current.name : caption}</p>
+          <p key={current?.id ?? "caption"} className="animate-rail-caption-in text-sm font-medium motion-reduce:animate-none">{current ? current.name : caption}</p>
           {current?.description && <p key={`${current.id}-d`} className="mx-auto mt-1 max-w-[42ch] text-[13px] leading-relaxed text-muted">{current.description}</p>}
         </div>
         {action}

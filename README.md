@@ -11,6 +11,13 @@
 - **Lucide React** (Bộ biểu tượng hiện đại)
 - **Axios** (Kết nối Web API)
 
+## Quy ước component và CSS
+
+- Component dùng chung nằm trong `src/components/shared`, mỗi component có file riêng và được xuất qua `@/components/shared`. Các import trực tiếp từ `shared/ui` cũ vẫn được hỗ trợ.
+- `Button` dùng `variant="primary"` với màu hồng pastel; các biến thể `secondary`, `outline`, `ghost` và `danger` phục vụ những mục đích khác nhau. Dùng `PasswordInput` cho trường mật khẩu có nút ẩn/hiện.
+- Tailwind được nạp từ `src/index.css`; token màu sắc, typography, breakpoint và keyframes dùng chung tập trung ở `src/styles/theme.css`. Các component sử dụng utility class trong `className`.
+- Ưu tiên token có sẵn thay vì lặp lại giá trị màu hoặc kích thước. Các hiệu ứng và trạng thái dùng biến thể Tailwind như `hover:`, `max-[600px]:` và `motion-reduce:`; style xác thực tái sử dụng được tập trung trong `src/components/layout/authStyles.ts`.
+
 ## Phân hệ chức năng
 
 1. **Khách hàng & Người ký gửi:**

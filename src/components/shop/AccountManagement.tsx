@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock3, Eye, EyeOff, Plus, RefreshCw, Search, Users } from 'lucide-react';
+import { Clock3, Plus, RefreshCw, Search, Users } from 'lucide-react';
 import { accountsApi, type AccountHistoryItem, type AccountSummary, type AccountStatus, type CreateInternalAccount, type PagedAccountHistory, type PagedAccounts, type UpdateAccountRequest, type UpdateEmployeeProfileRequest } from '@/api/accounts';
 import { parseProblemDetails, extractFieldError } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
 import type { RoleCode } from '@/types';
 import { validateEmail, validateFullName, validatePasswordPolicy, validatePhoneNumber } from '@/utils/validation';
-import { Badge, Button, Card, Combobox, DatePicker, EmptyState, ErrorState, Input, SkeletonLoading, Modal, Pagination, Toast } from '@/components/shared';
+import { Badge, Button, Card, Combobox, DatePicker, EmptyState, ErrorState, Input, PasswordInput, SkeletonLoading, Modal, Pagination, Toast } from '@/components/shared';
 
 type InternalRole = 'Admin' | 'Manager' | 'Staff';
 type Action = { account: AccountSummary; label: string; run: () => Promise<AccountSummary>; impact: string };
@@ -61,7 +61,6 @@ export function AccountManagement() {
   const [form, setForm] = useState<CreateInternalAccount>(blankForm);
   const [createRole, setCreateRole] = useState<InternalRole>('Staff');
   const [useDefaultPassword, setUseDefaultPassword] = useState(true);
-  const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -80,7 +79,6 @@ export function AccountManagement() {
   const [resetTarget, setResetTarget] = useState<AccountSummary | null>(null);
   const [resetUseDefault, setResetUseDefault] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
-  const [resetPasswordVisible, setResetPasswordVisible] = useState(false);
   const [resetConfirming, setResetConfirming] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSubmitting, setResetSubmitting] = useState(false);
@@ -144,14 +142,13 @@ export function AccountManagement() {
   };
   const openCreate = () => {
     setForm({ ...blankForm, hiredOn: todayLocalDate() });
-    setCreateRole('Staff'); setUseDefaultPassword(true); setShowCreatePassword(false);
+    setCreateRole('Staff'); setUseDefaultPassword(true);
     setFieldErrors({}); setFormError(null); setCreateOpen(true);
   };
   const changePasswordMode = (useDefault: boolean) => {
     setUseDefaultPassword(useDefault);
     setForm(current => ({ ...current, password: '' }));
     setFieldErrors(current => ({ ...current, password: '' }));
-    setShowCreatePassword(false);
   };
   const create = async (event: FormEvent) => {
     event.preventDefault();
@@ -257,7 +254,7 @@ export function AccountManagement() {
     setSelected(null);
     setResetTarget(account);
     setResetUseDefault(account.accountType === 'Internal');
-    setResetPassword(''); setResetPasswordVisible(false); setResetConfirming(false); setResetError(null);
+    setResetPassword(''); setResetConfirming(false); setResetError(null);
   };
   const submitPasswordReset = async (event: FormEvent) => {
     event.preventDefault();
@@ -362,7 +359,7 @@ export function AccountManagement() {
             </label>
           </div>
         </div>
-        {!useDefaultPassword && <Input label="Mật khẩu" type={showCreatePassword ? 'text' : 'password'} autoComplete="new-password" required value={form.password} onChange={e => updateForm('password', e.target.value)} error={fieldErrors.password} helperText="8–70 ký tự, chữ hoa, chữ thường, số hoặc ký tự đặc biệt; tối đa 72 byte." endAdornment={<button type="button" aria-label={showCreatePassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-pressed={showCreatePassword} onClick={() => setShowCreatePassword(value => !value)} className="rounded p-1 text-muted hover:text-brand-highlight focus-visible:outline-2 focus-visible:outline-brand-pink-focus">{showCreatePassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>} />}
+        {!useDefaultPassword && <PasswordInput label="Mật khẩu" autoComplete="new-password" required value={form.password} onChange={e => updateForm('password', e.target.value)} error={fieldErrors.password} helperText="8–70 ký tự, chữ hoa, chữ thường, số hoặc ký tự đặc biệt; tối đa 72 byte." />}
         <Input label="Chức danh" required value={form.jobTitle} onChange={e => updateForm('jobTitle', e.target.value)} error={fieldErrors.jobTitle} />
         <DatePicker label="Ngày vào làm" required value={form.hiredOn} onChange={value => updateForm('hiredOn', value)} error={fieldErrors.hiredOn} />
         {isAdmin && <Combobox label="Vai trò" value={createRole} onChange={value => setCreateRole(value as InternalRole)} options={roleOptions.map(role => ({ value: role, label: role }))} />}
@@ -414,7 +411,7 @@ export function AccountManagement() {
             <label className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 text-sm ${resetUseDefault ? 'border-brand-pink bg-brand-pink-surface text-brand-ink' : 'border-border text-muted'}`}><input type="radio" name="reset-password-mode" checked={resetUseDefault} onChange={() => { setResetUseDefault(true); setResetPassword(''); setResetError(null); }} className="mt-0.5 accent-brand-highlight" /><span><strong className="block">Mật khẩu mặc định</strong><span className="text-xs">Ocs@123456</span></span></label>
             <label className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 text-sm ${!resetUseDefault ? 'border-brand-pink bg-brand-pink-surface text-brand-ink' : 'border-border text-muted'}`}><input type="radio" name="reset-password-mode" checked={!resetUseDefault} onChange={() => { setResetUseDefault(false); setResetPassword(''); setResetError(null); }} className="mt-0.5 accent-brand-highlight" /><span><strong className="block">Mật khẩu tự chọn</strong><span className="text-xs">Đặt mật khẩu mới</span></span></label>
           </div> : <p className="rounded-lg bg-brand-pink-surface p-3 text-sm text-brand-ink">Customer cần được đặt mật khẩu tự chọn.</p>}
-          {(!resetUseDefault || resetTarget.accountType === 'Customer') && <Input label="Mật khẩu mới" type={resetPasswordVisible ? 'text' : 'password'} autoComplete="new-password" required value={resetPassword} onChange={event => { setResetPassword(event.target.value); setResetError(null); }} error={resetError} helperText="8–70 ký tự, chữ hoa, chữ thường, số hoặc ký tự đặc biệt; tối đa 72 byte." endAdornment={<button type="button" aria-label={resetPasswordVisible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-pressed={resetPasswordVisible} onClick={() => setResetPasswordVisible(value => !value)} className="rounded p-1 text-muted hover:text-brand-highlight focus-visible:outline-2 focus-visible:outline-brand-pink-focus">{resetPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}</button>} />}
+          {(!resetUseDefault || resetTarget.accountType === 'Customer') && <PasswordInput label="Mật khẩu mới" autoComplete="new-password" required value={resetPassword} onChange={event => { setResetPassword(event.target.value); setResetError(null); }} error={resetError} helperText="8–70 ký tự, chữ hoa, chữ thường, số hoặc ký tự đặc biệt; tối đa 72 byte." />}
         </>}
         {resetError && resetConfirming && <p role="alert" className="text-sm text-state-danger">{resetError}</p>}
       </form>}
