@@ -276,7 +276,7 @@ export const PosVietQrWorkspace: React.FC = () => {
                           ) : hasActiveQr ? (
                             <Badge variant="warning">
                               <Clock className="size-3" aria-hidden="true" />
-                              Chờ quét ({inv.activePaymentReference})
+                              Đang chờ quét QR
                             </Badge>
                           ) : (
                             <Badge variant="neutral">Chưa thanh toán</Badge>

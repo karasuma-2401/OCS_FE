@@ -468,36 +468,30 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
 
                 {/* Transfer Content / Reference Code Highlight */}
                 <div className="rounded-2xl border border-amber-300/80 bg-amber-50/70 p-3.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-amber-950">
-                      Nội dung chuyển khoản
+                  <p className="text-xs font-semibold text-amber-950">
+                    Nội dung chuyển khoản
+                  </p>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span
+                      className="font-mono text-lg font-extrabold tracking-wider text-amber-950"
+                      data-testid="vietqr-transfer-content"
+                    >
+                      {session.transferContent}
                     </span>
                     <button
                       type="button"
                       onClick={() => void handleCopy(session.transferContent, 'reference')}
-                      className="inline-flex min-h-[28px] items-center gap-1 rounded-md bg-white px-2 py-0.5 text-xs font-medium text-amber-900 shadow-2xs transition hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-brand-highlight"
+                      className="rounded-lg p-1.5 text-amber-900 transition hover:bg-amber-200/50 hover:text-amber-950 focus-visible:outline-2 focus-visible:outline-brand-highlight"
                       title="Sao chép nội dung chuyển khoản"
                       aria-label="Sao chép nội dung chuyển khoản"
                     >
                       {copiedField === 'reference' ? (
-                        <>
-                          <Check className="size-3 text-emerald-600" aria-hidden="true" />
-                          <span className="text-[11px]">Đã chép</span>
-                        </>
+                        <Check className="size-4 text-emerald-600" aria-hidden="true" />
                       ) : (
-                        <>
-                          <Copy className="size-3 text-amber-800" aria-hidden="true" />
-                          <span className="text-[11px]">Sao chép</span>
-                        </>
+                        <Copy className="size-4" aria-hidden="true" />
                       )}
                     </button>
                   </div>
-                  <p
-                    className="mt-1 font-mono text-base font-extrabold tracking-wider text-amber-950"
-                    data-testid="vietqr-transfer-content"
-                  >
-                    {session.transferContent}
-                  </p>
                 </div>
 
                 {/* Beneficiary Details */}
