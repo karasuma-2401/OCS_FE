@@ -12,8 +12,20 @@ import {
 } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, ErrorState, Input, SkeletonLoading } from '@/components/shared';
 import { posPaymentsApi } from '@/api/posPayments';
-import { VietQrPaymentModal, formatVndCurrency } from './VietQrPaymentModal';
+import {
+  VietQrPaymentModal,
+  formatVndCurrency,
+  playPaymentSuccessChime,
+} from './VietQrPaymentModal';
 import type { PosPendingInvoiceSummary, VietQrPaymentSession } from '@/types';
+
+interface CompletedInvoiceRecord {
+  saleInvoiceId: string;
+  invoiceNumber: string;
+  totalAmount: string | number;
+  paidAt: string;
+  paymentReference?: string;
+}
 
 export const PosVietQrWorkspace: React.FC = () => {
   const [invoices, setInvoices] = useState<PosPendingInvoiceSummary[]>([]);
@@ -30,34 +42,96 @@ export const PosVietQrWorkspace: React.FC = () => {
 
   const [lastCompletedSession, setLastCompletedSession] =
     useState<VietQrPaymentSession | null>(null);
+  const [completedInvoices, setCompletedInvoices] = useState<CompletedInvoiceRecord[]>([]);
+  const [newlyPaidAlert, setNewlyPaidAlert] = useState<CompletedInvoiceRecord | null>(null);
+  const knownInvoicesRef = React.useRef<Map<string, PosPendingInvoiceSummary>>(new Map());
+  const hasLoadedInitialRef = React.useRef(false);
 
-  const loadPendingInvoices = useCallback(async (signal?: AbortSignal) => {
-    setLoadingList(true);
-    setListError(null);
-    try {
-      const items = await posPaymentsApi.listPendingInvoices(signal);
-      setInvoices(items);
-    } catch (err) {
-      if (signal?.aborted) return;
-      const msg =
-        err &&
-        typeof err === 'object' &&
-        'response' in err &&
-        typeof (err as { response?: { data?: { title?: string } } }).response?.data?.title === 'string'
-          ? (err as { response: { data: { title: string } } }).response.data.title
-          : 'Không thể tải danh sách hóa đơn chờ từ máy chủ. Vui lòng bấm thử lại.';
-      setListError(msg);
-    } finally {
-      if (!signal?.aborted) {
-        setLoadingList(false);
+  const loadPendingInvoices = useCallback(
+    async (signal?: AbortSignal, isSilent = false) => {
+      if (!isSilent) {
+        setLoadingList(true);
       }
-    }
-  }, []);
+      setListError(null);
+      try {
+        const items = await posPaymentsApi.listPendingInvoices(signal);
 
+        // Detect newly paid invoices if we previously had pending invoices loaded
+        if (hasLoadedInitialRef.current) {
+          const newMap = new Map(items.map((i) => [i.saleInvoiceId, i]));
+          const disappearedInvoices: PosPendingInvoiceSummary[] = [];
+
+          knownInvoicesRef.current.forEach((oldInv, oldId) => {
+            if (!newMap.has(oldId)) {
+              disappearedInvoices.push(oldInv);
+            }
+          });
+
+          if (disappearedInvoices.length > 0) {
+            const nowFormatted = new Date().toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            });
+
+            const newlyCompleted: CompletedInvoiceRecord[] = disappearedInvoices.map((inv) => ({
+              saleInvoiceId: inv.saleInvoiceId,
+              invoiceNumber: inv.invoiceNumber,
+              totalAmount: inv.totalAmount,
+              paidAt: nowFormatted,
+              paymentReference: inv.activePaymentReference || undefined,
+            }));
+
+            // Play auditory feedback
+            playPaymentSuccessChime();
+
+            // Set top alert for the latest completed invoice
+            setNewlyPaidAlert(newlyCompleted[0]);
+
+            // Add to completed invoices list
+            setCompletedInvoices((prev) => {
+              const ids = new Set(newlyCompleted.map((c) => c.saleInvoiceId));
+              return [...newlyCompleted, ...prev.filter((p) => !ids.has(p.saleInvoiceId))].slice(0, 8);
+            });
+          }
+        }
+
+        // Update known invoices cache
+        knownInvoicesRef.current = new Map(items.map((i) => [i.saleInvoiceId, i]));
+        hasLoadedInitialRef.current = true;
+        setInvoices(items);
+      } catch (err) {
+        if (signal?.aborted) return;
+        const msg =
+          err &&
+          typeof err === 'object' &&
+          'response' in err &&
+          typeof (err as { response?: { data?: { title?: string } } }).response?.data?.title === 'string'
+            ? (err as { response: { data: { title: string } } }).response.data.title
+            : 'Không thể tải danh sách hóa đơn chờ từ máy chủ. Vui lòng bấm thử lại.';
+        setListError(msg);
+      } finally {
+        if (!signal?.aborted && !isSilent) {
+          setLoadingList(false);
+        }
+      }
+    },
+    [],
+  );
+
+  // Initial load + periodic silent background polling every 2.5s
   useEffect(() => {
     const controller = new AbortController();
-    void loadPendingInvoices(controller.signal);
-    return () => controller.abort();
+    void loadPendingInvoices(controller.signal, false);
+
+    const interval = window.setInterval(() => {
+      void loadPendingInvoices(controller.signal, true);
+    }, 2500);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
   }, [loadPendingInvoices]);
 
   const handleOpenVietQrForInvoice = (invoice: PosPendingInvoiceSummary) => {
@@ -140,7 +214,24 @@ export const PosVietQrWorkspace: React.FC = () => {
   const handlePaymentSuccess = useCallback(
     (session: VietQrPaymentSession) => {
       setLastCompletedSession(session);
-      void loadPendingInvoices();
+      const nowFormatted = new Date().toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      const record: CompletedInvoiceRecord = {
+        saleInvoiceId: session.saleInvoiceId,
+        invoiceNumber: session.invoiceNumber,
+        totalAmount: session.amount,
+        paidAt: nowFormatted,
+        paymentReference: session.paymentReference,
+      };
+      setNewlyPaidAlert(record);
+      setCompletedInvoices((prev) => [
+        record,
+        ...prev.filter((p) => p.saleInvoiceId !== session.saleInvoiceId),
+      ].slice(0, 8));
+      void loadPendingInvoices(undefined, true);
     },
     [loadPendingInvoices],
   );
@@ -181,29 +272,44 @@ export const PosVietQrWorkspace: React.FC = () => {
         </div>
       </div>
 
-      {/* Success Notification Alert */}
-      {lastCompletedSession && (
+      {/* Prominent Real-time Payment Success Banner */}
+      {(newlyPaidAlert || lastCompletedSession) && (
         <div
-          className="flex items-center justify-between gap-3 rounded-2xl border border-state-success-border bg-state-success-soft px-4 py-3 text-xs text-state-success-strong"
+          className="flex flex-col gap-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/95 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
           role="status"
+          aria-live="polite"
         >
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="size-4 shrink-0 text-state-success-icon" aria-hidden="true" />
-            <span>
-              Hóa đơn <strong>{lastCompletedSession.invoiceNumber}</strong> (
-              {formatVndCurrency(lastCompletedSession.amount)}) đã thanh toán thành công với mã tham chiếu{' '}
-              <code className="font-mono font-bold">
-                {lastCompletedSession.paymentReference}
-              </code>
-              .
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-xs">
+              <CheckCircle2 className="size-6 animate-pulse" aria-hidden="true" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-extrabold text-emerald-950">
+                  🎉 THANH TOÁN THÀNH CÔNG!
+                </span>
+                <span className="rounded-full bg-emerald-200/80 px-2 py-0.5 text-[10px] font-bold text-emerald-900">
+                  {newlyPaidAlert?.paidAt || 'Vừa xong'}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-emerald-900">
+                Hóa đơn <strong className="font-bold text-emerald-950">{newlyPaidAlert?.invoiceNumber || lastCompletedSession?.invoiceNumber}</strong> (
+                {formatVndCurrency(newlyPaidAlert?.totalAmount || lastCompletedSession?.amount)}) đã thanh toán thành công qua VietQR
+                {(newlyPaidAlert?.paymentReference || lastCompletedSession?.paymentReference) && (
+                  <> • Mã GD: <code className="font-mono font-bold text-emerald-950">{newlyPaidAlert?.paymentReference || lastCompletedSession?.paymentReference}</code></>
+                )}.
+              </p>
+            </div>
           </div>
           <button
             type="button"
-            onClick={() => setLastCompletedSession(null)}
-            className="text-xs font-semibold underline hover:opacity-80"
+            onClick={() => {
+              setNewlyPaidAlert(null);
+              setLastCompletedSession(null);
+            }}
+            className="self-end rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100 sm:self-center"
           >
-            Ẩn
+            Đóng thông báo
           </button>
         </div>
       )}
@@ -326,6 +432,64 @@ export const PosVietQrWorkspace: React.FC = () => {
               </div>
             )}
           </Card>
+
+          {/* Recently Completed Invoices */}
+          {completedInvoices.length > 0 && (
+            <Card className="border-emerald-200/80 bg-emerald-50/25 p-5">
+              <div className="mb-3.5 flex items-center justify-between gap-2 border-b border-emerald-200/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
+                  <h3 className="text-sm font-bold text-emerald-950">
+                    Vừa thanh toán thành công gần đây
+                  </h3>
+                </div>
+                <Badge variant="success" className="text-xs">
+                  {completedInvoices.length} hóa đơn
+                </Badge>
+              </div>
+
+              <div className="space-y-2.5">
+                {completedInvoices.map((item) => (
+                  <div
+                    key={item.saleInvoiceId}
+                    className="flex flex-col justify-between gap-2 rounded-2xl border border-emerald-200/80 bg-white p-3.5 transition-all sm:flex-row sm:items-center"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                        <Receipt className="size-4" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-ink">{item.invoiceNumber}</span>
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                            Đã thanh toán
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted">
+                          Thời gian: <strong className="text-ink">{item.paidAt}</strong>
+                          {item.paymentReference ? (
+                            <>
+                              {' '}
+                              • Mã GD:{' '}
+                              <code className="font-mono text-ink">
+                                {item.paymentReference}
+                              </code>
+                            </>
+                          ) : null}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="text-[11px] text-muted">Đã thanh toán</p>
+                      <p className="text-base font-extrabold text-emerald-700">
+                        {formatVndCurrency(item.totalAmount)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Right Column: Quick Search by Invoice Number or UUID + Cashier Guidelines */}

@@ -33,7 +33,39 @@ export interface VietQrPaymentModalProps {
   pollIntervalMs?: number;
 }
 
-const DEFAULT_POLL_INTERVAL_MS = 4000;
+const DEFAULT_POLL_INTERVAL_MS = 1500;
+
+export function playPaymentSuccessChime(): void {
+  try {
+    if (typeof window === 'undefined') return;
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const playTone = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.2, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration);
+    };
+
+    // Upbeat 2-tone chime: C5 (523.25Hz) -> G5 (783.99Hz)
+    playTone(523.25, now, 0.2);
+    playTone(783.99, now + 0.12, 0.4);
+  } catch {
+    // Silently continue if audio context is blocked by browser policy
+  }
+}
 
 export function formatVndCurrency(amountInput: string | number | undefined): string {
   if (amountInput === undefined || amountInput === null || amountInput === '') {
@@ -114,6 +146,7 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
     const isPaid = next.status === 'Success' || next.invoicePaymentStatus === 'Paid';
     if (isPaid && notifiedSuccessTxIdRef.current !== next.transactionId) {
       notifiedSuccessTxIdRef.current = next.transactionId;
+      playPaymentSuccessChime();
       onPaymentSuccessRef.current?.(next);
     }
   }, []);
@@ -376,15 +409,76 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
                   Kiểm tra lại kết quả
                 </Button>
               )}
-              <Button variant="outline" size="md" onClick={onClose}>
-                {isPaid ? 'Hoàn tất & Đóng' : 'Đóng cửa sổ'}
-              </Button>
+              {isPaid ? (
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={onClose}
+                  startIcon={<Check className="size-4" aria-hidden="true" />}
+                >
+                  Hoàn tất & Đóng
+                </Button>
+              ) : (
+                <Button variant="outline" size="md" onClick={onClose}>
+                  Đóng cửa sổ
+                </Button>
+              )}
             </div>
           </div>
         }
       >
         {session && (
           <div className="space-y-4 pt-1">
+            {/* Prominent Success Celebration Banner */}
+            {isPaid && (
+              <div
+                className="flex flex-col gap-2.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50/95 p-4 shadow-sm"
+                role="alert"
+                aria-live="polite"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-xs">
+                    <CheckCircle2 className="size-6" aria-hidden="true" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-extrabold text-emerald-950">
+                        🎉 THANH TOÁN THÀNH CÔNG!
+                      </h3>
+                      <Badge variant="success" className="text-[11px] font-bold">
+                        Đã khớp giao dịch
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 text-xs text-emerald-900">
+                      Hệ thống đã nhận đủ{' '}
+                      <strong className="font-bold text-emerald-950">
+                        {formatVndCurrency(displayAmount)}
+                      </strong>{' '}
+                      cho hóa đơn{' '}
+                      <strong className="font-bold text-emerald-950">
+                        {displayInvoiceNumber}
+                      </strong>
+                      .
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-emerald-200/80 pt-2.5 text-xs text-emerald-950">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="size-3.5 text-emerald-700" aria-hidden="true" />
+                    <span>
+                      Mã chuẩn chi VietQR:{' '}
+                      <code className="font-mono font-bold text-emerald-900">
+                        {session.paymentReference}
+                      </code>
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-medium text-emerald-800">
+                    Tự động gạch nợ hóa đơn & cập nhật kho
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Status Header Strip */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface-dashboard/70 p-3">
               <div className="flex items-center gap-2">
@@ -630,10 +724,26 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
               )}
 
               {isPaid && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-950/90 p-4 text-center text-white backdrop-blur-[2px]">
-                  <CheckCircle2 className="mb-2 size-16 text-emerald-300" aria-hidden="true" />
-                  <p className="text-2xl font-bold">Thanh toán thành công!</p>
-                  <p className="mt-1 text-sm text-emerald-100">Cảm ơn quý khách đã mua sắm tại OCS</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-950/95 p-6 text-center text-white backdrop-blur-[2px] animate-in fade-in duration-200">
+                  <div className="mb-2.5 flex size-20 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300 ring-4 ring-emerald-500/30">
+                    <CheckCircle2 className="size-12 animate-pulse" aria-hidden="true" />
+                  </div>
+                  <p className="text-2xl font-black text-white">THANH TOÁN THÀNH CÔNG!</p>
+                  <p className="mt-1 text-sm font-semibold text-emerald-200">
+                    Đã nhận đủ {formatVndCurrency(displayAmount)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-emerald-100/80">Cảm ơn quý khách đã mua sắm tại OCS</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsZoomed(false);
+                      onClose();
+                    }}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-emerald-950 shadow-md transition hover:bg-emerald-50"
+                  >
+                    <Check className="size-3.5" aria-hidden="true" />
+                    <span>Hoàn tất giao dịch</span>
+                  </button>
                 </div>
               )}
             </div>
