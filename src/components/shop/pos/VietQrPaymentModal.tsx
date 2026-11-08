@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CheckCircle2,
   Clock,
@@ -7,10 +8,14 @@ import {
   QrCode,
   RefreshCw,
   RotateCcw,
-  ShieldAlert,
+  ShieldCheck,
   AlertTriangle,
   Building2,
-  FileText,
+  Receipt,
+  Maximize2,
+  Minimize2,
+  X,
+  ScanLine,
 } from 'lucide-react';
 import { Badge, Button, Modal } from '@/components/shared';
 import { posPaymentsApi } from '@/api/posPayments';
@@ -37,7 +42,7 @@ export function formatVndCurrency(amountInput: string | number | undefined): str
   if (!Number.isFinite(numeric)) {
     return `${amountInput} ₫`;
   }
-  return `${ new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(numeric)} ₫`;
+  return `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(numeric)} ₫`;
 }
 
 export function formatCountdown(seconds: number): string {
@@ -76,6 +81,7 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
   const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<'reference' | 'account' | null>(null);
   const [qrImageError, setQrImageError] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
 
   const onPaymentSuccessRef = useRef(onPaymentSuccess);
   const onSessionUpdateRef = useRef(onSessionUpdate);
@@ -161,17 +167,31 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
     [session?.transactionId, syncSessionState],
   );
 
-  // Initialize VietQR session when modal opens with a valid saleInvoiceId
+  // Initialize or reload QR session on open with a valid saleInvoiceId
   useEffect(() => {
     if (!open || !saleInvoiceId) {
       setSession(null);
       setError(null);
       setRemainingSeconds(0);
       setLastCheckedAt(null);
+      setIsZoomed(false);
       return;
     }
     void startOrRotateQrSession(false);
   }, [open, saleInvoiceId, startOrRotateQrSession]);
+
+  // Handle ESC key to exit customer zoom view
+  useEffect(() => {
+    if (!isZoomed) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setIsZoomed(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [isZoomed]);
 
   // 1-second local countdown timer while transaction is Pending
   useEffect(() => {
@@ -254,175 +274,244 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
   const displayAmount = session?.amount ?? initialAmount;
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      loading={initializing && !session}
-      error={error}
-      className="max-w-2xl"
-      title={
-        <div className="flex flex-wrap items-center gap-2.5">
-          <QrCode className="size-5 text-brand-highlight" aria-hidden="true" />
-          <span>Quét mã VietQR Thanh Toán Tại Quầy</span>
-        </div>
-      }
-      description={
-        <span>
-          Hóa đơn bán lẻ:{' '}
-          <strong className="font-semibold text-ink">{displayInvoiceNumber}</strong>
-        </span>
-      }
-      footer={
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs text-muted">
-            {lastCheckedAt ? (
-              <span>Kiểm tra trạng thái gần nhất: {lastCheckedAt}</span>
-            ) : (
-              <span>Tự động đồng bộ trạng thái từ cổng thanh toán</span>
-            )}
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        loading={initializing && !session}
+        error={error}
+        className="max-w-3xl"
+        title={
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-brand-pink-light text-brand-highlight shadow-2xs">
+              <QrCode className="size-5" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-ink">Thanh toán VietQR tại Quầy</h2>
+              <p className="text-xs font-normal text-muted">
+                Quét mã tức thì qua ứng dụng ngân hàng — Hệ thống tự động xác nhận
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {isExpiredOrFailed && (
-              <Button
-                variant="secondary"
-                size="md"
-                loading={initializing}
-                loadingText="Đang tạo mã mới..."
-                startIcon={<RotateCcw className="size-4" aria-hidden="true" />}
-                onClick={() => void startOrRotateQrSession(true)}
-              >
-                Tạo lại mã QR mới
-              </Button>
-            )}
-            {!isPaid && session && (
-              <Button
-                variant="primary"
-                size="md"
-                loading={checkingStatus}
-                loadingText="Đang kiểm tra..."
-                startIcon={<RefreshCw className="size-4" aria-hidden="true" />}
-                onClick={() => void checkPaymentStatus(true)}
-              >
-                Kiểm tra lại kết quả
-              </Button>
-            )}
-            <Button variant="outline" size="md" onClick={onClose}>
-              {isPaid ? 'Hoàn tất & Đóng' : 'Đóng cửa sổ'}
-            </Button>
+        }
+        description={
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-surface-dashboard px-2.5 py-1 text-xs text-muted">
+            <Receipt className="size-3.5 text-brand-highlight" aria-hidden="true" />
+            <span>
+              Hóa đơn: <strong className="font-semibold text-ink">{displayInvoiceNumber}</strong>
+            </span>
           </div>
-        </div>
-      }
-    >
-      {session && (
-        <div className="space-y-4">
-          {/* Status Banner */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-brand-pink-surface/60 px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              {isPaid ? (
-                <Badge variant="success">
-                  <CheckCircle2 className="size-3.5" aria-hidden="true" />
-                  Đã nhận chuyển khoản hợp lệ
-                </Badge>
-              ) : isExpiredOrFailed ? (
-                <Badge variant="danger">
-                  <AlertTriangle className="size-3.5" aria-hidden="true" />
-                  Mã QR đã hết hạn / Chưa thanh toán
-                </Badge>
+        }
+        footer={
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-xs text-muted">
+              <span
+                className={`size-2 rounded-full ${
+                  isPaid ? 'bg-state-success' : 'bg-brand-highlight animate-pulse'
+                }`}
+                aria-hidden="true"
+              />
+              {lastCheckedAt ? (
+                <span>Cập nhật lúc: {lastCheckedAt}</span>
               ) : (
-                <Badge variant="warning" loading>
-                  Đang chờ khách quét mã & chuyển khoản
-                </Badge>
+                <span>Đang tự động theo dõi giao dịch</span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {isExpiredOrFailed && (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  loading={initializing}
+                  loadingText="Đang tạo mã..."
+                  startIcon={<RotateCcw className="size-4" aria-hidden="true" />}
+                  onClick={() => void startOrRotateQrSession(true)}
+                >
+                  Tạo lại mã QR mới
+                </Button>
+              )}
+              {!isPaid && session && (
+                <Button
+                  variant="primary"
+                  size="md"
+                  loading={checkingStatus}
+                  loadingText="Đang kiểm tra..."
+                  startIcon={<RefreshCw className="size-4" aria-hidden="true" />}
+                  onClick={() => void checkPaymentStatus(true)}
+                >
+                  Kiểm tra lại kết quả
+                </Button>
+              )}
+              <Button variant="outline" size="md" onClick={onClose}>
+                {isPaid ? 'Hoàn tất & Đóng' : 'Đóng cửa sổ'}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        {session && (
+          <div className="space-y-4 pt-1">
+            {/* Status Header Strip */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface-dashboard/70 p-3">
+              <div className="flex items-center gap-2">
+                {isPaid ? (
+                  <Badge variant="success">
+                    <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                    Đã nhận chuyển khoản hợp lệ
+                  </Badge>
+                ) : isExpiredOrFailed ? (
+                  <Badge variant="danger">
+                    <AlertTriangle className="size-3.5" aria-hidden="true" />
+                    Mã QR đã hết hạn
+                  </Badge>
+                ) : (
+                  <Badge variant="warning" loading>
+                    Chờ khách quét mã & chuyển khoản
+                  </Badge>
+                )}
+              </div>
+
+              {isWaiting && (
+                <div
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-paper px-2.5 py-1 text-xs text-muted"
+                  aria-label="Thời gian hiệu lực còn lại"
+                >
+                  <Clock className="size-3.5 text-brand-highlight" aria-hidden="true" />
+                  <span>Hiệu lực còn:</span>
+                  <span className="font-mono font-bold text-ink">
+                    {formatCountdown(remainingSeconds)}
+                  </span>
+                </div>
               )}
             </div>
 
-            {isWaiting && (
-              <div
-                className="inline-flex items-center gap-1.5 rounded-lg bg-paper px-3 py-1 text-xs font-semibold text-ink shadow-xs"
-                aria-label="Thời gian hiệu lực còn lại"
-              >
-                <Clock className="size-3.5 text-brand-highlight" aria-hidden="true" />
-                <span>Hết hạn sau:</span>
-                <span className="font-mono text-sm font-bold text-brand-highlight">
-                  {formatCountdown(remainingSeconds)}
-                </span>
+            {/* 2-column layout: Large QR on Left + Details on Right */}
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-12">
+              {/* Left Column: Prominent QR Code Card (Click to Zoom) */}
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-brand-lavender/40 bg-paper p-5 md:col-span-6">
+                <button
+                  type="button"
+                  onClick={() => setIsZoomed(true)}
+                  className="group relative flex aspect-square w-full max-w-[270px] cursor-zoom-in items-center justify-center overflow-hidden rounded-2xl border-2 border-border/70 bg-white p-3 shadow-sm transition-all duration-200 hover:border-brand-pink hover:shadow-md focus-visible:outline-2 focus-visible:outline-brand-highlight"
+                  title="Bấm vào mã QR để phóng to toàn màn hình cho khách quét"
+                  aria-label="Phóng to mã QR cho khách quét"
+                >
+                  {!qrImageError && session.qrCodeUrl ? (
+                    <img
+                      src={session.qrCodeUrl}
+                      alt={`Mã VietQR cho hóa đơn ${session.invoiceNumber}`}
+                      className={`h-full w-full object-contain transition duration-200 ${
+                        isExpiredOrFailed ? 'opacity-20 blur-[2px]' : 'group-hover:scale-[1.02]'
+                      }`}
+                      onError={() => setQrImageError(true)}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-4 text-center text-xs text-muted">
+                      <QrCode className="mb-2 size-12 text-brand-highlight/60" aria-hidden="true" />
+                      <p className="font-semibold text-ink">Dữ liệu VietQR</p>
+                      <p className="mt-1 break-all font-mono text-[10px] text-muted">{session.qrPayload}</p>
+                    </div>
+                  )}
+
+                  {/* Hover Overlay Prompt to Zoom */}
+                  {!isPaid && !isExpiredOrFailed && (
+                    <div className="absolute inset-x-2 bottom-2 flex items-center justify-center gap-1.5 rounded-lg bg-ink/75 px-3 py-1.5 text-xs font-semibold text-white opacity-0 backdrop-blur-[2px] transition duration-200 group-hover:opacity-100">
+                      <Maximize2 className="size-3.5 text-brand-pink" aria-hidden="true" />
+                      <span>Bấm để phóng to cho khách</span>
+                    </div>
+                  )}
+
+                  {isExpiredOrFailed && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink/75 p-3 text-center text-white backdrop-blur-[1px]">
+                      <AlertTriangle className="mb-1.5 size-7 text-amber-300" aria-hidden="true" />
+                      <p className="text-xs font-bold">Mã QR đã hết hạn</p>
+                      <p className="mt-0.5 text-[11px] text-white/80">
+                        Bấm &ldquo;Tạo lại mã QR mới&rdquo; để tiếp tục
+                      </p>
+                    </div>
+                  )}
+
+                  {isPaid && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-950/85 p-3 text-center text-white backdrop-blur-[1px]">
+                      <CheckCircle2 className="mb-1.5 size-9 text-emerald-300" aria-hidden="true" />
+                      <p className="text-sm font-bold">Thanh toán thành công</p>
+                      <p className="mt-0.5 text-xs text-emerald-100/90">
+                        Giao dịch đã được ghi nhận
+                      </p>
+                    </div>
+                  )}
+                </button>
+
+                {/* Direct Action Button below QR */}
+                <button
+                  type="button"
+                  onClick={() => setIsZoomed(true)}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-brand-lavender/60 bg-brand-pink-surface px-3.5 py-1.5 text-xs font-semibold text-brand-highlight shadow-2xs transition hover:bg-brand-pink-light hover:text-brand-ink focus-visible:outline-2 focus-visible:outline-brand-highlight"
+                >
+                  <Maximize2 className="size-3.5" aria-hidden="true" />
+                  <span>Phóng to toàn màn hình cho khách quét</span>
+                </button>
               </div>
-            )}
-          </div>
 
-          {/* Main Grid: QR Image (Left) + Transfer Details (Right) */}
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-12">
-            {/* QR Code Display Column */}
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-white p-4 shadow-xs md:col-span-5">
-              <div className="relative flex aspect-square w-full max-w-[230px] items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-white p-2">
-                {!qrImageError && session.qrCodeUrl ? (
-                  <img
-                    src={session.qrCodeUrl}
-                    alt={`Mã VietQR cho hóa đơn ${session.invoiceNumber}`}
-                    className={`h-full w-full object-contain transition duration-200 ${
-                      isExpiredOrFailed ? ' opacity-25 blur-[2px]' : ''
-                    }`}
-                    onError={() => setQrImageError(true)}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center p-4 text-center text-xs text-muted">
-                    <QrCode className="mb-2 size-12 text-brand-highlight/60" aria-hidden="true" />
-                    <p className="font-semibold text-ink">Dữ liệu VietQR đã khởi tạo</p>
-                    <p className="mt-1 break-all font-mono text-[11px]">{session.qrPayload}</p>
-                  </div>
-                )}
-
-                {isExpiredOrFailed && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink/65 p-4 text-center text-white">
-                    <AlertTriangle className="mb-2 size-8 text-amber-300" aria-hidden="true" />
-                    <p className="text-sm font-bold">Mã QR đã hết hiệu lực</p>
-                    <p className="mt-1 text-xs text-white/85">
-                      Vui lòng bấm &ldquo;Tạo lại mã QR mới&rdquo; nếu khách vẫn muốn thanh toán.
-                    </p>
-                  </div>
-                )}
-
-                {isPaid && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-950/80 p-4 text-center text-white">
-                    <CheckCircle2 className="mb-2 size-10 text-emerald-300" aria-hidden="true" />
-                    <p className="text-sm font-bold">Thanh toán hoàn tất</p>
-                    <p className="mt-1 text-xs text-white/90">
-                      Hệ thống đã ghi nhận giao dịch thành công.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <p className="mt-2.5 text-center text-xs text-muted">
-                Mở ứng dụng Ngân hàng / Ví điện tử bất kỳ để quét mã VietQR
-              </p>
-            </div>
-
-            {/* Transfer Information Column */}
-            <div className="flex flex-col justify-between space-y-3 rounded-2xl border border-border bg-paper p-4 md:col-span-7">
-              <div className="space-y-3">
-                {/* Total Amount Box */}
-                <div className="rounded-xl border border-brand-lavender/40 bg-brand-pink-surface/70 p-3.5">
-                  <p className="text-xs font-medium text-muted">Số tiền cần thanh toán</p>
+              {/* Right Column: Payment Details */}
+              <div className="flex flex-col justify-between space-y-3.5 md:col-span-6">
+                {/* Amount Display */}
+                <div className="rounded-2xl border border-brand-lavender/40 bg-brand-pink-surface/80 p-4">
+                  <span className="text-xs font-medium text-muted">Số tiền cần thanh toán</span>
                   <p
-                    className="mt-0.5 text-2xl font-extrabold tracking-tight text-brand-ink"
+                    className="mt-0.5 text-2xl font-black tracking-tight text-brand-ink"
                     data-testid="vietqr-amount"
                   >
                     {formatVndCurrency(displayAmount)}
                   </p>
                 </div>
 
-                {/* Bank Details */}
-                <div className="space-y-2 rounded-xl border border-border bg-white p-3.5 text-sm">
+                {/* Transfer Content / Reference Code Highlight */}
+                <div className="rounded-2xl border border-amber-300/80 bg-amber-50/70 p-3.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted">
-                      <Building2 className="size-3.5" aria-hidden="true" />
-                      Ngân hàng thụ hưởng
+                    <span className="text-xs font-semibold text-amber-950">
+                      Nội dung chuyển khoản
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void handleCopy(session.transferContent, 'reference')}
+                      className="inline-flex min-h-[28px] items-center gap-1 rounded-md bg-white px-2 py-0.5 text-xs font-medium text-amber-900 shadow-2xs transition hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-brand-highlight"
+                      title="Sao chép nội dung chuyển khoản"
+                      aria-label="Sao chép nội dung chuyển khoản"
+                    >
+                      {copiedField === 'reference' ? (
+                        <>
+                          <Check className="size-3 text-emerald-600" aria-hidden="true" />
+                          <span className="text-[11px]">Đã chép</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="size-3 text-amber-800" aria-hidden="true" />
+                          <span className="text-[11px]">Sao chép</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p
+                    className="mt-1 font-mono text-base font-extrabold tracking-wider text-amber-950"
+                    data-testid="vietqr-transfer-content"
+                  >
+                    {session.transferContent}
+                  </p>
+                </div>
+
+                {/* Beneficiary Details */}
+                <div className="space-y-2 rounded-2xl border border-border/70 bg-paper p-3.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-muted">
+                      <Building2 className="size-3.5 text-muted" aria-hidden="true" />
+                      Ngân hàng
                     </span>
                     <span className="font-bold text-ink">{session.bankCode}</span>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-                    <span className="text-xs text-muted">Số tài khoản</span>
+                  <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-2">
+                    <span className="text-muted">Số tài khoản</span>
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono font-semibold text-ink">
                         {session.bankAccountNumber}
@@ -430,93 +519,130 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
                       <button
                         type="button"
                         onClick={() => void handleCopy(session.bankAccountNumber, 'account')}
-                        className="rounded-md p-1 text-muted transition hover:bg-brand-pink-surface hover:text-ink"
+                        className="rounded-sm p-1 text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-highlight"
                         title="Sao chép số tài khoản"
                         aria-label="Sao chép số tài khoản"
                       >
                         {copiedField === 'account' ? (
-                          <Check className="size-3.5 text-emerald-600" aria-hidden="true" />
+                          <Check className="size-3 text-emerald-600" aria-hidden="true" />
                         ) : (
-                          <Copy className="size-3.5" aria-hidden="true" />
+                          <Copy className="size-3" aria-hidden="true" />
                         )}
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-                    <span className="text-xs text-muted">Chủ tài khoản</span>
-                    <span className="text-right font-semibold text-ink">
+                  <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-2">
+                    <span className="text-muted">Chủ tài khoản</span>
+                    <span className="font-semibold text-ink text-right">
                       {session.bankAccountHolderName}
                     </span>
                   </div>
-
-                  <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted">
-                      <FileText className="size-3.5" aria-hidden="true" />
-                      Mã hóa đơn
-                    </span>
-                    <span className="font-mono text-xs font-semibold text-ink">
-                      {session.invoiceNumber}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Transfer Content / Reference Code */}
-                <div className="rounded-xl border border-amber-300/80 bg-amber-50/70 p-3.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-amber-950">
-                      Nội dung chuyển khoản (Mã tham chiếu)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void handleCopy(session.transferContent, 'reference')}
-                      className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs font-semibold text-amber-900 shadow-2xs transition hover:bg-amber-100"
-                    >
-                      {copiedField === 'reference' ? (
-                        <>
-                          <Check className="size-3 text-emerald-600" aria-hidden="true" />
-                          <span>Đã chép</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="size-3" aria-hidden="true" />
-                          <span>Sao chép</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <p
-                    className="mt-1 font-mono text-lg font-extrabold tracking-wider text-amber-950"
-                    data-testid="vietqr-transfer-content"
-                  >
-                    {session.transferContent}
-                  </p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-amber-900/90">
-                    Nội dung chuyển khoản đã được gắn tự động trong mã QR. Khách hàng vui lòng giữ nguyên để hệ thống đối soát.
-                  </p>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Non-bypassable Cashier Policy Guardrail Notice */}
-          <div
-            className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-dashboard px-4 py-3 text-xs text-muted"
-            role="note"
-          >
-            <ShieldAlert className="mt-0.5 size-4 shrink-0 text-brand-highlight" aria-hidden="true" />
-            <div>
-              <p className="font-semibold text-ink">
-                Quy định kiểm soát thanh toán VietQR tại quầy POS:
-              </p>
-              <p className="mt-0.5 leading-relaxed">
-                Việc hiển thị mã QR chưa được xem là đã nhận tiền. Thu ngân <strong>không thể tự bấm xác nhận đã nhận chuyển khoản</strong>; hóa đơn chỉ hoàn tất khi hệ thống nhận xác nhận thanh toán hợp lệ. Bạn có thể theo dõi trạng thái tự động hoặc bấm <strong>&ldquo;Kiểm tra lại kết quả&rdquo;</strong>.
-              </p>
+            {/* Minimalist Policy Note */}
+            <div
+              className="flex items-center gap-2 rounded-xl bg-surface-dashboard px-3.5 py-2.5 text-[11px] text-muted"
+              role="note"
+            >
+              <ShieldCheck className="size-4 shrink-0 text-brand-highlight" aria-hidden="true" />
+              <span>
+                Hệ thống tự động xác nhận khi nhận tiền. Thu ngân <strong>không thể tự bấm xác nhận đã nhận chuyển khoản</strong>.
+              </span>
             </div>
           </div>
-        </div>
+        )}
+      </Modal>
+
+      {/* Fullscreen Customer Display Lightbox / Zoom Mode (Rendered via Portal with z-[2000] to sit cleanly on top of Modal z-[1000]) */}
+      {isZoomed && session && typeof document !== 'undefined' && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mã VietQR phóng to cho khách hàng quét"
+          className="fixed inset-0 z-[2000] flex items-center justify-center bg-ink/85 p-4 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setIsZoomed(false)}
+        >
+          <div
+            className="relative flex w-full max-w-lg flex-col items-center rounded-3xl bg-white p-7 shadow-2xl transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Close Button */}
+            <button
+              type="button"
+              onClick={() => setIsZoomed(false)}
+              className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-full bg-surface text-muted transition hover:bg-brand-pink-light hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-highlight"
+              aria-label="Đóng chế độ phóng to (phím Escape)"
+              title="Đóng chế độ phóng to"
+            >
+              <X className="size-5" aria-hidden="true" />
+            </button>
+
+            {/* Header for Customer */}
+            <div className="mb-4 text-center">
+              <div className="mx-auto mb-2 flex size-11 items-center justify-center rounded-2xl bg-brand-pink-light text-brand-highlight shadow-2xs">
+                <ScanLine className="size-6" aria-hidden="true" />
+              </div>
+              <h3 className="text-xl font-black text-ink">Quét mã VietQR để thanh toán</h3>
+              <p className="mt-0.5 text-xs text-muted">Mở camera hoặc ứng dụng Mobile Banking bất kỳ để quét mã</p>
+            </div>
+
+            {/* Big Zoomed QR Code Image */}
+            <div className="relative flex aspect-square w-full max-w-[340px] items-center justify-center overflow-hidden rounded-2xl border-2 border-brand-lavender/50 bg-white p-3 shadow-inner">
+              {!qrImageError && session.qrCodeUrl ? (
+                <img
+                  src={session.qrCodeUrl}
+                  alt={`Mã VietQR cho hóa đơn ${session.invoiceNumber}`}
+                  className="h-full w-full object-contain"
+                />
+              ) : (
+                <div className="p-4 text-center text-sm font-mono">{session.qrPayload}</div>
+              )}
+
+              {isPaid && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-950/90 p-4 text-center text-white backdrop-blur-[2px]">
+                  <CheckCircle2 className="mb-2 size-16 text-emerald-300" aria-hidden="true" />
+                  <p className="text-2xl font-bold">Thanh toán thành công!</p>
+                  <p className="mt-1 text-sm text-emerald-100">Cảm ơn quý khách đã mua sắm tại OCS</p>
+                </div>
+              )}
+            </div>
+
+            {/* Amount and Content Highlight for Customer */}
+            <div className="mt-5 grid w-full grid-cols-2 gap-3 text-center">
+              <div className="rounded-2xl border border-brand-lavender/40 bg-brand-pink-surface p-3.5">
+                <p className="text-xs font-medium text-muted">Số tiền thanh toán</p>
+                <p className="mt-0.5 text-2xl font-black text-brand-ink">{formatVndCurrency(displayAmount)}</p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-300/80 bg-amber-50 p-3.5">
+                <p className="text-xs font-medium text-amber-900">Nội dung chuyển khoản</p>
+                <p className="mt-0.5 font-mono text-lg font-extrabold text-amber-950">{session.transferContent}</p>
+              </div>
+            </div>
+
+            {/* Status Footer in Zoom Mode */}
+            <div className="mt-5 flex w-full items-center justify-between border-t border-border/60 pt-3 text-xs text-muted">
+              <div className="flex items-center gap-1.5">
+                <Clock className="size-4 text-brand-highlight" aria-hidden="true" />
+                <span>Thời gian hiệu lực: <strong className="font-mono text-sm text-ink">{formatCountdown(remainingSeconds)}</strong></span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsZoomed(false)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-surface px-3 py-1.5 font-semibold text-brand-highlight hover:bg-brand-pink-surface transition"
+              >
+                <Minimize2 className="size-4" aria-hidden="true" />
+                <span>Thu nhỏ (Esc)</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
-    </Modal>
+    </>
   );
 };
 
