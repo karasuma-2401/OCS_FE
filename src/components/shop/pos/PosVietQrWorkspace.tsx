@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   QrCode,
   RefreshCw,
@@ -9,6 +10,7 @@ import {
   Receipt,
   Search,
   Calendar,
+  X,
 } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, ErrorState, Input, SkeletonLoading } from '@/components/shared';
 import { posPaymentsApi } from '@/api/posPayments';
@@ -44,6 +46,7 @@ export const PosVietQrWorkspace: React.FC = () => {
     useState<VietQrPaymentSession | null>(null);
   const [completedInvoices, setCompletedInvoices] = useState<CompletedInvoiceRecord[]>([]);
   const [newlyPaidAlert, setNewlyPaidAlert] = useState<CompletedInvoiceRecord | null>(null);
+  const [toastNotification, setToastNotification] = useState<CompletedInvoiceRecord | null>(null);
   const knownInvoicesRef = React.useRef<Map<string, PosPendingInvoiceSummary>>(new Map());
   const hasLoadedInitialRef = React.useRef(false);
 
@@ -85,8 +88,9 @@ export const PosVietQrWorkspace: React.FC = () => {
             // Play auditory feedback
             playPaymentSuccessChime();
 
-            // Set top alert for the latest completed invoice
+            // Set top alert and floating toast for the latest completed invoice
             setNewlyPaidAlert(newlyCompleted[0]);
+            setToastNotification(newlyCompleted[0]);
 
             // Add to completed invoices list
             setCompletedInvoices((prev) => {
@@ -227,6 +231,7 @@ export const PosVietQrWorkspace: React.FC = () => {
         paymentReference: session.paymentReference,
       };
       setNewlyPaidAlert(record);
+      setToastNotification(record);
       setCompletedInvoices((prev) => [
         record,
         ...prev.filter((p) => p.saleInvoiceId !== session.saleInvoiceId),
@@ -235,6 +240,15 @@ export const PosVietQrWorkspace: React.FC = () => {
     },
     [loadPendingInvoices],
   );
+
+  // Auto-dismiss floating toast after 6 seconds
+  useEffect(() => {
+    if (!toastNotification) return;
+    const timer = window.setTimeout(() => {
+      setToastNotification(null);
+    }, 6000);
+    return () => window.clearTimeout(timer);
+  }, [toastNotification]);
 
   return (
     <div className="space-y-5">
@@ -552,6 +566,46 @@ export const PosVietQrWorkspace: React.FC = () => {
         onSessionUpdate={handleSessionUpdate}
         onPaymentSuccess={handlePaymentSuccess}
       />
+      {/* Floating Toast Notification for Payment Confirmation (z-[3000]) */}
+      {toastNotification && typeof document !== 'undefined' && createPortal(
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-5 right-5 z-[3000] flex max-w-sm items-start gap-3.5 rounded-2xl border-2 border-emerald-500 bg-white p-4 shadow-2xl transition-all duration-300 animate-in fade-in slide-in-from-top-4"
+        >
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+            <CheckCircle2 className="size-6 animate-pulse" aria-hidden="true" />
+          </div>
+          <div className="flex-1 pr-1">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-black text-emerald-950">
+                Thanh toán thành công!
+              </h4>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                {toastNotification.paidAt}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-ink leading-relaxed">
+              Hóa đơn <strong className="font-bold text-ink">{toastNotification.invoiceNumber}</strong> đã nhận đủ{' '}
+              <strong className="font-bold text-emerald-700">{formatVndCurrency(toastNotification.totalAmount)}</strong> qua VietQR.
+            </p>
+            {toastNotification.paymentReference && (
+              <p className="mt-1 text-[11px] text-muted">
+                Mã GD: <code className="font-mono font-bold text-ink">{toastNotification.paymentReference}</code>
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastNotification(null)}
+            className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-highlight"
+            aria-label="Đóng thông báo"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 };

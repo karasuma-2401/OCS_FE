@@ -269,20 +269,45 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
     return () => window.clearInterval(timer);
   }, [open, session, checkPaymentStatus]);
 
+  const remainingSecondsRef = useRef(remainingSeconds);
+  remainingSecondsRef.current = remainingSeconds;
+
+  const isPaid =
+    session?.status === 'Success' || session?.invoicePaymentStatus === 'Paid';
+  const isExpiredOrFailed =
+    !isPaid &&
+    Boolean(
+      session &&
+        (session.isExpired ||
+          session.status === 'Failed' ||
+          remainingSeconds <= 0),
+    );
+  const isWaiting = Boolean(session && !isPaid && !isExpiredOrFailed);
+
+  // Auto close zoom popup and modal when payment is successfully confirmed
+  useEffect(() => {
+    if (!isPaid) return;
+    const timer = window.setTimeout(() => {
+      setIsZoomed(false);
+      onClose();
+    }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [isPaid, onClose]);
+
   // Automatic polling while transaction is Pending and not expired
   useEffect(() => {
     if (
       !open ||
       !session?.transactionId ||
       session.status !== 'Pending' ||
-      session.isExpired ||
-      remainingSeconds <= 0
+      session.isExpired
     ) {
       return;
     }
 
     const controller = new AbortController();
     const interval = window.setInterval(() => {
+      if (remainingSecondsRef.current <= 0) return;
       void checkPaymentStatus(false, controller.signal);
     }, pollIntervalMs);
 
@@ -295,7 +320,6 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
     session?.transactionId,
     session?.status,
     session?.isExpired,
-    remainingSeconds,
     pollIntervalMs,
     checkPaymentStatus,
   ]);
@@ -310,18 +334,6 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
       // Ignore clipboard permission denial
     }
   };
-
-  const isPaid =
-    session?.status === 'Success' || session?.invoicePaymentStatus === 'Paid';
-  const isExpiredOrFailed =
-    !isPaid &&
-    Boolean(
-      session &&
-        (session.isExpired ||
-          session.status === 'Failed' ||
-          remainingSeconds <= 0),
-    );
-  const isWaiting = Boolean(session && !isPaid && !isExpiredOrFailed);
 
   const displayInvoiceNumber =
     session?.invoiceNumber || initialInvoiceNumber || 'Đang tải...';
