@@ -41,8 +41,18 @@ export const posPaymentsApi = {
     );
     return response.data;
   },
+
+  async simulateVietQrWebhook(
+    transactionId: string,
+  ): Promise<VietQrPaymentSession> {
+    const response = await apiClient.post<VietQrPaymentSession>(
+      `/pos/payments/vietqr/${encodeURIComponent(transactionId)}/simulate-webhook`,
+    );
+    return response.data;
+  },
 };
 
 export const initiateVietQrPayment = posPaymentsApi.initiateVietQr;
 export const getVietQrPaymentStatus = posPaymentsApi.getVietQrStatus;
 export const listPendingPosInvoices = posPaymentsApi.listPendingInvoices;
+export const simulateVietQrPaymentWebhook = posPaymentsApi.simulateVietQrWebhook;

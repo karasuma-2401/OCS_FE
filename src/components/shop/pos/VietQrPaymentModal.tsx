@@ -16,6 +16,7 @@ import {
   Minimize2,
   X,
   ScanLine,
+  Zap,
 } from 'lucide-react';
 import { Badge, Button, Modal } from '@/components/shared';
 import { posPaymentsApi } from '@/api/posPayments';
@@ -76,6 +77,7 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
   const [session, setSession] = useState<VietQrPaymentSession | null>(null);
   const [initializing, setInitializing] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [simulatingWebhook, setSimulatingWebhook] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
   const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
@@ -166,6 +168,25 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
     },
     [session?.transactionId, syncSessionState],
   );
+
+  const handleSimulateBankWebhook = useCallback(async () => {
+    if (!session?.transactionId) return;
+    setSimulatingWebhook(true);
+    setError(null);
+    try {
+      const updated = await posPaymentsApi.simulateVietQrWebhook(session.transactionId);
+      syncSessionState(updated);
+    } catch (err) {
+      setError(
+        extractApiErrorMessage(
+          err,
+          'Không thể giả lập Webhook ngân hàng lúc này. Vui lòng thử lại.',
+        ),
+      );
+    } finally {
+      setSimulatingWebhook(false);
+    }
+  }, [session?.transactionId, syncSessionState]);
 
   // Initialize or reload QR session on open with a valid saleInvoiceId
   useEffect(() => {
@@ -328,6 +349,19 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
                   onClick={() => void startOrRotateQrSession(true)}
                 >
                   Tạo lại mã QR mới
+                </Button>
+              )}
+              {!isPaid && session && (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  loading={simulatingWebhook}
+                  loadingText="Đang gửi Webhook..."
+                  startIcon={<Zap className="size-4 text-amber-600" aria-hidden="true" />}
+                  onClick={() => void handleSimulateBankWebhook()}
+                  title="Giả lập ngân hàng gửi Webhook biến động số dư về hệ thống (Dành cho môi trường Dev/Demo)"
+                >
+                  Giả lập tiền về (Sandbox)
                 </Button>
               )}
               {!isPaid && session && (

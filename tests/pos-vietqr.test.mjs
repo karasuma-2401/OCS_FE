@@ -98,6 +98,7 @@ test('posPaymentsApi.getVietQrStatus and listPendingInvoices forward AbortSignal
 
   await posPaymentsApi.getVietQrStatus('tx-uuid-99', controller.signal);
   await posPaymentsApi.listPendingInvoices(controller.signal);
+  await posPaymentsApi.simulateVietQrWebhook('tx-uuid-99');
 
   assert.deepEqual(requests, [
     {
@@ -109,6 +110,11 @@ test('posPaymentsApi.getVietQrStatus and listPendingInvoices forward AbortSignal
       method: 'GET',
       path: '/pos/payments/vietqr/pending-invoices',
       config: { signal: controller.signal },
+    },
+    {
+      method: 'POST',
+      path: '/pos/payments/vietqr/tx-uuid-99/simulate-webhook',
+      body: undefined,
     },
   ]);
 });
