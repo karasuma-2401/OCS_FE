@@ -193,3 +193,43 @@ export interface CartItem {
   product: Product;
   quantity: number;
 }
+
+export type VietQrTransactionStatus = 'Pending' | 'Success' | 'Failed' | 'Refunded';
+export type InvoicePaymentStatus = 'Unpaid' | 'Partial' | 'Paid';
+
+export interface InitiateVietQrPaymentRequest {
+  saleInvoiceId: string;
+  forceNew?: boolean;
+}
+
+export interface VietQrPaymentSession {
+  transactionId: string;
+  saleInvoiceId: string;
+  invoiceNumber: string;
+  amount: string;
+  paymentReference: string;
+  transferContent: string;
+  bankCode: string;
+  bankAccountNumber: string;
+  bankAccountHolderName: string;
+  qrCodeUrl: string;
+  qrPayload: string;
+  providerName: string;
+  status: VietQrTransactionStatus;
+  invoicePaymentStatus: InvoicePaymentStatus;
+  isExpired: boolean;
+  createdAt: string;
+  expiresAt: string;
+  remainingSeconds: number;
+}
+
+export interface PosPendingInvoiceSummary {
+  saleInvoiceId: string;
+  invoiceNumber: string;
+  totalAmount: string;
+  paymentStatus: InvoicePaymentStatus;
+  createdAt: string;
+  activeTransactionId?: string | null;
+  activePaymentReference?: string | null;
+  activeExpiresAt?: string | null;
+}
