@@ -301,12 +301,11 @@ export default function ShopNavBar({
                 <div
                   id={accountMenuId}
                   className={`
-              absolute top-[calc(100%+.55rem)] right-0 z-[110] w-[210px] rounded-xl border border-[#eee6e9] bg-white
+              absolute bottom-0 left-[calc(100%+.5rem)] right-auto top-auto z-[110] w-[210px] rounded-xl border border-[#eee6e9] bg-white
               p-[.4rem] shadow-[0_12px_32px_rgba(56,37,48,.13)] [&_button]:flex [&_button]:w-full
               [&_button]:cursor-pointer [&_button]:items-center [&_button]:gap-[.7rem] [&_button]:rounded-lg
               [&_button]:border-0 [&_button]:bg-transparent [&_button]:px-3 [&_button]:py-[.8rem] [&_button]:text-left
               [&_button]:text-[.8rem] [&_button]:font-semibold [&_button]:text-[#514b54] [&_button:hover]:bg-[#fbf3f6]
-              ${collapsed ? "lg:left-[calc(100%+.5rem)] lg:right-auto lg:top-0" : ""}
               [&_button:hover]:text-[#ae6580] [&_button:disabled]:cursor-wait [&_button:disabled]:opacity-60
             `}
                 >
