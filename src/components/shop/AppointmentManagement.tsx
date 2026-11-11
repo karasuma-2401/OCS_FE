@@ -16,6 +16,7 @@ import {
   Button,
   Combobox,
   Modal,
+  PageHeaderCard,
   SkeletonLoading,
   Toast,
 } from "@/components/shared";
@@ -243,7 +244,7 @@ export function AppointmentManagement({
     (new Date(calendarYear, calendarMonth - 1, 1).getDay() + 6) % 7;
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-5">
       {/* Toast alert */}
       {toastMessage && (
         <Toast
@@ -254,25 +255,26 @@ export function AppointmentManagement({
         />
       )}
 
-      {/* Top Header Row: Title on the left, NotificationBell & Đổi vai trò on the right */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
-        <h1 className="text-2xl sm:text-[28px] font-extrabold text-gray-900 tracking-tight">
-          Lịch hẹn và tiếp nhận
-        </h1>
-
-        <div className="flex items-center gap-3">
-          <NotificationBell />
-          {onSwitchRole && (
-            <button
-              type="button"
-              onClick={onSwitchRole}
-              className="rounded-2xl border border-white/80 bg-white/95 px-3.5 py-2 text-xs font-bold text-gray-800 shadow-sm transition hover:bg-white hover:border-gray-200"
-            >
-              Đổi vai trò
-            </button>
-          )}
-        </div>
-      </div>
+      <h1 className="sr-only">Lịch hẹn và tiếp nhận</h1>
+      <PageHeaderCard
+        icon={<FileSignature size={24} aria-hidden="true" />}
+        title="Lịch hẹn và tiếp nhận"
+        description="Theo dõi lịch hẹn và tiếp nhận khách ký gửi tại cửa hàng."
+        actions={
+          <>
+            <NotificationBell />
+            {onSwitchRole && (
+              <button
+                type="button"
+                onClick={onSwitchRole}
+                className="rounded-2xl border border-white/80 bg-white/95 px-3.5 py-2 text-xs font-bold text-gray-800 shadow-sm transition hover:bg-white hover:border-gray-200"
+              >
+                Đổi vai trò
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* Main 2-Column*/}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">

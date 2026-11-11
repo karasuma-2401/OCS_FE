@@ -6,7 +6,7 @@ import { parseProblemDetails, extractFieldError } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
 import type { RoleCode } from '@/types';
 import { validateEmail, validateFullName, validatePasswordPolicy, validatePhoneNumber } from '@/utils/validation';
-import { Badge, Button, Card, Combobox, DatePicker, EmptyState, ErrorState, Input, PasswordInput, SkeletonLoading, Modal, Pagination, Toast } from '@/components/shared';
+import { Badge, Button, Card, Combobox, DatePicker, EmptyState, ErrorState, Input, PageHeaderCard, PasswordInput, SkeletonLoading, Modal, Pagination, Toast } from '@/components/shared';
 
 type InternalRole = 'Admin' | 'Manager' | 'Staff';
 type Action = { account: AccountSummary; label: string; run: () => Promise<AccountSummary>; impact: string };
@@ -317,15 +317,17 @@ export function AccountManagement() {
 
   return <div className="space-y-5">
     {notice && !selected && <Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} />}
-    <Card className="bg-gradient-to-r from-brand-pink-surface to-white">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3"><span className="shrink-0 rounded-xl bg-brand-pink-light p-3 text-brand-highlight"><Users size={24} /></span><div><h2 className="text-lg font-bold text-brand-ink">Quản lý tài khoản</h2><p className="text-sm text-muted">{isAdmin ? 'Quản lý khách hàng và nhân sự nội bộ.' : 'Quản lý tài khoản nhân viên Staff.'}</p></div></div>
-        <div className="flex shrink-0 flex-wrap gap-2 self-start sm:self-auto">
+    <PageHeaderCard
+      icon={<Users size={24} />}
+      title="Quản lý tài khoản"
+      description={isAdmin ? 'Quản lý khách hàng và nhân sự nội bộ.' : 'Quản lý tài khoản nhân viên Staff.'}
+      actions={
+        <>
           {isAdmin && hasPermission('accounts.history') && <Button variant="outline" onClick={() => openHistory()} startIcon={<Clock3 size={16} />}>Lịch sử thao tác</Button>}
           {hasPermission('accounts.create') && (!isAdmin || activeTab === 'internal') && <Button onClick={openCreate} startIcon={<Plus size={16} />}>{isAdmin ? 'Tạo tài khoản nội bộ' : 'Tạo nhân viên'}</Button>}
-        </div>
-      </div>
-    </Card>
+        </>
+      }
+    />
     <Card>
       {isAdmin ? <div className="mb-5 flex gap-1 border-b border-border" role="tablist" aria-label="Loại tài khoản">
         <button id="accounts-customer-tab" type="button" role="tab" aria-selected={activeTab === 'customer'} aria-controls="accounts-panel" onClick={() => changeTab('customer')} className={`border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'customer' ? 'border-brand-pink text-brand-ink' : 'border-transparent text-muted hover:text-brand-highlight'}`}>Khách hàng</button>
