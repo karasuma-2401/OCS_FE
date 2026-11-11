@@ -22,6 +22,8 @@ export { Modal } from "./Modal";
 export type { ModalProps } from "./Modal";
 export { Pagination } from "./Pagination";
 export type { PaginationProps } from "./Pagination";
+export { PageHeaderCard } from "./PageHeaderCard";
+export type { PageHeaderCardProps } from "./PageHeaderCard";
 export { PasswordInput } from "./PasswordInput";
 export type { PasswordInputProps } from "./PasswordInput";
 export { Select } from "./Select";
