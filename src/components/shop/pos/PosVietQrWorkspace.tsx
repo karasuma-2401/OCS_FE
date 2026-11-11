@@ -12,7 +12,7 @@ import {
   Calendar,
   X,
 } from 'lucide-react';
-import { Badge, Button, Card, EmptyState, ErrorState, Input, SkeletonLoading } from '@/components/shared';
+import { Badge, Button, Card, EmptyState, ErrorState, Input, PageHeaderCard, SkeletonLoading } from '@/components/shared';
 import { posPaymentsApi } from '@/api/posPayments';
 import {
   VietQrPaymentModal,
@@ -252,39 +252,29 @@ export const PosVietQrWorkspace: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      {/* Top Banner: Modern POS Header */}
-      <div className="flex flex-col justify-between gap-4 rounded-2xl border border-brand-lavender/30 bg-paper p-5 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand-pink-light text-brand-highlight shadow-2xs">
-            <QrCode className="size-5.5" aria-hidden="true" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-ink">Thanh toán VietQR tại quầy</h2>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                <span className="size-1.5 rounded-full bg-emerald-500" />
-                Cổng thanh toán sẵn sàng
-              </span>
-            </div>
-            <p className="mt-0.5 text-xs text-muted">
-              Quét mã tức thì qua Mobile Banking, đối soát giao dịch tự động 100%
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            loading={loadingList}
-            loadingText="Đang tải..."
-            startIcon={<RefreshCw className="size-3.5" aria-hidden="true" />}
-            onClick={() => void loadPendingInvoices()}
-          >
-            Làm mới danh sách
-          </Button>
-        </div>
-      </div>
+      <PageHeaderCard
+        icon={<QrCode size={24} aria-hidden="true" />}
+        title="Thanh toán VietQR tại quầy"
+        description="Quét mã tức thì qua Mobile Banking, đối soát giao dịch tự động 100%."
+        actions={
+          <>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              Cổng thanh toán sẵn sàng
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              loading={loadingList}
+              loadingText="Đang tải..."
+              startIcon={<RefreshCw className="size-3.5" aria-hidden="true" />}
+              onClick={() => void loadPendingInvoices()}
+            >
+              Làm mới danh sách
+            </Button>
+          </>
+        }
+      />
 
       {/* Prominent Real-time Payment Success Banner */}
       {(newlyPaidAlert || lastCompletedSession) && (
