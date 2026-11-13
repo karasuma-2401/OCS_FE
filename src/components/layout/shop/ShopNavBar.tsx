@@ -28,6 +28,9 @@ export interface ShopNavBarProps {
   showAccounts?: boolean;
   allowedItems?: ShopNavId[];
   actions?: React.ReactNode;
+  showContractManagement?: boolean;
+  contractsActive?: boolean;
+  onContracts?: () => void;
 }
 
 const navigation: ShopNavItem[] = [
@@ -66,6 +69,9 @@ export default function ShopNavBar({
   showAccounts = false,
   allowedItems,
   actions,
+  showContractManagement = false,
+  contractsActive = false,
+  onContracts,
 }: ShopNavBarProps) {
   const [selected, setSelected] = useState<ShopNavId>(initialActive);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -144,7 +150,7 @@ export default function ShopNavBar({
           max-[1100px]:order-3 max-[1100px]:basis-full max-[1100px]:pt-3
         `} aria-label="Điều hướng cửa hàng">
           {navigation.filter((item) => (item.id !== 'accounts' || showAccounts) && (!allowedItems || allowedItems.includes(item.id))).map((item) => {
-            const isActive = currentActive === item.id;
+            const isActive = !contractsActive && currentActive === item.id;
             const isDisabled = item.disabled || disabledItems.includes(item.id);
 
             return (
@@ -167,6 +173,11 @@ export default function ShopNavBar({
               </a>
             );
           })}
+          {showContractManagement && <a href="/shop/contracts" aria-current={contractsActive ? 'page' : undefined}
+            onClick={event => { if (onContracts) { event.preventDefault(); onContracts(); } }}
+            className={`flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-control px-3 text-[13px] leading-5 no-underline transition-colors ${contractsActive ? 'bg-brand-pink-light font-semibold text-brand-highlight' : 'font-medium text-text-secondary hover:bg-brand-pink-surface hover:text-brand-highlight'}`}>
+            Hợp Đồng
+          </a>}
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-2.5 max-[1100px]:order-2">

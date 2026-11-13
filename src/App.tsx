@@ -13,10 +13,14 @@ import { RegisterPage } from './pages/RegisterPage';
 import { VerifyOtpPage } from './pages/VerifyOtpPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ShopDashboardPage } from './pages/ShopDashboardPage';
+import { AppointmentSlotsPage } from './pages/AppointmentSlotsPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ContractIntakePage } from './pages/ContractIntakePage';
+import { ContractListPage, ContractPdfPage } from './pages/ContractDocumentsPage';
+import { ContractTemplatePage } from './pages/ContractTemplatePage';
 import { SkeletonLoading } from './components/shared';
 
 const ProductRailPreviewPage = React.lazy(() => import('./pages/ProductRailPreviewPage'));
@@ -67,6 +71,11 @@ export default function App() {
       <Route path="/ui-components/product-rail-gallery" element={<React.Suspense fallback={<SkeletonLoading variant="page" label="Đang tải thư viện sản phẩm..." className="p-6" />}><ProductRailPreviewPage /></React.Suspense>} />
 
       {/* Protected Shop / Admin routes */}
+      <Route path="/shop/contracts/new" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><ContractIntakePage /></ProtectedRoute>} />
+      <Route path="/shop/appointment-slots" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><AppointmentSlotsPage /></ProtectedRoute>} />
+      <Route path="/shop/contracts/template" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ContractTemplatePage /></ProtectedRoute>} />
+      <Route path="/shop/contracts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ContractListPage /></ProtectedRoute>} />
+      <Route path="/shop/contracts/:id" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><ContractPdfPage /></ProtectedRoute>} />
       <Route path="/admin/accounts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ShopDashboardPage initialTab="accounts" /></ProtectedRoute>} />
       <Route path="/shop/accounts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ShopDashboardPage initialTab="accounts" /></ProtectedRoute>} />
       <Route
