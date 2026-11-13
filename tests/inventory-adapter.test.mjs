@@ -37,3 +37,13 @@ test('approval, sale and price updates carry the version needed to detect stale 
     { method: 'PUT', path: '/inventory/item-1/price', body: { expectedVersion: 'v3', price: 120000, reason: 'Giá mới' } },
   ]);
 });
+
+test('editing product details and location sends each change with its current version', async () => {
+  requests.length = 0;
+  await inventoryApi.changeDetails('item-1', 'v1', 'Áo mới', 'L', 'Mô tả', 90);
+  await inventoryApi.changeLocation('item-1', 'v2', 'location-2');
+  assert.deepEqual(requests, [
+    { method: 'PUT', path: '/inventory/item-1/details', body: { expectedVersion: 'v1', name: 'Áo mới', size: 'L', description: 'Mô tả', conditionPercentage: 90 } },
+    { method: 'PUT', path: '/inventory/item-1/location', body: { expectedVersion: 'v2', locationId: 'location-2' } },
+  ]);
+});

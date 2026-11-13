@@ -40,6 +40,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { BarcodePrintDialog } from "@/components/shop/BarcodeLabels";
 import { BarcodeTemplateModal } from "@/components/shop/BarcodeTemplateModal";
+import { InventoryEditModal } from "@/components/shop/InventoryEditModal";
 import type { BarcodeLabelProduct } from "@/api/barcode";
 
 const control =
@@ -161,7 +162,7 @@ export function InventoryManagement() {
   const [evidence, setEvidence] = useState("");
   const [verifiedPrice, setVerifiedPrice] = useState("");
   const [newPrice, setNewPrice] = useState("");
-  const [newLocation, setNewLocation] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
   const [locationCode, setLocationCode] = useState("");
   const [locationName, setLocationName] = useState("");
   const [locationOpen, setLocationOpen] = useState(false);
@@ -317,7 +318,6 @@ export function InventoryManagement() {
     setEvidence("");
     setVerifiedPrice("");
     setNewPrice("");
-    setNewLocation(product.location?.id ?? "");
     setActionError("");
     setMessage("");
   }
@@ -812,6 +812,7 @@ export function InventoryManagement() {
                   <StatusBadge value={product.approvalStatus} />
                   <StatusBadge value={product.status} />
                   <Button variant="outline" size="sm" loading={labelsLoading} startIcon={<Printer size={15} aria-hidden="true" />} onClick={() => void previewLabels([product])}>In barcode</Button>
+                  {(product.status === "PendingProcessing" || product.status === "OnSale") && (hasPermission("products.create") || hasPermission("products.location.update")) && <Button variant="outline" size="sm" disabled={busy} onClick={() => setEditOpen(true)}>Chỉnh sửa sản phẩm</Button>}
                 </div>
                 <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-y border-border py-4 text-sm">
                   <div>
@@ -887,69 +888,6 @@ export function InventoryManagement() {
                     </div>
                   </div>
                 )}
-
-                {product.status === "PendingProcessing" &&
-                  product.approvalStatus !== "Approved" &&
-                  hasPermission("products.create") && (
-                    <InventoryEditor
-                      key={product.id}
-                      product={product}
-                      busy={busy}
-                      run={run}
-                    />
-                  )}
-
-                {hasPermission("products.location.update") &&
-                  (product.status === "PendingProcessing" ||
-                    product.status === "OnSale") && (
-                    <form
-                      className="mt-5 border-t border-border pt-5"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void run(
-                          () =>
-                            inventoryApi.changeLocation(
-                              product.id,
-                              product.version,
-                              newLocation,
-                            ),
-                          "Đã cập nhật vị trí.",
-                        );
-                      }}
-                    >
-                      <div className="flex items-end gap-2">
-                        <Combobox
-                          className="min-w-0 flex-1"
-                          label="Chuyển vị trí"
-                          value={newLocation || product.location?.id || ""}
-                          onChange={setNewLocation}
-                          placeholder="Chọn vị trí"
-                          options={locations.map((place) => ({
-                            value: place.id,
-                            label: `${place.code} — ${place.name}`,
-                          }))}
-                        />
-                        <Button
-                          type="submit"
-                          variant="outline"
-                          className="min-h-10 shrink-0"
-                          disabled={
-                            busy ||
-                            !newLocation ||
-                            newLocation === product.location?.id
-                          }
-                        >
-                          Lưu
-                        </Button>
-                      </div>
-                      {locations.length === 0 && (
-                        <p className="mt-2 text-xs text-text-secondary">
-                          Chưa có vị trí hoạt động. Liên hệ người quản lý để
-                          thêm vị trí.
-                        </p>
-                      )}
-                    </form>
-                  )}
 
                 {product.approvalStatus === "Pending" &&
                   product.status === "PendingProcessing" &&
@@ -1210,6 +1148,7 @@ export function InventoryManagement() {
           </aside>
         )}
       </div>
+      {editOpen && product && <InventoryEditModal product={product} locations={locations} canEditDetails={hasPermission("products.create")} canEditLocation={hasPermission("products.location.update")} canOffer={hasPermission("products.offer")} onClose={() => setEditOpen(false)} onUpdated={updated => { setDetail(current => current && current.product.id === updated.id ? { ...current, product: { ...updated, coverImageUrl: current.product.coverImageUrl } } : current); setRefresh(current => current + 1); }} onStale={() => setRefresh(current => current + 1)} />}
       <BarcodePrintDialog open={labels !== null} items={labels || []} onClose={() => setLabels(null)} />
       <BarcodeTemplateModal open={templateOpen} onClose={() => setTemplateOpen(false)} />
       <Modal
@@ -1267,98 +1206,5 @@ export function InventoryManagement() {
         </form>
       </Modal>
     </section>
-  );
-}
-
-function InventoryEditor({
-  product,
-  busy,
-  run,
-}: {
-  product: InventoryProduct;
-  busy: boolean;
-  run: (operation: () => Promise<unknown>, success: string) => Promise<void>;
-}) {
-  const [name, setName] = useState(product.name);
-  const [size, setSize] = useState(product.size);
-  const [description, setDescription] = useState(product.description ?? "");
-  const [condition, setCondition] = useState(
-    String(product.conditionPercentage),
-  );
-  return (
-    <details className="group mt-5 border-t border-border pt-4">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-brand-ink focus-visible:outline-2 focus-visible:outline-brand-highlight">
-        Sửa thông tin sản phẩm{" "}
-        <ChevronDown
-          size={16}
-          aria-hidden="true"
-          className="group-open:rotate-180"
-        />
-      </summary>
-      <form
-        className="mt-3 space-y-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void run(
-            () =>
-              inventoryApi.changeDetails(
-                product.id,
-                product.version,
-                name,
-                size,
-                description,
-                Number(condition),
-              ),
-            "Đã cập nhật thông tin sản phẩm.",
-          );
-        }}
-      >
-        <label className={fieldLabel}>
-          Tên sản phẩm
-          <input
-            className={control + " mt-1.5"}
-            value={name}
-            required
-            maxLength={200}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-        <label className={fieldLabel}>
-          Kích thước
-          <input
-            className={control + " mt-1.5"}
-            value={size}
-            required
-            maxLength={30}
-            onChange={(event) => setSize(event.target.value)}
-          />
-        </label>
-        <label className={fieldLabel}>
-          Tình trạng (%)
-          <input
-            className={control + " mt-1.5"}
-            type="number"
-            min="0"
-            max="100"
-            step="1"
-            required
-            value={condition}
-            onChange={(event) => setCondition(event.target.value)}
-          />
-        </label>
-        <label className={fieldLabel}>
-          Mô tả
-          <textarea
-            className={control + " mt-1.5"}
-            value={description}
-            maxLength={2000}
-            onChange={(event) => setDescription(event.target.value)}
-          />
-        </label>
-        <Button type="submit" variant="outline" size="sm" disabled={busy}>
-          Lưu thông tin
-        </Button>
-      </form>
-    </details>
   );
 }
