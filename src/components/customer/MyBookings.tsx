@@ -99,7 +99,7 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
       case 'NoShow':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-800">
-            Vắng mặt
+            Không đến
           </span>
         );
       default:

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, Check, Clock, Info } from 'lucide-react';
+import { Bell, Check, Clock, Info, Smartphone } from 'lucide-react';
 import { notificationApi } from '@/api/notificationApi';
 import type { Notification } from '@/types';
 import { SkeletonLoading } from '@/components/shared/Skeleton';
+import { useFcm } from '@/hooks/useFcm';
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -26,10 +27,33 @@ export function NotificationBell() {
     }
   };
 
+  const {
+    permission,
+    status: fcmStatus,
+    loading: fcmLoading,
+    requestPermissionAndRegister,
+  } = useFcm({
+    enabled: true,
+    onForegroundMessage: (payload) => {
+      fetchNotifications();
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(payload.notification?.title || 'OCS - Thông báo mới', {
+          body: payload.notification?.body || '',
+          icon: '/mascot-logo.png',
+        });
+      }
+    },
+  });
+
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // Polling update every 30s
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchNotifications, 10000);
+    const handleFocus = () => fetchNotifications();
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   useEffect(() => {
@@ -104,6 +128,38 @@ export function NotificationBell() {
               >
                 <Check size={13} /> Đọc tất cả
               </button>
+            )}
+          </div>
+
+          <div className="mt-2.5 rounded-xl border border-border/80 bg-surface-dashboard/70 p-2.5 text-xs">
+            {permission !== 'granted' ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-text-secondary">
+                  <Smartphone size={14} className="text-brand-highlight shrink-0" />
+                  <span className="text-[11px] font-semibold">Nhận thông báo đẩy (FCM)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await requestPermissionAndRegister();
+                  }}
+                  disabled={fcmLoading}
+                  className="rounded-lg bg-brand-pink hover:bg-brand-pink-hover !text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition active:scale-95 disabled:opacity-50"
+                  style={{ color: '#FFFFFF' }}
+                >
+                  {fcmLoading ? 'Đang bật...' : 'Bật ngay'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-text-secondary">
+                  <Smartphone size={14} className="text-green-600 shrink-0" />
+                  <span className="text-[11px] font-semibold text-text-primary">
+                    Đã bật thông báo đẩy
+                    {fcmStatus?.registeredDeviceCount ? ` (${fcmStatus.registeredDeviceCount} thiết bị)` : ''}
+                  </span>
+                </div>
+              </div>
             )}
           </div>
 
