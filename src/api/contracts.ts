@@ -114,3 +114,6 @@ async function postPdf(path: string, request: unknown): Promise<Blob> {
 export async function previewContract(request: CreateContractRequest): Promise<Blob> {
   return postPdf('/contracts/preview', request);
 }
+export async function previewContractWord(request: CreateContractRequest): Promise<Blob> {
+  return postPdf('/contracts/preview?format=word', request);
+}

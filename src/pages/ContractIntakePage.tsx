@@ -11,7 +11,6 @@ import { Camera, Images } from 'lucide-react';
 import { barcodeApi } from '@/api/barcode';
 import { BarcodeSymbol } from '@/components/shop/BarcodeLabels';
 import { Modal } from '@/components/shared/Modal';
-import { WordDocumentPreview } from '@/components/shop/WordDocumentPreview';
 import { ContractTermsSection } from '@/components/shop/ContractTermsSection';
 import type { ContractTermsRequest } from '@/api/contractTerms';
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
@@ -247,12 +246,18 @@ export function ContractIntakePage() {
           <ContractSignature value={signature} onChange={value => { setSignature(value); if (value) setSignatureNotice(''); }} disabled={saving || readingSignature} onReadingChange={setReadingSignature} />
           {signatureNotice && <p role="status" className="text-sm text-amber-800">{signatureNotice}</p>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
-          <div className="flex flex-wrap justify-end gap-3 border-t pt-5"><Link to="/shop/consignment" className="rounded-xl border px-4 py-2 text-sm font-semibold">Hủy</Link><button type="submit" value="preview" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)} className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700 disabled:opacity-50">{saving && previewing ? 'Đang tạo bản xem trước...' : 'Xem trước hợp đồng'}</button><button type="submit" value="create" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)} className={button}>{saving && !previewing ? 'Đang tạo...' : readingSignature ? 'Đang đọc chữ ký...' : 'Tạo hợp đồng'}</button></div>
+          <div className="flex flex-wrap justify-end gap-3 border-t pt-5"><Link to="/shop/consignment" className="rounded-xl border px-4 py-2 text-sm font-semibold">Hủy</Link><button type="submit" value="preview" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)} className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700 disabled:opacity-50">{saving && previewing ? 'Đang tạo bản xem trước...' : 'Xem trước PDF'}</button><button type="submit" value="create" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)} className={button}>{saving && !previewing ? 'Đang tạo...' : readingSignature ? 'Đang đọc chữ ký...' : 'Tạo hợp đồng'}</button></div>
         </fieldset></form>}
       </>}
     </section>}
-    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước chưa lưu hợp đồng. Hãy quay lại để ký hoặc chỉnh sửa nếu cần." className="max-w-[96rem]" footer={<button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button>}>
-      {previewUrl && <><WordDocumentPreview url={previewUrl} /><a href={previewUrl} download="hop-dong-xem-truoc.docx" className="mt-2 inline-block text-sm font-semibold text-brand-highlight hover:underline">Tải bản xem trước Word</a></>}
+    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước PDF chưa lưu hợp đồng. Hãy quay lại để ký hoặc chỉnh sửa nếu cần." className="max-w-[96rem]" footer={<button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button>}>
+      {previewUrl && <>
+        <div className="mb-3 flex flex-wrap gap-3">
+          <a href={previewUrl} download="hop-dong-xem-truoc.pdf" className="rounded-xl bg-button-pastel px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-button-pastel-hover">Tải bản xem trước PDF</a>
+          <a href={previewUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-brand-lavender px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">Mở PDF trong thẻ mới</a>
+        </div>
+        <iframe src={`${previewUrl}#view=FitH`} title="Xem trước PDF hợp đồng" className="h-[60dvh] min-h-[18rem] w-full rounded-xl border border-border sm:h-[72dvh]" />
+      </>}
     </Modal>
   </div></ContractPageLayout>;
 }

@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import JsBarcode from 'jsbarcode';
 import { Button, ErrorState, Modal, SkeletonLoading } from '@/components/shared';
@@ -7,7 +7,6 @@ import { parseProblemDetails } from '@/api/auth';
 import type { BarcodeLabelProduct, BarcodeLabelTemplate } from '@/api/barcode';
 import { formatVndPrice } from '@/api/products';
 import { barcodeOptions, canEncodeBarcode } from './barcodeGeometry';
-import { WordDocumentPreview } from './WordDocumentPreview';
 
 function drawBarcode(svg: SVGSVGElement, value: string) {
   JsBarcode(svg, value, barcodeOptions);
@@ -33,28 +32,72 @@ export function BarcodeLabel({ item, template }: { item: BarcodeLabelProduct; te
 
 export function BarcodePrintDialog({ open, onClose, items }: { open: boolean; onClose: () => void; items: BarcodeLabelProduct[] }) {
   const [url, setUrl] = useState('');
+  const [wordUrl, setWordUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [retry, setRetry] = useState(0);
+  const frameRef = useRef<HTMLIFrameElement>(null);
   const ids = items.map(item => item.id).join(',');
+
   useEffect(() => {
     if (!open || !ids) return;
-    let active = true; let objectUrl = '';
+    let active = true;
+    let objectUrl = '';
+    let docxUrl = '';
     const controller = new AbortController();
-    setUrl(''); setError(''); setLoading(true);
+    setUrl('');
+    setWordUrl('');
+    setError('');
+    setLoading(true);
+
     void apiClient.post<Blob>('/product-documents/preview', { productIds: ids.split(',') }, { responseType: 'blob', signal: controller.signal })
-      .then(response => { if (active) { objectUrl = URL.createObjectURL(response.data); setUrl(objectUrl); } })
+      .then(response => {
+        if (active) {
+          objectUrl = URL.createObjectURL(response.data);
+          setUrl(objectUrl);
+        }
+      })
       .catch(async failure => {
         if (!active) return;
         if (axios.isAxiosError(failure) && failure.response?.data instanceof Blob) {
           try { failure.response.data = JSON.parse(await failure.response.data.text()); } catch { /* Keep original error. */ }
         }
-        if (active) { const problem = parseProblemDetails(failure); setError(problem.detail || problem.title || 'Không thể tạo phiếu sản phẩm.'); }
+        if (active) {
+          const problem = parseProblemDetails(failure);
+          setError(problem.detail || problem.title || 'Không thể tạo phiếu sản phẩm.');
+        }
       }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
+
+    void apiClient.post<Blob>('/product-documents/word', { productIds: ids.split(',') }, { responseType: 'blob', signal: controller.signal })
+      .then(response => {
+        if (active) {
+          docxUrl = URL.createObjectURL(response.data);
+          setWordUrl(docxUrl);
+        }
+      })
+      .catch(() => { /* Word download is secondary */ });
+
+    return () => {
+      active = false;
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (docxUrl) URL.revokeObjectURL(docxUrl);
+    };
   }, [open, ids, retry]);
-  return <Modal open={open} onClose={onClose} title="Xem trước phiếu sản phẩm" description={`${items.length} sản phẩm · Mỗi sản phẩm trên một trang Word.`} className="max-w-[96rem]"
-    footer={<><Button variant="outline" onClick={onClose}>Đóng</Button>{url && <a href={url} download="phieu-san-pham.docx" className="rounded-xl bg-button-pastel px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-button-pastel-hover">Tải Word</a>}</>}>
-    {loading ? <SkeletonLoading variant="list" count={2} /> : error ? <ErrorState description={error} onRetry={() => setRetry(value => value + 1)} /> : url ? <><p className="mb-3 text-sm text-muted">In thử ở tỷ lệ 100% và kiểm tra barcode bằng máy quét trước khi in hàng loạt. Bố cục xem trong trình duyệt có thể khác Word.</p><WordDocumentPreview url={url} showPrint /></> : <p className="text-sm text-muted">Chọn ít nhất một sản phẩm.</p>}
+
+  return <Modal open={open} onClose={onClose} title="Xem trước phiếu sản phẩm & Barcode" description={`${items.length} sản phẩm · Xem trước dưới dạng PDF theo mẫu Word.`} className="max-w-[96rem]"
+    footer={<>
+      <Button variant="outline" onClick={onClose}>Đóng</Button>
+      {url && <Button variant="outline" onClick={() => frameRef.current?.contentWindow?.print()}>In tài liệu</Button>}
+      {url && <a href={url} download="phieu-san-pham.pdf" className="rounded-xl bg-button-pastel px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-button-pastel-hover">Tải PDF</a>}
+      {wordUrl && <a href={wordUrl} download="phieu-san-pham.docx" className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-ink hover:bg-surface-subtle">Tải Word</a>}
+    </>}>
+    {loading ? <SkeletonLoading variant="list" count={2} /> : error ? <ErrorState description={error} onRetry={() => setRetry(value => value + 1)} /> : url ? <>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+        <p>Bản xem trước PDF chuẩn theo thông tin sản phẩm và barcode. Bạn có thể in trực tiếp hoặc tải tệp PDF / Word.</p>
+        <a href={url} target="_blank" rel="noreferrer" className="font-semibold text-brand-highlight hover:underline">Mở PDF trong thẻ mới</a>
+      </div>
+      <iframe ref={frameRef} src={`${url}#view=FitH`} title="Xem trước PDF phiếu sản phẩm & Barcode" className="h-[60dvh] min-h-[18rem] w-full rounded-xl border border-border sm:h-[72dvh]" />
+    </> : <p className="text-sm text-muted">Chọn ít nhất một sản phẩm.</p>}
   </Modal>;
 }
