@@ -25,5 +25,9 @@ test('shop navigation resolves English paths to the right screens and keeps perm
   assert.equal(permissions.firstAllowedScreen(['screens.consignment']), null);
   assert.equal(permissions.firstAllowedScreen(['screens.consignment', 'appointments.staff.read']), '/shop/consignment');
   assert.equal(permissions.screenByPath['/admin/products'], 'inventory');
+  assert.equal(permissions.screenByPath['/shop/buyouts'], 'buyout');
+  assert.equal(permissions.canAccessScreen(['screens.inventory'], 'buyout'), false);
+  assert.equal(permissions.canAccessScreen(['products.read'], 'buyout'), true);
+  assert.equal(permissions.canAccessScreen(['screens.inventory', 'products.read'], 'buyout'), true);
 });
 

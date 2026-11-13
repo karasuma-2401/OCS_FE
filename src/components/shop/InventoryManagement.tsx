@@ -807,6 +807,14 @@ export function InventoryManagement() {
                       {product.conditionPercentage}%
                     </dd>
                   </div>
+                  {product.sourceType === "Buyout" && (
+                    <div>
+                      <dt className="text-text-secondary">Giá vốn mua đứt</dt>
+                      <dd className="mt-1 font-semibold text-brand-highlight">
+                        {detail.purchasePrice == null ? "Chưa có thông tin" : formatVndPrice(detail.purchasePrice)}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
                 {product.sourceReference && (
                   <p className="mt-4 break-words text-sm text-text-secondary">

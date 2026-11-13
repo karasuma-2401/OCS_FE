@@ -10,6 +10,7 @@ export interface InventoryProduct {
 }
 export interface InventoryDetail {
   product: InventoryProduct; agreementEvidence: string | null; agreedListedPrice: number | null;
+  purchasePrice: number | null;
   images: { id: string; url: string; imageType: string; sortOrder: number }[];
   history: { action: string; previousValue: string | null; newValue: string | null; reason: string | null; actorAccountId: string | null; occurredAt: string }[];
 }

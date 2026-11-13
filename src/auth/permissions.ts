@@ -1,6 +1,7 @@
 export type ShopNavId =
   | 'pos'
   | 'inventory'
+  | 'buyout'
   | 'consignment'
   | 'customers'
   | 'settlement'
@@ -11,6 +12,7 @@ export type ShopNavId =
 export const screenPermissions: Record<ShopNavId, string> = {
   pos: 'screens.pos',
   inventory: 'screens.inventory',
+  buyout: 'products.read',
   consignment: 'screens.consignment',
   customers: 'screens.customers',
   settlement: 'screens.settlement',
@@ -22,6 +24,7 @@ export const screenPermissions: Record<ShopNavId, string> = {
 export const screenPaths: Record<ShopNavId, string> = {
   pos: '/shop/pos',
   inventory: '/shop/inventory',
+  buyout: '/shop/buyouts',
   consignment: '/shop/consignment',
   customers: '/shop/customers',
   settlement: '/shop/settlement',
@@ -35,6 +38,7 @@ export const screenByPath: Record<string, ShopNavId> = {
   '/admin': 'reports',
   '/admin/pos': 'pos',
   '/admin/products': 'inventory',
+  '/admin/buyouts': 'buyout',
   '/admin/contracts': 'consignment',
   '/admin/customers': 'customers',
   '/admin/settlement': 'settlement',
@@ -44,7 +48,7 @@ export const screenByPath: Record<string, ShopNavId> = {
 };
 
 export const screenOrder: ShopNavId[] = [
-  'reports', 'pos', 'inventory', 'consignment', 'customers',
+  'reports', 'pos', 'inventory', 'buyout', 'consignment', 'customers',
   'settlement', 'accounts', 'settings',
 ];
 
