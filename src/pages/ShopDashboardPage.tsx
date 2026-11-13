@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BarChart3, Receipt, Users } from 'lucide-react';
 import ShopNavBar, { type ShopNavItem } from '@/components/layout/shop/ShopNavBar';
 import { useAuth } from '@/context/AuthContext';
-import { Card } from '@/components/shared';
+import { Card, PageHeaderCard } from '@/components/shared';
 import { AppointmentManagement } from '@/components/shop/AppointmentManagement';
 import { AccountManagement } from '@/components/shop/AccountManagement';
 import { FunctionPermissions } from '@/components/shop/FunctionPermissions';
 import { InventoryManagement } from '@/components/shop/InventoryManagement';
+import { PosVietQrWorkspace } from '@/components/shop/pos/PosVietQrWorkspace';
 import { screenByPath, screenOrder, screenPaths, screenPermissions, screenRequirements, type ShopNavId } from '@/auth/permissions';
 
 interface ShopDashboardPageProps {
@@ -82,7 +84,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
   }
 
   return (
-    <div className="min-h-screen bg-surface-dashboard px-3 pt-[11px] pb-12">
+    <div className="flex min-h-screen flex-col gap-4 bg-surface-dashboard px-3 pt-[11px] pb-12 lg:flex-row lg:items-start">
       <ShopNavBar
         activeItem={activeTab}
         showAccounts={canOpenScreen('accounts')}
@@ -106,23 +108,28 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         }}
       />
 
-      <main className="max-w-7xl mx-auto p-6 text-text-primary">
+      <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 p-6 text-text-primary">
         {activeTab !== 'consignment' && <h1 className="sr-only">{currentTabInfo.title}</h1>}
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
-        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'settings' ? <FunctionPermissions /> : <Card className="p-6 mb-6">
-          <p className="text-sm text-muted">{currentTabInfo.desc}</p>
-          <div className="mt-6 rounded-xl border border-dashed border-border p-8 text-center bg-white">
-            <p className="text-sm font-semibold text-ink">
-              Mô-đun {currentTabInfo.title} đang hoạt động trong phiên bản {user?.roles?.join('/')}.
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              Dữ liệu được xác thực an toàn qua phiên HttpOnly cookie và bảo vệ CSRF.
-            </p>
-          </div>
-        </Card>}
+        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'pos' ? <PosVietQrWorkspace /> : activeTab === 'settings' ? <FunctionPermissions /> : <>
+          <PageHeaderCard
+            icon={activeTab === 'customers' ? <Users size={24} aria-hidden="true" /> : activeTab === 'settlement' ? <Receipt size={24} aria-hidden="true" /> : <BarChart3 size={24} aria-hidden="true" />}
+            title={currentTabInfo.title}
+            description={currentTabInfo.desc}
+          />
+          <Card className="mt-5 p-6">
+            <div className="rounded-xl border border-dashed border-border bg-white p-8 text-center">
+              <p className="text-sm font-semibold text-ink">
+                Mô-đun {currentTabInfo.title} đang hoạt động trong phiên bản {user?.roles?.join('/')} .
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Dữ liệu được xác thực an toàn qua phiên HttpOnly cookie và bảo vệ CSRF.
+              </p>
+            </div>
+          </Card>
+        </>}
       </main>
     </div>
   );
 };
-
