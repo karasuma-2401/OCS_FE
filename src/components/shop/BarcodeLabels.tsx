@@ -54,16 +54,17 @@ function printLabels(items: BarcodeLabelProduct[], template: BarcodeLabelTemplat
 export function BarcodePrintDialog({ open, onClose, items }: { open: boolean; onClose: () => void; items: BarcodeLabelProduct[] }) {
   const [template, setTemplate] = useState<BarcodeLabelTemplate | null>(null);
   const [error, setError] = useState('');
+  const [printError, setPrintError] = useState('');
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     if (!open) return;
     let active = true;
-    setTemplate(null); setError('');
+    setTemplate(null); setError(''); setPrintError('');
     barcodeApi.getTemplate().then(data => { if (active) setTemplate(data); }).catch(() => { if (active) setError('Không thể tải mẫu in barcode.'); });
     return () => { active = false; };
   }, [open, retry]);
   const invalid = items.filter(item => !canEncodeBarcode(item.barcode));
-  return <Modal open={open} onClose={onClose} title="Xem trước nhãn barcode" description={`${items.length} sản phẩm · In trên giấy A4 theo mẫu cửa hàng.`} className="max-w-5xl" footer={<><Button variant="outline" onClick={onClose}>Đóng</Button><Button disabled={!template || !items.length || invalid.length > 0} onClick={() => { if (template && !printLabels(items, template)) setError('Trình duyệt đã chặn cửa sổ in. Hãy cho phép cửa sổ bật lên và thử lại.'); }}>In nhãn</Button></>}>
+  return <Modal open={open} onClose={onClose} title="Xem trước nhãn barcode" description={`${items.length} sản phẩm · In trên giấy A4 theo mẫu cửa hàng.`} className="max-w-5xl" error={printError} footer={<><Button variant="outline" onClick={onClose}>Đóng</Button><Button disabled={!template || !items.length || invalid.length > 0} onClick={() => { setPrintError(''); if (template && !printLabels(items, template)) setPrintError('Trình duyệt đã chặn cửa sổ in. Hãy cho phép cửa sổ bật lên và thử lại.'); }}>In nhãn</Button></>}>
     {error ? <ErrorState description={error} onRetry={() => setRetry(value => value + 1)} /> : !template ? <SkeletonLoading variant="list" count={2} /> : <div className="space-y-3"><p className="text-sm text-muted">Kiểm tra máy in và chọn tỷ lệ 100% / kích thước thực. Tên dài có thể được rút gọn trên nhãn; nên thử quét một nhãn trước khi in hàng loạt.</p>{invalid.length > 0 && <p role="alert" className="text-sm text-state-danger">Có {invalid.length} sản phẩm chưa có mã hoặc chứa ký tự không hỗ trợ Code 128; không thể in những nhãn này.</p>}<div className="max-h-[55vh] overflow-auto rounded-xl bg-surface-subtle p-4"><div style={{ display: 'grid', gridTemplateColumns: `repeat(${template.columns}, ${template.widthMm}mm)`, gap: '3mm', width: 'fit-content' }}>{items.map(item => <BarcodeLabel key={item.id} item={item} template={template} />)}</div></div></div>}
   </Modal>;
 }

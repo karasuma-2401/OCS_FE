@@ -23,6 +23,13 @@ export function InventoryEditModal({ product, locations, canEditDetails, canEdit
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const detailsChanged = name.trim() !== current.name || size.trim() !== current.size || description.trim() !== (current.description ?? '') || Number(condition) !== current.conditionPercentage;
+  const locationChanged = Boolean(location && location !== current.location?.id);
+  const closeEditor = () => {
+    if ((canEditDetails && detailsChanged) || (canEditLocation && locationChanged)) {
+      if (!window.confirm('Bạn còn thay đổi chưa lưu. Đóng hộp thoại và bỏ các thay đổi này?')) return;
+    }
+    onClose();
+  };
 
   async function save(operation: () => Promise<InventoryProduct>, success: string) {
     if (busy || stale) return;
@@ -49,7 +56,7 @@ export function InventoryEditModal({ product, locations, canEditDetails, canEdit
     void save(() => inventoryApi.changeDetails(current.id, current.version, name.trim(), size.trim(), description.trim(), Number(condition)), 'Đã lưu thông tin sản phẩm.');
   };
 
-  return <Modal open onClose={onClose} title="Chỉnh sửa sản phẩm" description={`${current.barcode} · Lưu riêng từng phần để cập nhật thông tin hoặc vị trí.`} error={error} disabled={busy} className="max-w-2xl" footer={<Button variant="outline" onClick={onClose}>Đóng</Button>}>
+  return <Modal open onClose={closeEditor} title="Chỉnh sửa sản phẩm" description={`${current.barcode} · Lưu riêng từng phần để cập nhật thông tin hoặc vị trí.`} error={error} disabled={busy} className="max-w-2xl" footer={<Button variant="outline" onClick={closeEditor}>Đóng</Button>}>
     <div className="max-h-[65vh] space-y-6 overflow-y-auto pr-1">
       {message && <p role="status" className="rounded-control bg-state-success/10 p-3 text-sm text-state-success">{message}</p>}
       {canEditDetails && <form onSubmit={saveDetails} className="space-y-4">
