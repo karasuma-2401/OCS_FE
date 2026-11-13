@@ -165,7 +165,7 @@ export async function parseReceptionExcel(
   const items: ConsignmentItemRow[] = [];
   const warnings: string[] = [];
 
-  rawRows.forEach((row, idx) => {
+  rawRows.forEach((row: any, idx: number) => {
     const rowNum = idx + 2;
     const name = String(
       row['Tên sản phẩm (*)'] ||
