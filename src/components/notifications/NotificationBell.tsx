@@ -5,7 +5,7 @@ import type { Notification } from '@/types';
 import { SkeletonLoading } from '@/components/shared/Skeleton';
 import { useFcm } from '@/hooks/useFcm';
 
-export function NotificationBell() {
+export function NotificationBell({ align = 'right', placement = 'below' }: { align?: 'left' | 'right'; placement?: 'above' | 'below' } = {}) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -110,7 +110,7 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] sm:w-96 rounded-2xl border border-border bg-paper p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
+        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} ${placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'} w-[min(20rem,calc(100vw-2rem))] sm:w-96 rounded-2xl border border-border bg-paper p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150`}>
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-ink">Thông báo hệ thống</h3>

@@ -96,7 +96,6 @@ export function ConsignmentTrackingPage() {
       <section aria-label="Danh sách đợt ký gửi" className="min-w-0 rounded-card bg-white">
         <div className="border-b border-border px-4 py-5 sm:px-6">
           <h2 className="!mt-0 !text-base !tracking-normal text-brand-ink">Danh sách đợt ký gửi</h2>
-          <p className="mt-1 text-sm text-text-secondary">Chọn dòng để đánh dấu, nhấn Chi tiết để xem hợp đồng và sản phẩm.</p>
           <form className="mt-4 space-y-4" onSubmit={event => { event.preventDefault(); setFilters({ ...draft, query: draft.query.trim() }); setPage(1); setDetailsOpen(false); setSelectedContractId(null); }}>
             <Input aria-label="Tìm đợt ký gửi" placeholder="Mã hợp đồng, tên hoặc mã sản phẩm…" value={draft.query} onChange={event => updateDraft('query', event.target.value)} startAdornment={<Search size={18} aria-hidden="true" />} />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

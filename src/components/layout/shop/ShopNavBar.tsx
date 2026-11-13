@@ -50,6 +50,7 @@ export interface ShopNavBarProps {
 const navigation: ShopNavItem[] = [
   { id: "pos", label: "POS Bán Hàng", href: screenPaths.pos },
   { id: "inventory", label: "Quản Lý Kho", href: screenPaths.inventory },
+  { id: "buyout", label: "Thu Mua Đứt", href: screenPaths.buyout },
   {
     id: "consignment",
     label: "Tiếp Nhận Ký Gửi",
@@ -73,6 +74,7 @@ const navigation: ShopNavItem[] = [
 const navigationIcons: Record<ShopNavId, LucideIcon> = {
   pos: ShoppingCart,
   inventory: Package,
+  buyout: Banknote,
   consignment: Handshake,
   customers: UsersRound,
   settlement: Banknote,
