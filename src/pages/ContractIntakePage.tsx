@@ -229,8 +229,8 @@ export function ContractIntakePage() {
         </fieldset></form>}
       </>}
     </section>}
-    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước chưa lưu hợp đồng. Hãy quay lại để ký hoặc chỉnh sửa nếu cần." className="max-w-4xl" footer={<button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button>}>
-      {previewUrl && <><iframe src={`${previewUrl}#view=FitH`} title="Xem trước PDF hợp đồng" className="h-[calc(100dvh-19rem)] min-h-[160px] max-h-[70dvh] w-full rounded-xl border border-border" /><a href={previewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-semibold text-brand-highlight hover:underline">Mở bản xem trước trong thẻ mới</a></>}
+    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước chưa lưu hợp đồng. Hãy quay lại để ký hoặc chỉnh sửa nếu cần." className="max-w-[96rem]" footer={<button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button>}>
+      {previewUrl && <><iframe src={`${previewUrl}#view=FitH`} title="Xem trước PDF hợp đồng" className="h-[60dvh] min-h-[18rem] w-full rounded-xl border border-border sm:h-[72dvh]" /><a href={previewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-semibold text-brand-highlight hover:underline">Mở bản xem trước trong thẻ mới</a></>}
     </Modal>
   </div></ContractPageLayout>;
 }

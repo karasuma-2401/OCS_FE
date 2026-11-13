@@ -56,8 +56,8 @@ export function InventoryEditModal({ product, locations, canEditDetails, canEdit
     void save(() => inventoryApi.changeDetails(current.id, current.version, name.trim(), size.trim(), description.trim(), Number(condition)), 'Đã lưu thông tin sản phẩm.');
   };
 
-  return <Modal open onClose={closeEditor} title="Chỉnh sửa sản phẩm" description={`${current.barcode} · Lưu riêng từng phần để cập nhật thông tin hoặc vị trí.`} error={error} disabled={busy} className="max-w-2xl" footer={<Button variant="outline" onClick={closeEditor}>Đóng</Button>}>
-    <div className="max-h-[65vh] space-y-6 overflow-y-auto pr-1">
+  return <Modal open onClose={closeEditor} title="Chỉnh sửa sản phẩm" description={`${current.barcode} · Lưu riêng từng phần để cập nhật thông tin hoặc vị trí.`} error={error} disabled={busy} className="max-w-4xl" footer={<Button variant="outline" onClick={closeEditor}>Đóng</Button>}>
+    <div className="space-y-6">
       {message && <p role="status" className="rounded-control bg-state-success/10 p-3 text-sm text-state-success">{message}</p>}
       {canEditDetails && <form onSubmit={saveDetails} className="space-y-4">
         <h3 className="font-semibold text-brand-ink">Thông tin sản phẩm</h3>

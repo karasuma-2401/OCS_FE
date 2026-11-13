@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { twMerge } from "tailwind-merge";
 import { InlineError } from "./InlineError";
 import { Loading } from "./Loading";
 import { joinClasses } from "./joinClasses";
@@ -110,7 +111,7 @@ export function Modal({
 
   return createPortal(
     <div
-      className={joinClasses("fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-ink/50 p-4", appearance === "default" && "backdrop-blur-sm")}
+      className={joinClasses("fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-ink/50 p-2 sm:p-4", appearance === "default" && "backdrop-blur-sm")}
       onMouseDown={(event) => {
         if (
           closeOnBackdrop &&
@@ -129,13 +130,13 @@ export function Modal({
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
         aria-busy={loading || undefined}
-        className={joinClasses(
-          "my-auto w-full max-w-lg rounded-2xl bg-paper shadow-2xl",
+        className={twMerge(joinClasses(
+          "my-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col rounded-2xl bg-paper shadow-2xl sm:max-h-[calc(100dvh-2rem)]",
           appearance === "default" && "border border-brand-lavender/50",
           className,
-        )}
+        ))}
       >
-        <header className={joinClasses("relative flex items-start justify-between gap-4 overflow-hidden rounded-t-[15px] border-b px-5 py-4 sm:px-6", appearance === "default" ? "border-brand-lavender/30 bg-brand-pink-surface" : "border-border bg-paper")}>
+        <header className={joinClasses("relative flex shrink-0 items-start justify-between gap-4 overflow-hidden rounded-t-[15px] border-b px-4 py-3 sm:px-6 sm:py-4", appearance === "default" ? "border-brand-lavender/30 bg-brand-pink-surface" : "border-border bg-paper")}>
           {appearance === "default" && <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-x-0 top-0 h-1"
@@ -169,14 +170,14 @@ export function Modal({
             <InlineError>{error}</InlineError>
           </div>
         )}
-        <fieldset disabled={closeDisabled} className="min-w-0 border-0 p-0">
-          <div className="px-5 py-5 sm:px-6">
+        <fieldset disabled={closeDisabled} className="min-h-0 min-w-0 overflow-y-auto border-0 p-0">
+          <div className="px-4 py-4 sm:px-6 sm:py-5">
             {loading ? (loadingFallback ?? <Loading />) : children}
           </div>
         </fieldset>
         {footer && (
-          <fieldset disabled={closeDisabled} className="min-w-0 border-0 p-0">
-            <footer className="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-4 sm:px-6">
+          <fieldset disabled={closeDisabled} className="min-w-0 shrink-0 border-0 p-0">
+            <footer className="flex flex-wrap justify-end gap-2 border-t border-border px-4 py-3 sm:px-6 sm:py-4">
               {footer}
             </footer>
           </fieldset>

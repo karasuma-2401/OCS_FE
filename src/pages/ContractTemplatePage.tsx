@@ -112,8 +112,8 @@ export function ContractTemplatePage() {
           <div className="flex flex-wrap justify-end gap-3"><Button type="submit" value="preview" variant="outline">Xem thử PDF</Button><Button type="submit" value="save">Lưu mẫu</Button></div>
         </fieldset>
       </form>}
-    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem thử mẫu PDF" description="Dữ liệu minh họa; mẫu chưa được lưu." className="max-w-4xl" footer={<Button onClick={() => setPreviewUrl('')}>Quay lại chỉnh sửa</Button>}>
-      {previewUrl && <><iframe src={`${previewUrl}#view=FitH`} title="Xem thử mẫu PDF" className="h-[calc(100dvh-19rem)] min-h-[160px] max-h-[70dvh] w-full rounded-xl border border-border" /><a href={previewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-semibold text-brand-highlight hover:underline">Mở trong thẻ mới</a></>}
+    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem thử mẫu PDF" description="Dữ liệu minh họa; mẫu chưa được lưu." className="max-w-[96rem]" footer={<Button onClick={() => setPreviewUrl('')}>Quay lại chỉnh sửa</Button>}>
+      {previewUrl && <><iframe src={`${previewUrl}#view=FitH`} title="Xem thử mẫu PDF" className="h-[60dvh] min-h-[18rem] w-full rounded-xl border border-border sm:h-[72dvh]" /><a href={previewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-semibold text-brand-highlight hover:underline">Mở trong thẻ mới</a></>}
     </Modal>
   </ContractPageLayout>;
 }
