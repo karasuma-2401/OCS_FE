@@ -23,6 +23,34 @@ export interface Consignment {
     uploadedAt: string | null;
   } | null;
 }
+export interface ConsignmentSearchFilters {
+  query?: string;
+  status?: string;
+  signedFrom?: string;
+  signedTo?: string;
+  expiresFrom?: string;
+  expiresTo?: string;
+  page: number;
+  pageSize: number;
+}
+export interface ConsignmentSearchResponse {
+  items: Consignment[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  overview: {
+    totalContracts: number;
+    activeContracts: number;
+    onSaleProducts: number;
+    soldProducts: number;
+    settledAmount: number;
+  };
+}
+export async function searchMyConsignments(filters: ConsignmentSearchFilters, signal?: AbortSignal): Promise<ConsignmentSearchResponse> {
+  const response = await apiClient.get<ConsignmentSearchResponse>('/customers/me/consignments/search', { params: filters, signal });
+  return response.data;
+}
 export async function getMyConsignments(): Promise<Consignment[]> {
   const response = await apiClient.get<Consignment[]>('/customers/me/consignments');
   return response.data;
