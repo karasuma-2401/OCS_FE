@@ -13,7 +13,7 @@ const apiClient = {
 };
 const moduleObject = { exports: {} };
 new Function('require', 'module', 'exports', compiled)((name) => {
-  if (name === './client') return { apiClient };
+  if (name === './client') return { apiClient, resolveApiAssetUrl: url => url };
   throw new Error(`Unexpected import: ${name}`);
 }, moduleObject, moduleObject.exports);
 const { inventoryApi } = moduleObject.exports;

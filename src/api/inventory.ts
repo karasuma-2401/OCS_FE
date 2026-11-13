@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, resolveApiAssetUrl } from './client';
 import type { PagedResponse } from './products';
 
 export interface InventoryLocation { id: string; code: string; name: string }
@@ -17,10 +17,15 @@ export interface InventoryFilters { page: number; pageSize: number; q?: string; 
 
 export const inventoryApi = {
   async list(params: InventoryFilters, signal?: AbortSignal) {
-    return (await apiClient.get<PagedResponse<InventoryProduct>>('/inventory', { params, signal })).data;
+    const data = (await apiClient.get<PagedResponse<InventoryProduct>>('/inventory', { params, signal })).data;
+    if (Array.isArray(data.items)) data.items = data.items.map(item => ({ ...item, coverImageUrl: resolveApiAssetUrl(item.coverImageUrl) }));
+    return data;
   },
   async detail(id: string, signal?: AbortSignal) {
-    return (await apiClient.get<InventoryDetail>(`/inventory/${encodeURIComponent(id)}`, { signal })).data;
+    const data = (await apiClient.get<InventoryDetail>(`/inventory/${encodeURIComponent(id)}`, { signal })).data;
+    if (data.product) data.product.coverImageUrl = resolveApiAssetUrl(data.product.coverImageUrl);
+    if (Array.isArray(data.images)) data.images = data.images.map(image => ({ ...image, url: resolveApiAssetUrl(image.url) ?? image.url }));
+    return data;
   },
   async locations(signal?: AbortSignal) {
     return (await apiClient.get<InventoryLocation[]>('/inventory/locations', { signal })).data;
