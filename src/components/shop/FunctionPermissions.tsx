@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, RotateCcw, Search, ShieldCheck } from 'lucide-react';
-import { Badge, Button, Card, EmptyState, ErrorState, Input, SkeletonLoading, Modal, Toast } from '@/components/shared';
+import { Badge, Button, Card, EmptyState, ErrorState, Input, PageHeaderCard, SkeletonLoading, Modal, Toast } from '@/components/shared';
 import { rolePermissionsApi, type FunctionPermission, type RolePermissions } from '@/api/rolePermissions';
 import { parseProblemDetails } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
@@ -137,13 +137,11 @@ export function FunctionPermissions() {
 
   return (
     <div className="space-y-5">
-      <Card className="flex flex-wrap items-center gap-4 bg-brand-pink-surface">
-        <span className="rounded-xl bg-paper p-3 text-brand-highlight"><ShieldCheck size={24} aria-hidden="true" /></span>
-        <div>
-          <h2 className="text-lg font-bold text-ink">Phân quyền theo chức năng</h2>
-          <p className="text-sm text-muted">Chọn vai trò, sau đó chọn các chức năng vai trò đó được phép sử dụng.</p>
-        </div>
-      </Card>
+      <PageHeaderCard
+        icon={<ShieldCheck size={24} aria-hidden="true" />}
+        title="Phân quyền theo chức năng"
+        description="Chọn vai trò, sau đó chọn các chức năng vai trò đó được phép sử dụng."
+      />
 
       {error && <div className="flex flex-wrap items-center gap-3"><Toast variant="error" message={error} onClose={() => setError(null)} className="max-w-none flex-1" /><Button variant="outline" onClick={() => void load()}>Tải lại</Button></div>}
       {notice && <Toast variant="success" message={notice} onClose={() => setNotice(null)} className="max-w-none" />}

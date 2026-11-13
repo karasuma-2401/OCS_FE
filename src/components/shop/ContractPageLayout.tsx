@@ -15,13 +15,13 @@ export function ContractPageLayout({ title, description, backTo, backLabel = 'Qu
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState(false);
   const canOpen = (id: ShopNavId) => hasPermission(screenPermissions[id]) && (!screenRequirements[id] || hasPermission(screenRequirements[id]));
-  return <div className="min-h-screen bg-surface-dashboard px-3 pb-12 pt-[11px]">
+  return <div className="flex min-h-screen flex-col gap-4 bg-surface-dashboard px-3 pb-12 pt-[11px] lg:flex-row lg:items-start">
     <ShopNavBar activeItem="consignment" showAccounts={canOpen('accounts')} allowedItems={screenOrder.filter(canOpen)}
       showContractManagement={canManage} contractsActive={isManagement} onContracts={() => navigate('/shop/contracts')}
       profileName={user?.fullName || user?.email || 'Nhân viên'} onNavigate={item => navigate(item.href)}
       onProfileClick={() => navigate('/profile')} onHome={() => navigate('/')} loggingOut={loggingOut}
       onLogout={async () => { setLoggingOut(true); setLogoutError(false); try { await logout(); navigate('/'); } catch { setLogoutError(true); } finally { setLoggingOut(false); } }} />
-    <main className="mx-auto max-w-7xl px-2 py-6 text-text-primary sm:px-6">
+    <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 px-2 py-6 text-text-primary sm:px-6">
       {backTo && <Link to={backTo} className="text-sm font-semibold text-brand-highlight hover:underline">← {backLabel}</Link>}
       <header className={`mb-6 ${backTo ? 'mt-4' : ''}`}><h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">{title}</h1>{description && <p className="mt-2 text-sm text-muted">{description}</p>}</header>
       {logoutError && <p role="alert" className="mb-4 text-sm text-state-danger">Không thể đăng xuất. Vui lòng thử lại.</p>}
