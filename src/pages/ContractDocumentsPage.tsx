@@ -1,6 +1,8 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { FileCog, FileText } from 'lucide-react';
+import { barcodeApi, type BarcodeLabelProduct } from '@/api/barcode';
+import { BarcodePrintDialog } from '@/components/shop/BarcodeLabels';
 import { getContractPdf, listContracts, type ContractListItem } from '@/api/contracts';
 import { contractLoadError } from '@/api/contractErrors';
 import { useAuth } from '@/context/AuthContext';
@@ -39,6 +41,9 @@ export function ContractPdfPage() {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [labels, setLabels] = useState<BarcodeLabelProduct[] | null>(null);
+  const [labelsLoading, setLabelsLoading] = useState(false);
+  const [labelsError, setLabelsError] = useState('');
   useEffect(() => {
     if (!permitted || !id) return;
     let active = true; let objectUrl = '';
@@ -48,6 +53,7 @@ export function ContractPdfPage() {
   }, [id, permitted, retry]);
   if (!permitted) return <Navigate to="/unauthorized" replace />;
   return <ContractPageLayout title="PDF hợp đồng" description="Đây là bản dự thảo, cần được phê duyệt trước khi sử dụng." backTo={canManage ? '/shop/contracts' : '/shop/consignment'} backLabel={canManage ? 'Quản lý hợp đồng' : 'Tiếp nhận ký gửi'}>
-    <Card>{error ? <ErrorState description={error} onRetry={() => setRetry(value => value + 1)} /> : url ? <><div className="mb-4 flex flex-wrap gap-3"><a href={url} download={`hop-dong-${id}.pdf`} className="rounded-xl bg-button-pastel px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-button-pastel-hover">Tải PDF</a><a href={url} target="_blank" rel="noreferrer" className="rounded-xl border border-brand-lavender px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">Mở trong thẻ mới</a></div><iframe src={url} title="PDF hợp đồng" className="h-[75vh] min-h-[400px] w-full rounded-xl border border-border" /></> : <SkeletonLoading variant="list" count={3} />}</Card>
+    <Card>{error ? <ErrorState description={error} onRetry={() => setRetry(value => value + 1)} /> : url ? <><div className="mb-4 flex flex-wrap gap-3"><a href={url} download={`hop-dong-${id}.pdf`} className="rounded-xl bg-button-pastel px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-button-pastel-hover">Tải PDF</a><a href={url} target="_blank" rel="noreferrer" className="rounded-xl border border-brand-lavender px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">Mở trong thẻ mới</a><Button variant="outline" loading={labelsLoading} onClick={() => { setLabelsLoading(true); setLabelsError(''); void barcodeApi.contractProducts(id).then(setLabels).catch(() => setLabelsError('Không thể tải sản phẩm để in barcode.')).finally(() => setLabelsLoading(false)); }}>In barcode sản phẩm</Button></div>{labelsError && <p role="alert" className="mb-3 text-sm text-state-danger">{labelsError}</p>}<iframe src={url} title="PDF hợp đồng" className="h-[75vh] min-h-[400px] w-full rounded-xl border border-border" /></> : <SkeletonLoading variant="list" count={3} />}</Card>
+    <BarcodePrintDialog open={labels !== null} items={labels || []} onClose={() => setLabels(null)} />
   </ContractPageLayout>;
 }

@@ -14,6 +14,7 @@ import {
   Clock3,
   ImageOff,
   Plus,
+  Printer,
   PackageSearch,
   RotateCcw,
   Search,
@@ -37,6 +38,9 @@ import {
   SkeletonLoading,
 } from "@/components/shared";
 import { useAuth } from "@/context/AuthContext";
+import { BarcodePrintDialog } from "@/components/shop/BarcodeLabels";
+import { BarcodeTemplateModal } from "@/components/shop/BarcodeTemplateModal";
+import type { BarcodeLabelProduct } from "@/api/barcode";
 
 const control =
   "w-full min-h-10 rounded-control border border-border bg-white px-3 py-2 text-sm text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight";
@@ -132,7 +136,7 @@ function ProductImage({
 }
 
 export function InventoryManagement() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasRole } = useAuth();
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
@@ -163,10 +167,35 @@ export function InventoryManagement() {
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationSaving, setLocationSaving] = useState(false);
   const [locationError, setLocationError] = useState("");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedForPrint, setSelectedForPrint] = useState<Record<string, InventoryProduct>>({});
+  const [labels, setLabels] = useState<BarcodeLabelProduct[] | null>(null);
+  const [labelsLoading, setLabelsLoading] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const detailRef = useRef<HTMLElement>(null);
   const actionErrorRef = useRef<HTMLDivElement>(null);
   const canRead = hasPermission("products.read");
   const hasFilters = Boolean(query || status || approval || locationFilter);
+  const printCount = Object.keys(selectedForPrint).length;
+
+  function toggleForPrint(item: InventoryProduct) {
+    setSelectedForPrint(current => {
+      const next = { ...current };
+      if (next[item.id]) delete next[item.id]; else next[item.id] = item;
+      return next;
+    });
+  }
+
+  async function previewLabels(items: InventoryProduct[]) {
+    if (!items.length || labelsLoading) return;
+    if (items.length > 100) { setActionError('Mỗi lần chỉ in tối đa 100 sản phẩm.'); return; }
+    setLabelsLoading(true); setActionError('');
+    try {
+      const latest = await Promise.all(items.map(item => inventoryApi.detail(item.id)));
+      setLabels(latest.map(({ product }) => ({ id: product.id, name: product.name, barcode: product.barcode, listedPrice: product.listedPrice })));
+    } catch { setActionError('Không thể tải thông tin sản phẩm để in barcode. Vui lòng thử lại.'); }
+    finally { setLabelsLoading(false); }
+  }
 
   useEffect(() => {
     if (!canRead) {
@@ -374,6 +403,8 @@ export function InventoryManagement() {
                 Thêm vị trí
               </Button>
             )}
+            {(hasRole('Admin') || hasRole('Manager')) && <Button variant="outline" size="md" onClick={() => setTemplateOpen(true)}>Mẫu in barcode</Button>}
+            {!selectionMode ? <Button variant="outline" size="md" startIcon={<Printer size={16} aria-hidden="true" />} onClick={() => setSelectionMode(true)}>Chọn in barcode</Button> : <><Button variant="outline" size="md" onClick={() => { setSelectionMode(false); setSelectedForPrint({}); }}>Hủy chọn</Button><Button size="md" disabled={!printCount} loading={labelsLoading} onClick={() => void previewLabels(Object.values(selectedForPrint))}>Xem trước ({printCount})</Button></>}
           </>
         }
       />
@@ -540,6 +571,7 @@ export function InventoryManagement() {
                 <table className="w-full min-w-[610px] text-left text-sm">
                   <thead className="bg-surface-dashboard/70 text-xs font-semibold text-text-secondary">
                     <tr>
+                      {selectionMode && <th scope="col" className="px-3 py-3"><span className="sr-only">Chọn in</span></th>}
                       <th scope="col" className="px-6 py-3">
                         Sản phẩm
                       </th>
@@ -571,6 +603,7 @@ export function InventoryManagement() {
                             : "hover:bg-surface-active")
                         }
                       >
+                        {selectionMode && <td className="px-3 py-3"><input type="checkbox" aria-label={`Chọn in barcode ${item.name}`} checked={Boolean(selectedForPrint[item.id])} onChange={() => toggleForPrint(item)} /></td>}
                         <td className="px-6 py-3">
                           <button
                             type="button"
@@ -633,7 +666,8 @@ export function InventoryManagement() {
               </div>
               <ul className="divide-y divide-border/60 md:hidden">
                 {data.items.map((item) => (
-                  <li key={item.id}>
+                  <li key={item.id} className="flex items-center">
+                    {selectionMode && <input type="checkbox" className="ml-4 shrink-0" aria-label={`Chọn in barcode ${item.name}`} checked={Boolean(selectedForPrint[item.id])} onChange={() => toggleForPrint(item)} />}
                     <button
                       type="button"
                       disabled={busy}
@@ -777,6 +811,7 @@ export function InventoryManagement() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <StatusBadge value={product.approvalStatus} />
                   <StatusBadge value={product.status} />
+                  <Button variant="outline" size="sm" loading={labelsLoading} startIcon={<Printer size={15} aria-hidden="true" />} onClick={() => void previewLabels([product])}>In barcode</Button>
                 </div>
                 <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-y border-border py-4 text-sm">
                   <div>
@@ -1175,6 +1210,8 @@ export function InventoryManagement() {
           </aside>
         )}
       </div>
+      <BarcodePrintDialog open={labels !== null} items={labels || []} onClose={() => setLabels(null)} />
+      <BarcodeTemplateModal open={templateOpen} onClose={() => setTemplateOpen(false)} />
       <Modal
         open={locationOpen}
         onClose={closeLocationModal}

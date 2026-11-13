@@ -8,6 +8,8 @@ import { ContractSignature } from '@/components/shop/ContractSignature';
 import { ContractMoneyInput } from '@/components/shop/ContractMoneyInput';
 import { prepareCameraPhoto } from '@/components/shop/contractCamera';
 import { Camera, Images } from 'lucide-react';
+import { barcodeApi } from '@/api/barcode';
+import { BarcodeSymbol } from '@/components/shop/BarcodeLabels';
 import { Modal } from '@/components/shared/Modal';
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
 import { useAuth } from '@/context/AuthContext';
@@ -16,7 +18,7 @@ import type { Appointment } from '@/types';
 const control = 'mt-1 w-full rounded-xl border border-border bg-paper px-3.5 py-2.5 text-sm text-ink focus:border-brand-pink-focus focus:outline-none focus:ring-2 focus:ring-brand-pink/25 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-muted';
 const button = 'rounded-xl bg-button-pastel px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-button-pastel-hover disabled:opacity-50';
 const emptyGuest = (): GuestCustomer => ({ fullName: '', phoneNumber: '', email: '', identityNumber: '', address: '', bankCode: '', bankAccountNumber: '', bankAccountHolderName: '' });
-const emptyProduct = (): ContractProduct => ({ name: '', barcode: '', size: '', description: '', conditionPercentage: 100, listedPrice: null, agreedCommissionRate: null, brandId: '', categoryId: '', storageLocationId: null, images: [] });
+const emptyProduct = (barcode: string): ContractProduct => ({ name: '', barcode, size: '', description: '', conditionPercentage: 100, listedPrice: null, agreedCommissionRate: null, brandId: '', categoryId: '', storageLocationId: null, images: [] });
 const customerFields: { key: keyof GuestCustomer; label: string; type?: string; maxLength: number; required?: boolean }[] = [
   { key: 'fullName', label: 'Họ và tên', maxLength: 200, required: true },
   { key: 'phoneNumber', label: 'Số điện thoại', type: 'tel', maxLength: 10, required: true },
@@ -42,6 +44,7 @@ export function ContractIntakePage() {
   const [employee, setEmployee] = useState<ContractEmployee | null>(null);
   const [updatingCustomer, setUpdatingCustomer] = useState(false);
   const [readingImages, setReadingImages] = useState(false);
+  const [generatingBarcode, setGeneratingBarcode] = useState(false);
   const [imageError, setImageError] = useState<{ index: number; message: string } | null>(null);
   const [readingSignature, setReadingSignature] = useState(false);
   const [customerNotice, setCustomerNotice] = useState('');
@@ -117,6 +120,26 @@ export function ContractIntakePage() {
   };
 
   const updateProduct = (index: number, values: Partial<ContractProduct>) => setProducts(current => current.map((item, i) => i === index ? { ...item, ...values } : item));
+  const addProduct = async () => {
+    if (generatingBarcode || readingImages) return;
+    setGeneratingBarcode(true); setError('');
+    try {
+      const barcode = await barcodeApi.generate();
+      if (products.some(product => product.barcode === barcode)) throw new Error('Mã sản phẩm bị trùng, vui lòng thử thêm lại.');
+      setProducts(current => [...current, emptyProduct(barcode)]);
+    } catch (error) { setError(parseProblemDetails(error).title || 'Không thể tạo mã sản phẩm. Vui lòng thử lại.'); }
+    finally { setGeneratingBarcode(false); }
+  };
+  const regenerateBarcode = async (index: number) => {
+    if (generatingBarcode || readingImages) return;
+    setGeneratingBarcode(true); setError('');
+    try {
+      const barcode = await barcodeApi.generate();
+      if (products.some(product => product.barcode === barcode)) throw new Error('Mã sản phẩm bị trùng, vui lòng thử lại.');
+      updateProduct(index, { barcode });
+    } catch { setError('Không thể tạo mã mới. Vui lòng thử lại.'); }
+    finally { setGeneratingBarcode(false); }
+  };
   const addImages = async (index: number, files: File[], fromCamera = false) => {
     if (!files.length || readingImages) return;
     setImageError(null);
@@ -142,7 +165,7 @@ export function ContractIntakePage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const isPreview = (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'preview';
-    if (saving || readingImages || readingSignature || updatingCustomer || (!customer && !isGuest)) return;
+    if (saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || (!customer && !isGuest)) return;
     const start = new Date(signedAt), end = new Date(endsAt);
     if (!signedAt || !endsAt || !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) { setError('Ngày kết thúc phải sau ngày ký.'); return; }
     if (isGuest && !/^0\d{9}$/.test(guest.phoneNumber)) { setError('Số điện thoại phải gồm 10 chữ số bắt đầu bằng 0.'); return; }
@@ -181,12 +204,12 @@ export function ContractIntakePage() {
               {isGuest && <div className="mt-4"><button type="button" className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700" onClick={() => setSaveCustomer(value => !value)}>{saveCustomer ? 'Đã chọn lưu thông tin khách hàng ✓' : 'Lưu thông tin khách hàng (không bắt buộc)'}</button><p className="mt-2 text-xs text-gray-600">{saveCustomer ? 'Hồ sơ khách sẽ được lưu khi tạo hợp đồng; chưa tạo thông tin đăng nhập.' : 'Thông tin chỉ được lưu cùng hợp đồng.'}</p></div>}
             </>}
           </section>
-          <section><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">Danh sách sản phẩm</h2><button type="button" disabled={readingImages} className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700 disabled:opacity-50" onClick={() => setProducts(current => [...current, emptyProduct()])}>+ Thêm sản phẩm</button></div>
+          <section><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">Danh sách sản phẩm</h2><button type="button" disabled={readingImages || generatingBarcode} className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700 disabled:opacity-50" onClick={() => void addProduct()}>{generatingBarcode ? 'Đang tạo mã...' : '+ Thêm sản phẩm'}</button></div>
             {!products.length && <p className="mt-2 text-sm text-gray-600">Chưa có sản phẩm. Chọn “Thêm sản phẩm” để nhập.</p>}
-            {products.map((item, index) => <div key={index} className="mt-4 rounded-xl border border-gray-200 p-4"><div className="flex justify-between"><h3 className="font-semibold">Sản phẩm {index + 1}</h3><button type="button" disabled={readingImages} className="text-sm text-red-700 underline disabled:opacity-50" onClick={() => { setImageError(null); setProducts(current => current.filter((_, i) => i !== index)); }}>Xóa</button></div>
+            {products.map((item, index) => <div key={index} className="mt-4 rounded-xl border border-gray-200 p-4"><div className="flex justify-between"><h3 className="font-semibold">Sản phẩm {index + 1}</h3><button type="button" disabled={readingImages || generatingBarcode} className="text-sm text-red-700 underline disabled:opacity-50" onClick={() => { setImageError(null); setProducts(current => current.filter((_, i) => i !== index)); }}>Xóa</button></div>
               <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <label className="text-sm font-semibold">Tên sản phẩm *<input required maxLength={200} className={control} value={item.name} onChange={e => updateProduct(index, { name: e.target.value })} /></label>
-                <label className="text-sm font-semibold">Mã / barcode<input disabled className={control} value="Tự tạo khi lưu hợp đồng" /></label>
+                <div className="text-sm font-semibold"><label>Mã / barcode<input disabled className={control} value={item.barcode} /></label><BarcodeSymbol value={item.barcode} className="mt-2 h-12 w-full max-w-[260px] rounded bg-white" /><button type="button" disabled={generatingBarcode || readingImages} onClick={() => void regenerateBarcode(index)} className="mt-1 text-xs text-pink-700 underline disabled:opacity-50">Tạo mã khác</button></div>
                 <label className="text-sm font-semibold">Kích thước *<input required maxLength={30} className={control} value={item.size} onChange={e => updateProduct(index, { size: e.target.value })} /></label>
                 <label className="text-sm font-semibold">Danh mục *<select required className={control} value={item.categoryId} onChange={e => updateProduct(index, { categoryId: e.target.value })}><option value="">Chọn danh mục</option>{options.categories.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
                 <label className="text-sm font-semibold">Thương hiệu *<select required className={control} value={item.brandId} onChange={e => updateProduct(index, { brandId: e.target.value, agreedCommissionRate: options.brands.find(x => x.id === e.target.value)?.commissionRate ?? null })}><option value="">Chọn thương hiệu</option>{options.brands.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
@@ -202,11 +225,11 @@ export function ContractIntakePage() {
           <section><h2 className="text-lg font-bold">Điều khoản hợp đồng</h2><p className="mt-1 text-sm text-gray-600">Nội dung mặc định do quản lý thiết lập; có thể điều chỉnh cho hợp đồng này. PDF là bản dự thảo; hệ thống đang lưu hợp đồng mới ở trạng thái có hiệu lực.</p><label className="mt-3 block text-sm font-semibold">Nội dung điều khoản<textarea className={control} rows={7} maxLength={6000} value={terms} onChange={e => setTerms(e.target.value)} /></label>{templateChanged && <button type="button" className="mt-2 text-sm font-semibold text-pink-700 underline" onClick={() => { void getIntakeTemplate().then(next => { setTemplate(next); setTemplateChanged(false); setError('Đã tải mẫu mới, hãy kiểm tra lại điều khoản. Nội dung bạn đang nhập được giữ nguyên.'); }).catch(() => setError('Không thể tải mẫu mới.')); }}>Tải mẫu mới và giữ nội dung đang nhập</button>}{template && <button type="button" className="mt-2 block text-sm text-pink-700 underline" onClick={() => setTerms(template.defaultTerms)}>Dùng lại điều khoản mặc định</button>}</section>
           <ContractSignature value={signature} onChange={setSignature} disabled={saving || readingSignature} onReadingChange={setReadingSignature} />
           {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
-          <div className="flex flex-wrap justify-end gap-3 border-t pt-5"><Link to="/shop/consignment" className="rounded-xl border px-4 py-2 text-sm font-semibold">Hủy</Link><button type="submit" value="preview" disabled={saving || readingImages || readingSignature || updatingCustomer || (!customer && !isGuest)} className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700 disabled:opacity-50">{saving && previewing ? 'Đang tạo bản xem trước...' : 'Xem trước PDF'}</button><button type="submit" value="create" disabled={saving || readingImages || readingSignature || updatingCustomer || (!customer && !isGuest)} className={button}>{saving && !previewing ? 'Đang tạo...' : readingSignature ? 'Đang đọc chữ ký...' : 'Tạo hợp đồng'}</button></div>
+          <div className="flex flex-wrap justify-end gap-3 border-t pt-5"><Link to="/shop/consignment" className="rounded-xl border px-4 py-2 text-sm font-semibold">Hủy</Link><button type="submit" value="preview" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || (!customer && !isGuest)} className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700 disabled:opacity-50">{saving && previewing ? 'Đang tạo bản xem trước...' : 'Xem trước PDF'}</button><button type="submit" value="create" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || (!customer && !isGuest)} className={button}>{saving && !previewing ? 'Đang tạo...' : readingSignature ? 'Đang đọc chữ ký...' : 'Tạo hợp đồng'}</button></div>
         </fieldset></form>}
       </>}
     </section>}
-    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước chưa lưu hợp đồng. Mã sản phẩm được cấp khi tạo; hãy quay lại để ký hoặc chỉnh sửa nếu cần." className="max-w-4xl" footer={<button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button>}>
+    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước chưa lưu hợp đồng. Hãy quay lại để ký hoặc chỉnh sửa nếu cần." className="max-w-4xl" footer={<button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button>}>
       {previewUrl && <><iframe src={`${previewUrl}#view=FitH`} title="Xem trước PDF hợp đồng" className="h-[calc(100dvh-19rem)] min-h-[160px] max-h-[70dvh] w-full rounded-xl border border-border" /><a href={previewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-semibold text-brand-highlight hover:underline">Mở bản xem trước trong thẻ mới</a></>}
     </Modal>
   </div></ContractPageLayout>;
