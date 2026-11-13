@@ -14,6 +14,7 @@ export interface CreateContractRequest {
   expiryHandling: 'Return' | 'Donate';
   terms?: string;
   templateVersion?: string;
+  termsRequestId?: string;
   signature?: ContractImage;
 }
 
@@ -59,6 +60,9 @@ export async function previewManagedTemplate(template: ContractTemplate): Promis
 export async function getContractPdf(id: string): Promise<Blob> {
   const response = await apiClient.get<Blob>(`/contracts/${encodeURIComponent(id)}/pdf`, { responseType: 'blob' });
   return response.data;
+}
+export async function getContractDocument(id: string): Promise<Blob> {
+  return (await apiClient.get<Blob>(`/contracts/${encodeURIComponent(id)}/document`, { responseType: 'blob' })).data;
 }
 export async function listContracts(page: number): Promise<ContractListItem[]> {
   const response = await apiClient.get<ContractListItem[]>('/contracts', { params: { page } });

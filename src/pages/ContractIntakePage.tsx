@@ -11,6 +11,9 @@ import { Camera, Images } from 'lucide-react';
 import { barcodeApi } from '@/api/barcode';
 import { BarcodeSymbol } from '@/components/shop/BarcodeLabels';
 import { Modal } from '@/components/shared/Modal';
+import { WordDocumentPreview } from '@/components/shop/WordDocumentPreview';
+import { ContractTermsSection } from '@/components/shop/ContractTermsSection';
+import type { ContractTermsRequest } from '@/api/contractTerms';
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
 import { useAuth } from '@/context/AuthContext';
 import type { Appointment } from '@/types';
@@ -57,11 +60,22 @@ export function ContractIntakePage() {
   const [signedAt, setSignedAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [expiryHandling, setExpiryHandling] = useState<'Return' | 'Donate'>('Return');
-  const [terms, setTerms] = useState('');
   const [template, setTemplate] = useState<ContractTemplate | null>(null);
   const [templateChanged, setTemplateChanged] = useState(false);
   const [signature, setSignature] = useState<ContractImage | null>(null);
-  const [requestId] = useState(() => crypto.randomUUID());
+  const [signatureNotice, setSignatureNotice] = useState('');
+  const signatureRef = useRef(signature); signatureRef.current = signature;
+  const agreementInitialized = useRef(false);
+  const [requestId] = useState(() => {
+    try {
+      const existing = sessionStorage.getItem('ocs-direct-contract-draft');
+      if (existing) return existing;
+      const value = crypto.randomUUID(); sessionStorage.setItem('ocs-direct-contract-draft', value); return value;
+    } catch { return crypto.randomUUID(); }
+  });
+  const [termsRequest, setTermsRequest] = useState<ContractTermsRequest | null>(null);
+  const [termsReady, setTermsReady] = useState(false);
+  const lastApprovedTerms = useRef('');
   const [loading, setLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [lookingUp, setLookingUp] = useState(false);
@@ -74,6 +88,10 @@ export function ContractIntakePage() {
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+  useEffect(() => {
+    if (!agreementInitialized.current) { agreementInitialized.current = true; return; }
+    if (signatureRef.current) { setSignature(null); setSignatureNotice('Thông tin hợp đồng đã thay đổi. Hãy xem lại và ký lại.'); }
+  }, [customer, guest, isGuest, saveCustomer, products, signedAt, endsAt, expiryHandling, template?.version, termsRequest?.id]);
 
   useEffect(() => {
     if (!permitted) { setLoading(false); return; }
@@ -88,7 +106,7 @@ export function ContractIntakePage() {
           loadContractPart('mẫu hợp đồng', getIntakeTemplate()),
         ]);
         const existing = selectedAppointment ? await loadContractPart('hồ sơ khách hàng', getContractCustomer(selectedAppointment.customerId)) : null;
-        if (alive) { setOptions(catalog); setAppointment(selectedAppointment); setCustomer(existing); setSavedCustomer(existing); setEmployee(currentEmployee); setTemplate(currentTemplate); setTerms(currentTemplate.defaultTerms); }
+        if (alive) { setOptions(catalog); setAppointment(selectedAppointment); setCustomer(existing); setSavedCustomer(existing); setEmployee(currentEmployee); setTemplate(currentTemplate); }
       } catch (err) { if (alive) { setOptions(null); setAppointment(null); setError(err instanceof Error ? err.message : 'Không thể tải thông tin hợp đồng.'); } }
       finally { if (alive) setLoading(false); }
     };
@@ -165,7 +183,8 @@ export function ContractIntakePage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const isPreview = (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'preview';
-    if (saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || (!customer && !isGuest)) return;
+    if (saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)) return;
+    if (!isPreview && termsRequest?.status === 'Approved' && !signature) { setError('Khách cần ký lại sau khi điều khoản riêng được duyệt.'); return; }
     const start = new Date(signedAt), end = new Date(endsAt);
     if (!signedAt || !endsAt || !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) { setError('Ngày kết thúc phải sau ngày ký.'); return; }
     if (isGuest && !/^0\d{9}$/.test(guest.phoneNumber)) { setError('Số điện thoại phải gồm 10 chữ số bắt đầu bằng 0.'); return; }
@@ -175,21 +194,22 @@ export function ContractIntakePage() {
     setError(''); setSaving(true); setPreviewing(isPreview);
     try {
       const customerDetails = customer ? { email: customer.email || '', identityNumber: customer.identityNumber || '', address: customer.address || '', bankCode: customer.bankCode || '', bankAccountNumber: customer.bankAccountNumber || '', bankAccountHolderName: customer.bankAccountHolderName || '' } : undefined;
-      const request = { ...(appointmentId ? { appointmentId } : customer ? { customerId: customer.id, requestId } : { guest: { ...guest, email: guest.email || '' }, saveCustomer, requestId }), customerDetails, signedAt: start.toISOString(), endsAt: end.toISOString(), expiryHandling, products, terms, templateVersion: template?.version, signature: signature || undefined };
+      const request = { ...(appointmentId ? { appointmentId } : customer ? { customerId: customer.id, requestId } : { guest: { ...guest, email: guest.email || '' }, saveCustomer, requestId }), customerDetails, signedAt: start.toISOString(), endsAt: end.toISOString(), expiryHandling, products, templateVersion: template?.version, termsRequestId: termsRequest?.status === 'Approved' ? termsRequest.id : undefined, signature: signature || undefined };
       if (isPreview) {
-        const pdf = await previewContract(request);
-        if (mounted.current) setPreviewUrl(URL.createObjectURL(pdf));
+        const word = await previewContract(request);
+        if (mounted.current) setPreviewUrl(URL.createObjectURL(word));
         return;
       }
       const result = await createContract(request);
       setCreated(result);
+      if (!appointmentId) { try { sessionStorage.removeItem('ocs-direct-contract-draft'); } catch { /* Storage can be unavailable. */ } }
       navigate(`/shop/contracts/${result.id}`, { replace: true });
     } catch (err) { const problem = parseProblemDetails(err); if (problem.code === 'CONTRACT_TEMPLATE.CHANGED') setTemplateChanged(true); setError(problem.detail || problem.title || (isPreview ? 'Không thể xem trước hợp đồng.' : 'Không thể tạo hợp đồng.')); }
     finally { setSaving(false); setPreviewing(false); }
   };
 
-  return <ContractPageLayout title="Lập hợp đồng ký gửi" description="Nhập thông tin, xem trước PDF và xác nhận chữ ký của khách hàng." backTo="/shop/consignment" backLabel="Tiếp nhận ký gửi"><div className="mx-auto max-w-6xl">
-    {created ? <section role="status" className="mt-6 rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">Đã tạo hợp đồng</h2><p className="mt-2 break-all">Mã hợp đồng: {created.contractNumber}</p><p className="mt-2 text-sm text-gray-600">Thông tin khách, sản phẩm và PDF đã được lưu.</p><Link className="mt-4 inline-block text-pink-700 underline" to="/shop/consignment">Về danh sách tiếp nhận</Link></section> :
+  return <ContractPageLayout title="Lập hợp đồng ký gửi" description="Nhập thông tin, xem trước hợp đồng Word và xác nhận chữ ký của khách hàng." backTo="/shop/consignment" backLabel="Tiếp nhận ký gửi"><div className="mx-auto max-w-6xl">
+    {created ? <section role="status" className="mt-6 rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">Đã tạo hợp đồng</h2><p className="mt-2 break-all">Mã hợp đồng: {created.contractNumber}</p><p className="mt-2 text-sm text-gray-600">Thông tin khách, sản phẩm và tài liệu Word đã được lưu.</p><Link className="mt-4 inline-block text-pink-700 underline" to="/shop/consignment">Về danh sách tiếp nhận</Link></section> :
     <section className="rounded-2xl border border-brand-lavender/40 bg-paper p-5 shadow-sm sm:p-6">
       {loading ? <p role="status">Đang tải dữ liệu...</p> : !options || (!direct && !appointment) ? <div><p role="alert">{error || 'Vui lòng chọn lịch hẹn hoặc tiếp nhận khách trực tiếp.'}</p>{error && <button type="button" onClick={() => setLoadAttempt(value => value + 1)} className="mt-3 text-sm font-semibold text-pink-700 underline">Thử tải lại</button>}</div> : <>
         {employee && <section className="mb-6 rounded-xl bg-gray-50 p-4"><h2 className="font-bold">Nhân viên lập hợp đồng</h2><dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3"><div><dt className="text-gray-500">Họ và tên</dt><dd className="font-semibold">{employee.fullName || 'Chưa cập nhật'}</dd></div><div><dt className="text-gray-500">Chức vụ</dt><dd className="font-semibold">{employee.jobTitle || 'Chưa cập nhật'}</dd></div><div><dt className="text-gray-500">Số điện thoại</dt><dd>{employee.phoneNumber || 'Chưa cập nhật'}</dd></div></dl></section>}
@@ -222,15 +242,17 @@ export function ContractIntakePage() {
             <p className="mt-3 text-xs text-gray-600">Sản phẩm mới ở trạng thái chờ xử lý, chưa tự đưa lên bán.</p>
           </section>
           <section><h2 className="text-lg font-bold">Thời hạn hợp đồng</h2><div className="mt-3 grid gap-4 sm:grid-cols-2"><label className="text-sm font-semibold">Ngày và giờ ký *<input required type="datetime-local" className={control} value={signedAt} onChange={e => setSignedAt(e.target.value)} /></label><label className="text-sm font-semibold">Ngày và giờ kết thúc *<input required type="datetime-local" className={control} value={endsAt} onChange={e => setEndsAt(e.target.value)} /></label><label className="text-sm font-semibold">Xử lý khi hết hạn *<select className={control} value={expiryHandling} onChange={e => setExpiryHandling(e.target.value as 'Return' | 'Donate')}><option value="Return">Trả lại khách hàng</option><option value="Donate">Quyên góp</option></select></label></div></section>
-          <section><h2 className="text-lg font-bold">Điều khoản hợp đồng</h2><p className="mt-1 text-sm text-gray-600">Nội dung mặc định do quản lý thiết lập; có thể điều chỉnh cho hợp đồng này. PDF là bản dự thảo; hệ thống đang lưu hợp đồng mới ở trạng thái có hiệu lực.</p><label className="mt-3 block text-sm font-semibold">Nội dung điều khoản<textarea className={control} rows={7} maxLength={6000} value={terms} onChange={e => setTerms(e.target.value)} /></label>{templateChanged && <button type="button" className="mt-2 text-sm font-semibold text-pink-700 underline" onClick={() => { void getIntakeTemplate().then(next => { setTemplate(next); setTemplateChanged(false); setError('Đã tải mẫu mới, hãy kiểm tra lại điều khoản. Nội dung bạn đang nhập được giữ nguyên.'); }).catch(() => setError('Không thể tải mẫu mới.')); }}>Tải mẫu mới và giữ nội dung đang nhập</button>}{template && <button type="button" className="mt-2 block text-sm text-pink-700 underline" onClick={() => setTerms(template.defaultTerms)}>Dùng lại điều khoản mặc định</button>}</section>
-          <ContractSignature value={signature} onChange={setSignature} disabled={saving || readingSignature} onReadingChange={setReadingSignature} />
+          <ContractTermsSection draftKey={appointmentId || requestId} customerPhone={(customer ? customer.phoneNumber : guest.phoneNumber) || ''} onChange={(item, ready) => { setTermsRequest(item); setTermsReady(ready); if (item?.status === 'Approved' && lastApprovedTerms.current !== item.id) { lastApprovedTerms.current = item.id; if (signatureRef.current) setSignatureNotice('Điều khoản đã thay đổi. Hãy xem lại và ký lại.'); setSignature(null); } }} />
+          {templateChanged && <button type="button" className="mt-2 text-sm font-semibold text-pink-700 underline" onClick={() => { void getIntakeTemplate().then(next => { setTemplate(next); setTemplateChanged(false); setError('Đã tải mẫu mới, hãy xem lại hợp đồng trước khi tạo.'); }).catch(() => setError('Không thể tải mẫu mới.')); }}>Tải mẫu mới</button>}
+          <ContractSignature value={signature} onChange={value => { setSignature(value); if (value) setSignatureNotice(''); }} disabled={saving || readingSignature} onReadingChange={setReadingSignature} />
+          {signatureNotice && <p role="status" className="text-sm text-amber-800">{signatureNotice}</p>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
-          <div className="flex flex-wrap justify-end gap-3 border-t pt-5"><Link to="/shop/consignment" className="rounded-xl border px-4 py-2 text-sm font-semibold">Hủy</Link><button type="submit" value="preview" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || (!customer && !isGuest)} className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700 disabled:opacity-50">{saving && previewing ? 'Đang tạo bản xem trước...' : 'Xem trước PDF'}</button><button type="submit" value="create" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || (!customer && !isGuest)} className={button}>{saving && !previewing ? 'Đang tạo...' : readingSignature ? 'Đang đọc chữ ký...' : 'Tạo hợp đồng'}</button></div>
+          <div className="flex flex-wrap justify-end gap-3 border-t pt-5"><Link to="/shop/consignment" className="rounded-xl border px-4 py-2 text-sm font-semibold">Hủy</Link><button type="submit" value="preview" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)} className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700 disabled:opacity-50">{saving && previewing ? 'Đang tạo bản xem trước...' : 'Xem trước hợp đồng'}</button><button type="submit" value="create" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)} className={button}>{saving && !previewing ? 'Đang tạo...' : readingSignature ? 'Đang đọc chữ ký...' : 'Tạo hợp đồng'}</button></div>
         </fieldset></form>}
       </>}
     </section>}
     <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước chưa lưu hợp đồng. Hãy quay lại để ký hoặc chỉnh sửa nếu cần." className="max-w-[96rem]" footer={<button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button>}>
-      {previewUrl && <><iframe src={`${previewUrl}#view=FitH`} title="Xem trước PDF hợp đồng" className="h-[60dvh] min-h-[18rem] w-full rounded-xl border border-border sm:h-[72dvh]" /><a href={previewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-semibold text-brand-highlight hover:underline">Mở bản xem trước trong thẻ mới</a></>}
+      {previewUrl && <><WordDocumentPreview url={previewUrl} /><a href={previewUrl} download="hop-dong-xem-truoc.docx" className="mt-2 inline-block text-sm font-semibold text-brand-highlight hover:underline">Tải bản xem trước Word</a></>}
     </Modal>
   </div></ContractPageLayout>;
 }

@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import type { ContractImage } from '@/api/contracts';
 
 interface Props { value: ContractImage | null; onChange: (value: ContractImage | null) => void; disabled: boolean; onReadingChange: (reading: boolean) => void }
@@ -8,6 +8,12 @@ export function ContractSignature({ value, onChange, disabled, onReadingChange }
   const drawing = useRef(false);
   const [error, setError] = useState('');
   const [uploaded, setUploaded] = useState(false);
+  useEffect(() => {
+    if (value) return;
+    const element = canvas.current;
+    element?.getContext('2d')?.clearRect(0, 0, element.width, element.height);
+    setUploaded(false);
+  }, [value]);
   const point = (event: PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     return { x: (event.clientX - rect.left) * event.currentTarget.width / rect.width, y: (event.clientY - rect.top) * event.currentTarget.height / rect.height };
@@ -58,7 +64,7 @@ export function ContractSignature({ value, onChange, disabled, onReadingChange }
     reader.onerror = () => { setError('Không thể đọc ảnh chữ ký.'); onReadingChange(false); };
     reader.readAsDataURL(file);
   };
-  return <section><h2 className="text-lg font-bold">Chữ ký khách hàng</h2><p className="mt-1 text-sm text-gray-600">Ký trực tiếp bằng chuột hoặc màn hình cảm ứng, hoặc chọn ảnh chữ ký. Ảnh sẽ được chèn vào PDF.</p>
+  return <section><h2 className="text-lg font-bold">Chữ ký khách hàng</h2><p className="mt-1 text-sm text-gray-600">Ký trực tiếp bằng chuột hoặc màn hình cảm ứng, hoặc chọn ảnh chữ ký. Ảnh sẽ được chèn vào Word.</p>
     <canvas ref={canvas} width={800} height={250} aria-label="Vùng ký tên khách hàng" onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} className="mt-3 h-40 w-full touch-none rounded-xl border border-gray-300 bg-white" />
     {uploaded && value && <img src={`data:${value.contentType};base64,${value.data}`} alt="Ảnh chữ ký đã chọn" className="mt-3 max-h-28 max-w-full rounded border object-contain p-2" />}
     <div className="mt-3 flex flex-wrap items-center gap-4"><label className="text-sm font-semibold">Chọn ảnh chữ ký<input type="file" accept="image/png,image/jpeg" disabled={disabled} className="ml-2 text-sm" onChange={e => { upload(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} /></label><button type="button" disabled={disabled || !value} onClick={clear} className="text-sm text-red-700 underline disabled:opacity-50">Xóa chữ ký</button>{value && <span className="text-sm text-green-700">Đã có chữ ký</span>}</div>
