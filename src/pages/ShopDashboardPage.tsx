@@ -19,8 +19,8 @@ const tabTitles: Record<ShopNavId, { title: string; desc: string }> = {
     desc: 'Tạo đơn hàng nhanh chóng, quét mã vạch sản phẩm và in hóa đơn bán lẻ tại quầy.',
   },
   inventory: {
-    title: 'Quản Lý Kho Hàng & Kiểm Định',
-    desc: 'Quản lý danh sách sản phẩm, trạng thái kiểm định, in nhãn barcode và cập nhật tình trạng hàng hóa.',
+    title: 'Quản Lý Kho Hàng & Sản Phẩm',
+    desc: 'Quản lý danh sách sản phẩm, in nhãn barcode và cập nhật tình trạng hàng hóa.',
   },
   consignment: {
     title: 'Tiếp Nhận Ký Gửi',
