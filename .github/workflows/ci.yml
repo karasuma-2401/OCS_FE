@@ -32,6 +32,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check TypeScript
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
       - name: Build and verify TypeScript
         run: npm run build
 

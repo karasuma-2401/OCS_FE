@@ -17,6 +17,7 @@ import { AppointmentSlotsPage } from './pages/AppointmentSlotsPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
+import { ConsignmentTrackingPage } from './pages/ConsignmentTrackingPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ContractIntakePage } from './pages/ContractIntakePage';
 import { ContractListPage, ContractPdfPage } from './pages/ContractDocumentsPage';
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/explore" element={<CatalogPage />} />
         <Route path="/consign" element={<ConsignPage />} />
         <Route path="/appointments" element={<ProtectedRoute allowedRoles={['Customer']}><AppointmentsPage /></ProtectedRoute>} />
+        <Route path="/my-consignments" element={<ProtectedRoute allowedRoles={['Customer']}><ConsignmentTrackingPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
       </Route>

@@ -1,20 +1,39 @@
 import axios, { type AxiosRequestConfig } from 'axios';
 import type { CsrfTokenResponse } from '@/types';
 
-// Clean legacy localStorage/sessionStorage keys once on startup
 try {
   localStorage.removeItem('ocs_token');
   localStorage.removeItem('ocs_user');
   sessionStorage.removeItem('ocs_token');
   sessionStorage.removeItem('ocs_user');
 } catch {
-  // Ignore in environments where storage is blocked or disabled
 }
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export function resolveApiAssetUrl(url: string | null): string | null {
   return url?.startsWith('/api/product-images/') ? `${API_BASE_URL.replace(/\/$/, '')}${url.slice(4)}` : url;
+}
+
+export function resolveImageUrl(url?: string | null): string {
+  if (!url) return '';
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('blob:') ||
+    url.startsWith('data:')
+  ) {
+    return url;
+  }
+  if (url.startsWith('/api') && API_BASE_URL.startsWith('http')) {
+    try {
+      const origin = new URL(API_BASE_URL).origin;
+      return `${origin}${url}`;
+    } catch {
+      return url;
+    }
+  }
+  return url;
 }
 
 export const apiClient = axios.create({
@@ -25,7 +44,6 @@ export const apiClient = axios.create({
   },
 });
 
-// CSRF token caching & retrieval
 let csrfTokenCache: string | null = null;
 let csrfTokenPromise: Promise<string> | null = null;
 
@@ -64,13 +82,11 @@ export async function fetchCsrfToken(): Promise<string> {
   return csrfTokenPromise;
 }
 
-// Request interceptor: attach CSRF token for mutations
 const MUTATING_METHODS = new Set(['post', 'put', 'delete', 'patch']);
 
 apiClient.interceptors.request.use(async (config) => {
   const method = config.method?.toLowerCase();
   if (method && MUTATING_METHODS.has(method)) {
-    // If header is not already explicitly set, retrieve and set X-XSRF-TOKEN
     if (!config.headers['X-XSRF-TOKEN']) {
       try {
         const token = await fetchCsrfToken();
@@ -78,14 +94,12 @@ apiClient.interceptors.request.use(async (config) => {
           config.headers['X-XSRF-TOKEN'] = token;
         }
       } catch {
-        // If CSRF fetch fails, let request proceed; backend middleware returns 403 AUTH.CSRF_INVALID
       }
     }
   }
   return config;
 });
 
-// Unauthorized handler callback for AuthContext integration
 type UnauthorizedHandler = () => void;
 let unauthorizedHandler: UnauthorizedHandler | null = null;
 
@@ -93,7 +107,6 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
   unauthorizedHandler = handler;
 }
 
-// Response interceptor: handle 401 sessions without redirect loops
 let isHandling401 = false;
 
 apiClient.interceptors.response.use(
@@ -106,14 +119,12 @@ apiClient.interceptors.response.use(
       const requestUrl = (error.config as AxiosRequestConfig)?.url || '';
       const isLoginRequest = requestUrl.includes('/auth/login');
 
-      // Do NOT trigger global logout/clear when login request fails (credentials invalid)
       if (!isLoginRequest) {
         if (!isHandling401) {
           isHandling401 = true;
           try {
             unauthorizedHandler?.();
           } finally {
-            // Debounce concurrent 401s
             setTimeout(() => {
               isHandling401 = false;
             }, 1000);
@@ -121,7 +132,6 @@ apiClient.interceptors.response.use(
         }
       }
     }
-    // 403 Forbidden is intentionally NOT cleared here (identity is valid, only lacks permissions)
     return Promise.reject(error);
   }
 );

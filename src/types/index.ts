@@ -194,6 +194,98 @@ export interface CartItem {
   quantity: number;
 }
 
+export type BrandTierType = 'NoBrand' | 'LocalBrand' | 'Commercial' | 'Luxury';
+export type ExpiryHandlingType = 'Return' | 'Donate';
+
+export interface ProductInspectionImage {
+  id: string;
+  file?: File;
+  previewUrl: string;
+  isCover: boolean;
+  name: string;
+  sizeBytes: number;
+  uploadedUrl?: string;
+}
+
+export interface ProductInspectionItem {
+  id: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  brandId: string;
+  brandName: string;
+  brandTier: BrandTierType;
+  size: string;
+  material: string;
+  conditionPercentage: number;
+  hasLabel: boolean;
+  defectNotes?: string;
+  approvalStatus: 'Approved' | 'Rejected' | 'Pending';
+  rejectionReason?: string;
+  listedPrice: number;
+  commissionRate: number;
+  shopCommissionAmount: number;
+  customerPayoutAmount: number;
+  images: ProductInspectionImage[];
+}
+
+export interface ReceptionCustomerInfo {
+  fullName: string;
+  phoneNumber: string;
+  email?: string;
+}
+
+export interface CreateReceptionRequest {
+  appointmentId?: string;
+  intakeType?: 'Consignment' | 'Buyout';
+  customerInfo: ReceptionCustomerInfo;
+  actualItemCount: number;
+  expiryHandling: ExpiryHandlingType;
+  termDays?: number;
+  note?: string;
+  items: Array<{
+    name: string;
+    categoryId: string;
+    brandId: string;
+    size: string;
+    material: string;
+    conditionPercentage: number;
+    hasLabel: boolean;
+    defectNotes?: string;
+    approvalStatus: 'Approved' | 'Rejected';
+    rejectionReason?: string;
+    listedPrice: number;
+    commissionRate: number;
+    purchasePrice?: number;
+    imageUrls?: string[];
+  }>;
+}
+
+export interface ReceptionContractResult {
+  contractId: string;
+  contractNumber: string;
+  intakeType?: string;
+  signedAt: string;
+  endsAt: string;
+  customerName: string;
+  customerPhone: string;
+  totalReceivedItems: number;
+  totalApprovedItems: number;
+  totalRejectedItems: number;
+  totalEstimatedValue: number;
+  totalCustomerPayout: number;
+  expiryHandling: ExpiryHandlingType;
+  createdProducts: Array<{
+    id: string;
+    barcode: string;
+    name: string;
+    approvalStatus: string;
+    listedPrice: number;
+    commissionRate: number;
+    customerPayout: number;
+  }>;
+}
+
 export type VietQrTransactionStatus = 'Pending' | 'Success' | 'Failed' | 'Refunded';
 export type InvoicePaymentStatus = 'Unpaid' | 'Partial' | 'Paid';
 
