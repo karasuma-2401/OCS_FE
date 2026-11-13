@@ -3,15 +3,14 @@ import JsBarcode from 'jsbarcode';
 import { Button, ErrorState, Modal, SkeletonLoading } from '@/components/shared';
 import { barcodeApi, type BarcodeLabelProduct, type BarcodeLabelTemplate } from '@/api/barcode';
 import { formatVndPrice } from '@/api/products';
-
-export const canEncodeBarcode = (value: string) => Boolean(value && /^[\x20-\x7e]{1,100}$/.test(value));
+import { barcodeModuleWidthMm, barcodeOptions, canEncodeBarcode } from './barcodeGeometry';
 
 function drawBarcode(svg: SVGSVGElement, value: string) {
-  JsBarcode(svg, value, { format: 'CODE128', width: 2, height: 48, margin: 8, displayValue: false });
+  JsBarcode(svg, value, barcodeOptions);
   const width = Number(svg.getAttribute('width'));
   const height = Number(svg.getAttribute('height'));
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  svg.setAttribute('preserveAspectRatio', 'none');
   svg.removeAttribute('width'); svg.removeAttribute('height');
 }
 
@@ -64,7 +63,8 @@ export function BarcodePrintDialog({ open, onClose, items }: { open: boolean; on
     return () => { active = false; };
   }, [open, retry]);
   const invalid = items.filter(item => !canEncodeBarcode(item.barcode));
+  const narrow = template ? items.filter(item => canEncodeBarcode(item.barcode) && barcodeModuleWidthMm(item.barcode, template.widthMm) < 0.254).length : 0;
   return <Modal open={open} onClose={onClose} title="Xem trước nhãn barcode" description={`${items.length} sản phẩm · In trên giấy A4 theo mẫu cửa hàng.`} className="max-w-5xl" error={printError} footer={<><Button variant="outline" onClick={onClose}>Đóng</Button><Button disabled={!template || !items.length || invalid.length > 0} onClick={() => { setPrintError(''); if (template && !printLabels(items, template)) setPrintError('Trình duyệt đã chặn cửa sổ in. Hãy cho phép cửa sổ bật lên và thử lại.'); }}>In nhãn</Button></>}>
-    {error ? <ErrorState description={error} onRetry={() => setRetry(value => value + 1)} /> : !template ? <SkeletonLoading variant="list" count={2} /> : <div className="space-y-3"><p className="text-sm text-muted">Kiểm tra máy in và chọn tỷ lệ 100% / kích thước thực. Tên dài có thể được rút gọn trên nhãn; nên thử quét một nhãn trước khi in hàng loạt.</p>{invalid.length > 0 && <p role="alert" className="text-sm text-state-danger">Có {invalid.length} sản phẩm chưa có mã hoặc chứa ký tự không hỗ trợ Code 128; không thể in những nhãn này.</p>}<div className="max-h-[55vh] overflow-auto rounded-xl bg-surface-subtle p-4"><div style={{ display: 'grid', gridTemplateColumns: `repeat(${template.columns}, ${template.widthMm}mm)`, gap: '3mm', width: 'fit-content' }}>{items.map(item => <BarcodeLabel key={item.id} item={item} template={template} />)}</div></div></div>}
+    {error ? <ErrorState description={error} onRetry={() => setRetry(value => value + 1)} /> : !template ? <SkeletonLoading variant="list" count={2} /> : <div className="space-y-3"><p className="text-sm text-muted">Kiểm tra máy in và chọn tỷ lệ 100% / kích thước thực. Tên dài có thể được rút gọn trên nhãn; nên thử quét một nhãn trước khi in hàng loạt.</p>{invalid.length > 0 && <p role="alert" className="text-sm text-state-danger">Có {invalid.length} sản phẩm chưa có mã hoặc chứa ký tự không hỗ trợ Code 128; không thể in những nhãn này.</p>}{narrow > 0 && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{narrow} mã có vạch nhỏ, có thể khó quét khi in. Hãy nhờ quản lý tăng chiều rộng nhãn hoặc giảm số cột, rồi in và quét thử ở tỷ lệ 100%.</p>}<div className="max-h-[55vh] overflow-auto rounded-xl bg-surface-subtle p-4"><div style={{ display: 'grid', gridTemplateColumns: `repeat(${template.columns}, ${template.widthMm}mm)`, gap: '3mm', width: 'fit-content' }}>{items.map(item => <BarcodeLabel key={item.id} item={item} template={template} />)}</div></div></div>}
   </Modal>;
 }
