@@ -51,7 +51,7 @@ const tabTitles: Record<ShopNavId, { title: string; desc: string }> = {
 };
 
 export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab = 'pos' }) => {
-  const { user, logout, hasPermission } = useAuth();
+  const { user, logout, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const getTabFromPath = (): ShopNavId => screenByPath[location.pathname] ?? initialTab;
@@ -89,6 +89,8 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         activeItem={activeTab}
         showAccounts={canOpenScreen('accounts')}
         allowedItems={allowedItems}
+        showContractManagement={hasRole('Admin') || hasRole('Manager')}
+        onContracts={() => navigate('/shop/contracts')}
         profileName={user?.fullName || user?.email || 'Nhân viên'}
         onNavigate={handleNavigate}
         onProfileClick={() => navigate('/profile')}

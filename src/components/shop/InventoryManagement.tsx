@@ -14,6 +14,7 @@ import {
   Clock3,
   ImageOff,
   Plus,
+  Printer,
   PackageSearch,
   RotateCcw,
   Search,
@@ -37,6 +38,10 @@ import {
   SkeletonLoading,
 } from "@/components/shared";
 import { useAuth } from "@/context/AuthContext";
+import { BarcodePrintDialog } from "@/components/shop/BarcodeLabels";
+import { BarcodeTemplateModal } from "@/components/shop/BarcodeTemplateModal";
+import { InventoryEditModal } from "@/components/shop/InventoryEditModal";
+import type { BarcodeLabelProduct } from "@/api/barcode";
 
 const control =
   "w-full min-h-10 rounded-control border border-border bg-white px-3 py-2 text-sm text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight";
@@ -132,7 +137,7 @@ function ProductImage({
 }
 
 export function InventoryManagement() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasRole } = useAuth();
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
@@ -157,16 +162,41 @@ export function InventoryManagement() {
   const [evidence, setEvidence] = useState("");
   const [verifiedPrice, setVerifiedPrice] = useState("");
   const [newPrice, setNewPrice] = useState("");
-  const [newLocation, setNewLocation] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
   const [locationCode, setLocationCode] = useState("");
   const [locationName, setLocationName] = useState("");
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationSaving, setLocationSaving] = useState(false);
   const [locationError, setLocationError] = useState("");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedForPrint, setSelectedForPrint] = useState<Record<string, InventoryProduct>>({});
+  const [labels, setLabels] = useState<BarcodeLabelProduct[] | null>(null);
+  const [labelsLoading, setLabelsLoading] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const detailRef = useRef<HTMLElement>(null);
   const actionErrorRef = useRef<HTMLDivElement>(null);
   const canRead = hasPermission("products.read");
   const hasFilters = Boolean(query || status || approval || locationFilter);
+  const printCount = Object.keys(selectedForPrint).length;
+
+  function toggleForPrint(item: InventoryProduct) {
+    setSelectedForPrint(current => {
+      const next = { ...current };
+      if (next[item.id]) delete next[item.id]; else next[item.id] = item;
+      return next;
+    });
+  }
+
+  async function previewLabels(items: InventoryProduct[]) {
+    if (!items.length || labelsLoading) return;
+    if (items.length > 100) { setActionError('Mỗi lần chỉ in tối đa 100 sản phẩm.'); return; }
+    setLabelsLoading(true); setActionError('');
+    try {
+      const latest = await Promise.all(items.map(item => inventoryApi.detail(item.id)));
+      setLabels(latest.map(({ product }) => ({ id: product.id, name: product.name, barcode: product.barcode, listedPrice: product.listedPrice })));
+    } catch { setActionError('Không thể tải thông tin sản phẩm để in barcode. Vui lòng thử lại.'); }
+    finally { setLabelsLoading(false); }
+  }
 
   useEffect(() => {
     if (!canRead) {
@@ -288,7 +318,6 @@ export function InventoryManagement() {
     setEvidence("");
     setVerifiedPrice("");
     setNewPrice("");
-    setNewLocation(product.location?.id ?? "");
     setActionError("");
     setMessage("");
   }
@@ -374,6 +403,8 @@ export function InventoryManagement() {
                 Thêm vị trí
               </Button>
             )}
+            {(hasRole('Admin') || hasRole('Manager')) && <Button variant="outline" size="md" onClick={() => setTemplateOpen(true)}>Mẫu in barcode</Button>}
+            {!selectionMode ? <Button variant="outline" size="md" startIcon={<Printer size={16} aria-hidden="true" />} onClick={() => setSelectionMode(true)}>Chọn in barcode</Button> : <><Button variant="outline" size="md" onClick={() => { setSelectionMode(false); setSelectedForPrint({}); }}>Hủy chọn</Button><Button size="md" disabled={!printCount} loading={labelsLoading} onClick={() => void previewLabels(Object.values(selectedForPrint))}>Xem trước ({printCount})</Button></>}
           </>
         }
       />
@@ -540,6 +571,7 @@ export function InventoryManagement() {
                 <table className="w-full min-w-[610px] text-left text-sm">
                   <thead className="bg-surface-dashboard/70 text-xs font-semibold text-text-secondary">
                     <tr>
+                      {selectionMode && <th scope="col" className="px-3 py-3"><span className="sr-only">Chọn in</span></th>}
                       <th scope="col" className="px-6 py-3">
                         Sản phẩm
                       </th>
@@ -571,6 +603,7 @@ export function InventoryManagement() {
                             : "hover:bg-surface-active")
                         }
                       >
+                        {selectionMode && <td className="px-3 py-3"><input type="checkbox" aria-label={`Chọn in barcode ${item.name}`} checked={Boolean(selectedForPrint[item.id])} onChange={() => toggleForPrint(item)} /></td>}
                         <td className="px-6 py-3">
                           <button
                             type="button"
@@ -633,7 +666,8 @@ export function InventoryManagement() {
               </div>
               <ul className="divide-y divide-border/60 md:hidden">
                 {data.items.map((item) => (
-                  <li key={item.id}>
+                  <li key={item.id} className="flex items-center">
+                    {selectionMode && <input type="checkbox" className="ml-4 shrink-0" aria-label={`Chọn in barcode ${item.name}`} checked={Boolean(selectedForPrint[item.id])} onChange={() => toggleForPrint(item)} />}
                     <button
                       type="button"
                       disabled={busy}
@@ -777,6 +811,8 @@ export function InventoryManagement() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <StatusBadge value={product.approvalStatus} />
                   <StatusBadge value={product.status} />
+                  <Button variant="outline" size="sm" loading={labelsLoading} startIcon={<Printer size={15} aria-hidden="true" />} onClick={() => void previewLabels([product])}>In barcode</Button>
+                  {(product.status === "PendingProcessing" || product.status === "OnSale") && (hasPermission("products.create") || hasPermission("products.location.update")) && <Button variant="outline" size="sm" disabled={busy} onClick={() => setEditOpen(true)}>Chỉnh sửa sản phẩm</Button>}
                 </div>
                 <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-y border-border py-4 text-sm">
                   <div>
@@ -852,69 +888,6 @@ export function InventoryManagement() {
                     </div>
                   </div>
                 )}
-
-                {product.status === "PendingProcessing" &&
-                  product.approvalStatus !== "Approved" &&
-                  hasPermission("products.create") && (
-                    <InventoryEditor
-                      key={product.id}
-                      product={product}
-                      busy={busy}
-                      run={run}
-                    />
-                  )}
-
-                {hasPermission("products.location.update") &&
-                  (product.status === "PendingProcessing" ||
-                    product.status === "OnSale") && (
-                    <form
-                      className="mt-5 border-t border-border pt-5"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void run(
-                          () =>
-                            inventoryApi.changeLocation(
-                              product.id,
-                              product.version,
-                              newLocation,
-                            ),
-                          "Đã cập nhật vị trí.",
-                        );
-                      }}
-                    >
-                      <div className="flex items-end gap-2">
-                        <Combobox
-                          className="min-w-0 flex-1"
-                          label="Chuyển vị trí"
-                          value={newLocation || product.location?.id || ""}
-                          onChange={setNewLocation}
-                          placeholder="Chọn vị trí"
-                          options={locations.map((place) => ({
-                            value: place.id,
-                            label: `${place.code} — ${place.name}`,
-                          }))}
-                        />
-                        <Button
-                          type="submit"
-                          variant="outline"
-                          className="min-h-10 shrink-0"
-                          disabled={
-                            busy ||
-                            !newLocation ||
-                            newLocation === product.location?.id
-                          }
-                        >
-                          Lưu
-                        </Button>
-                      </div>
-                      {locations.length === 0 && (
-                        <p className="mt-2 text-xs text-text-secondary">
-                          Chưa có vị trí hoạt động. Liên hệ người quản lý để
-                          thêm vị trí.
-                        </p>
-                      )}
-                    </form>
-                  )}
 
                 {product.approvalStatus === "Pending" &&
                   product.status === "PendingProcessing" &&
@@ -1175,6 +1148,9 @@ export function InventoryManagement() {
           </aside>
         )}
       </div>
+      {editOpen && product && <InventoryEditModal product={product} locations={locations} canEditDetails={hasPermission("products.create")} canEditLocation={hasPermission("products.location.update")} canOffer={hasPermission("products.offer")} onClose={() => setEditOpen(false)} onUpdated={updated => { setDetail(current => current && current.product.id === updated.id ? { ...current, product: { ...updated, coverImageUrl: current.product.coverImageUrl } } : current); setRefresh(current => current + 1); }} onStale={() => setRefresh(current => current + 1)} />}
+      <BarcodePrintDialog open={labels !== null} items={labels || []} onClose={() => setLabels(null)} />
+      <BarcodeTemplateModal open={templateOpen} onClose={() => setTemplateOpen(false)} />
       <Modal
         open={locationOpen}
         onClose={closeLocationModal}
@@ -1230,98 +1206,5 @@ export function InventoryManagement() {
         </form>
       </Modal>
     </section>
-  );
-}
-
-function InventoryEditor({
-  product,
-  busy,
-  run,
-}: {
-  product: InventoryProduct;
-  busy: boolean;
-  run: (operation: () => Promise<unknown>, success: string) => Promise<void>;
-}) {
-  const [name, setName] = useState(product.name);
-  const [size, setSize] = useState(product.size);
-  const [description, setDescription] = useState(product.description ?? "");
-  const [condition, setCondition] = useState(
-    String(product.conditionPercentage),
-  );
-  return (
-    <details className="group mt-5 border-t border-border pt-4">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-brand-ink focus-visible:outline-2 focus-visible:outline-brand-highlight">
-        Sửa thông tin sản phẩm{" "}
-        <ChevronDown
-          size={16}
-          aria-hidden="true"
-          className="group-open:rotate-180"
-        />
-      </summary>
-      <form
-        className="mt-3 space-y-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void run(
-            () =>
-              inventoryApi.changeDetails(
-                product.id,
-                product.version,
-                name,
-                size,
-                description,
-                Number(condition),
-              ),
-            "Đã cập nhật thông tin sản phẩm.",
-          );
-        }}
-      >
-        <label className={fieldLabel}>
-          Tên sản phẩm
-          <input
-            className={control + " mt-1.5"}
-            value={name}
-            required
-            maxLength={200}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-        <label className={fieldLabel}>
-          Kích thước
-          <input
-            className={control + " mt-1.5"}
-            value={size}
-            required
-            maxLength={30}
-            onChange={(event) => setSize(event.target.value)}
-          />
-        </label>
-        <label className={fieldLabel}>
-          Tình trạng (%)
-          <input
-            className={control + " mt-1.5"}
-            type="number"
-            min="0"
-            max="100"
-            step="1"
-            required
-            value={condition}
-            onChange={(event) => setCondition(event.target.value)}
-          />
-        </label>
-        <label className={fieldLabel}>
-          Mô tả
-          <textarea
-            className={control + " mt-1.5"}
-            value={description}
-            maxLength={2000}
-            onChange={(event) => setDescription(event.target.value)}
-          />
-        </label>
-        <Button type="submit" variant="outline" size="sm" disabled={busy}>
-          Lưu thông tin
-        </Button>
-      </form>
-    </details>
   );
 }

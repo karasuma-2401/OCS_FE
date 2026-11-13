@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, resolveApiAssetUrl } from './client';
 
 export interface PublicProductCategory {
   id: string;
@@ -122,7 +122,9 @@ export async function getPublicProducts(
     params: queryParams,
     signal,
   });
-  return response.data;
+  const data = response.data;
+  if (Array.isArray(data.items)) data.items = data.items.map(item => ({ ...item, coverImageUrl: resolveApiAssetUrl(item.coverImageUrl) }));
+  return data;
 }
 
 export async function getPublicProductDetail(
@@ -133,7 +135,9 @@ export async function getPublicProductDetail(
   const response = await apiClient.get<PublicProductDetail>(`/products/${encodeURIComponent(cleanId)}/public`, {
     signal,
   });
-  return response.data;
+  const data = response.data;
+  if (Array.isArray(data.images)) data.images = data.images.map(image => ({ ...image, url: resolveApiAssetUrl(image.url) ?? image.url }));
+  return data;
 }
 
 export const productsApi = {

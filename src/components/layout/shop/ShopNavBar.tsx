@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleUserRound,
   ContactRound,
+  FileText,
   Handshake,
   Home,
   LogOut,
@@ -45,6 +46,9 @@ export interface ShopNavBarProps {
   showAccounts?: boolean;
   allowedItems?: ShopNavId[];
   actions?: React.ReactNode;
+  showContractManagement?: boolean;
+  contractsActive?: boolean;
+  onContracts?: () => void;
 }
 
 const navigation: ShopNavItem[] = [
@@ -94,6 +98,9 @@ export default function ShopNavBar({
   showAccounts = false,
   allowedItems,
   actions,
+  showContractManagement = false,
+  contractsActive = false,
+  onContracts,
 }: ShopNavBarProps) {
   const [selected, setSelected] = useState<ShopNavId>(initialActive);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -137,7 +144,7 @@ export default function ShopNavBar({
       navigationElement.scrollTop += active.top - container.top;
     else if (active.bottom > container.bottom)
       navigationElement.scrollTop += active.bottom - container.bottom;
-  }, [currentActive, showAccounts, allowedItems?.join("|")]);
+  }, [currentActive, showAccounts, contractsActive, allowedItems?.join("|")]);
 
   const handleSelect = (
     event: MouseEvent<HTMLAnchorElement>,
@@ -218,7 +225,7 @@ export default function ShopNavBar({
                 (!allowedItems || allowedItems.includes(item.id)),
             )
             .map((item) => {
-              const isActive = currentActive === item.id;
+              const isActive = !contractsActive && currentActive === item.id;
               const isDisabled =
                 item.disabled || disabledItems.includes(item.id);
               const Icon = navigationIcons[item.id];
@@ -252,6 +259,11 @@ export default function ShopNavBar({
                 </a>
               );
             })}
+          {showContractManagement && <a href="/shop/contracts" title={collapsed ? 'Hợp đồng' : undefined}
+            aria-current={contractsActive ? 'page' : undefined} onClick={event => { if (onContracts) { event.preventDefault(); onContracts(); } }}
+            className={`flex min-h-10 w-full shrink-0 items-center gap-3 rounded-control px-3 text-left text-sm font-medium text-text-secondary no-underline transition-colors hover:bg-brand-pink-surface hover:text-brand-highlight ${collapsed ? 'lg:justify-center lg:px-0' : ''} ${contractsActive ? 'bg-brand-pink-light !font-semibold !text-brand-highlight' : ''}`}>
+            <FileText size={18} className="shrink-0" aria-hidden="true" /><span className={collapsed ? 'lg:hidden' : ''}>Hợp đồng</span>
+          </a>}
         </nav>
 
         <div
