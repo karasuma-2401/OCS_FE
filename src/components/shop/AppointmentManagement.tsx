@@ -1,17 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import {
-  Search,
-  CheckCircle2,
-  FileSignature,
-  AlertCircle,
-  XCircle,
-} from "lucide-react";
+import { Search, XCircle, UserX, RotateCcw } from "lucide-react";
 import { appointmentApi } from "@/api/appointmentApi";
-import type {
-  Appointment,
-  AppointmentStatus,
-  StartReceptionResponse,
-} from "@/types";
+import type { Appointment, AppointmentStatus } from "@/types";
 import {
   Button,
   Combobox,
@@ -20,7 +10,9 @@ import {
   SkeletonLoading,
   Toast,
 } from "@/components/shared";
+import { InlineCalendar, calendarISO } from "@/components/shared/calendar";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { ConsignmentReceptionModal } from "./reception";
 import { useAuth } from "@/context/AuthContext";
 
 interface AppointmentManagementProps {
@@ -30,24 +22,26 @@ interface AppointmentManagementProps {
 export function AppointmentManagement({
   onSwitchRole,
 }: AppointmentManagementProps = {}) {
-  const { hasPermission } = useAuth();
-  const canUpdate = hasPermission("appointments.staff.update");
-  const canReceive = hasPermission("appointments.staff.reception");
-  const [today] = useState(() => new Date());
-  const calendarYear = today.getFullYear();
-  const calendarMonth = today.getMonth() + 1;
-  const [selectedDay, setSelectedDay] = useState<number>(today.getDate());
-  const selectedDateFormatted = [
-    calendarYear,
-    String(calendarMonth).padStart(2, "0"),
-    String(selectedDay).padStart(2, "0"),
-  ].join("-");
+  const { hasPermission, isStaffOrAdmin, hasRole } = useAuth();
+  const canUpdate =
+    hasPermission("appointments.staff.update") ||
+    isStaffOrAdmin ||
+    hasRole("Staff") ||
+    hasRole("Manager") ||
+    hasRole("Admin");
+  const canReceive =
+    hasPermission("appointments.staff.reception") ||
+    isStaffOrAdmin ||
+    hasRole("Staff") ||
+    hasRole("Manager") ||
+    hasRole("Admin");
+  const [selectedDate, setSelectedDate] = useState<string>(() =>
+    calendarISO(new Date()),
+  );
 
-  // Filter dropdowns
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchKeyword, setSearchKeyword] = useState<string>("");
 
-  // Appointments data
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedAppointmentId, setSelectedAppointmentId] =
     useState<string>("");
@@ -58,23 +52,29 @@ export function AppointmentManagement({
     variant: "success" | "error";
   } | null>(null);
 
-  // Status Action Modal
   const [actionModalType, setActionModalType] = useState<
-    "checkin" | "noshow" | "cancel" | null
+    "noshow" | "cancel" | "restore" | null
   >(null);
   const [actionReason, setActionReason] = useState<string>("");
   const [actionLoading, setActionLoading] = useState<boolean>(false);
 
-  // Start Reception UC-02 Modal
-  const [receptionData, setReceptionData] =
-    useState<StartReceptionResponse | null>(null);
-  const contractCreatedSuccess = false;
+  const [receptionModalOpen, setReceptionModalOpen] = useState(false);
+  const [receptionAppointment, setReceptionAppointment] =
+    useState<Appointment | null>(null);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = window.setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [toastMessage]);
 
   const fetchAppointments = async () => {
     setLoading(true);
     try {
       const data = await appointmentApi.getStaffAppointments({
-        date: selectedDateFormatted,
+        date: selectedDate,
         status:
           statusFilter === "all"
             ? undefined
@@ -103,9 +103,15 @@ export function AppointmentManagement({
 
   useEffect(() => {
     fetchAppointments();
-  }, [selectedDateFormatted, statusFilter]);
+    const interval = setInterval(fetchAppointments, 15000);
+    const handleFocus = () => fetchAppointments();
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [selectedDate, statusFilter]);
 
-  // Filter in memory for instant search
   const filteredAppointments = useMemo(() => {
     return appointments.filter((a) => {
       const matchesSearch =
@@ -120,7 +126,6 @@ export function AppointmentManagement({
     });
   }, [appointments, searchKeyword, statusFilter]);
 
-  // Active appointment
   const activeAppointment = useMemo(() => {
     return (
       appointments.find((a) => a.id === selectedAppointmentId) ||
@@ -129,15 +134,14 @@ export function AppointmentManagement({
     );
   }, [appointments, selectedAppointmentId]);
 
-  // Handle Quick Status Update (CheckedIn, NoShow, Cancel)
   const handleExecuteStatusUpdate = async () => {
     if (!activeAppointment || !actionModalType) return;
     setActionLoading(true);
     try {
       let targetStatus: AppointmentStatus;
-      if (actionModalType === "checkin") targetStatus = "CheckedIn";
-      else if (actionModalType === "noshow") targetStatus = "NoShow";
+      if (actionModalType === "noshow") targetStatus = "NoShow";
       else if (actionModalType === "cancel") targetStatus = "Cancelled";
+      else if (actionModalType === "restore") targetStatus = "Scheduled";
       else return;
 
       const updated = await appointmentApi.updateStatus(activeAppointment.id, {
@@ -149,9 +153,16 @@ export function AppointmentManagement({
         prev.map((a) => (a.id === updated.id ? updated : a)),
       );
 
+      const actionText =
+        targetStatus === "Cancelled"
+          ? "đã hủy"
+          : targetStatus === "NoShow"
+            ? "không đến"
+            : "đã đặt lịch";
+
       setToastMessage({
         title: "Thành công",
-        message: `Đã cập nhật trạng thái lịch hẹn ${updated.trackingNumber}.`,
+        message: `Đã cập nhật trạng thái lịch hẹn ${updated.trackingNumber} (${actionText}).`,
         variant: "success",
       });
 
@@ -168,36 +179,17 @@ export function AppointmentManagement({
     }
   };
 
-  // Handle Start Reception
-  const handleStartReception = async () => {
+  const handleStartReception = () => {
     if (!activeAppointment) return;
-    setActionLoading(true);
-    try {
-      const response = await appointmentApi.startReception(
-        activeAppointment.id,
-      );
-      setReceptionData(response);
-    } catch {
-      setToastMessage({
-        title: "Không thể bắt đầu tiếp nhận",
-        message: "Vui lòng thử lại sau.",
-        variant: "error",
-      });
-    } finally {
-      setActionLoading(false);
-    }
+    setReceptionAppointment(activeAppointment);
+    setReceptionModalOpen(true);
   };
 
-  // Contract creation requires a dedicated endpoint.
-  const handleCompleteContract = () => {
-    setToastMessage({
-      title: "Chưa hỗ trợ",
-      message: "Tạo hợp đồng chưa sẵn sàng.",
-      variant: "error",
-    });
+  const handleDirectReception = () => {
+    setReceptionAppointment(null);
+    setReceptionModalOpen(true);
   };
 
-  // Render Badge matching Figma 39-1220
   const renderFigmaBadge = (status: AppointmentStatus) => {
     switch (status) {
       case "Completed":
@@ -206,22 +198,22 @@ export function AppointmentManagement({
             Đã tiếp nhận
           </span>
         );
-      case "CheckedIn":
-        return (
-          <span className="inline-block rounded-full bg-[#EBF3FF] px-3 py-1 text-[11px] font-bold text-[#2563EB]">
-            Chờ đến
-          </span>
-        );
       case "Scheduled":
         return (
           <span className="inline-block rounded-full bg-[#EDF2FE] px-3 py-1 text-[11px] font-bold text-[#4F46E5]">
             Đã đặt lịch
           </span>
         );
+      case "CheckedIn":
+        return (
+          <span className="inline-block rounded-full bg-cyan-50 border border-cyan-200/60 px-3 py-1 text-[11px] font-bold text-cyan-800">
+            Đã đến quầy
+          </span>
+        );
       case "NoShow":
         return (
-          <span className="inline-block rounded-full bg-gray-100 px-3 py-1 text-[11px] font-bold text-gray-600">
-            Vắng mặt
+          <span className="inline-block rounded-full bg-amber-50 border border-amber-200/60 px-3 py-1 text-[11px] font-bold text-amber-700">
+            Không đến
           </span>
         );
       case "Cancelled":
@@ -239,59 +231,56 @@ export function AppointmentManagement({
     }
   };
 
-  const daysInMonth = new Date(calendarYear, calendarMonth, 0).getDate();
-  const firstDayOffset =
-    (new Date(calendarYear, calendarMonth - 1, 1).getDay() + 6) % 7;
-
   return (
-    <div className="w-full space-y-5">
-      {/* Toast alert */}
+    <div className="w-full">
       {toastMessage && (
-        <Toast
-          variant={toastMessage.variant}
-          title={toastMessage.title}
-          message={toastMessage.message}
-          onClose={() => setToastMessage(null)}
-        />
+        <div className="fixed bottom-6 left-6 z-50 max-w-sm pointer-events-auto shadow-xl">
+          <Toast
+            variant={toastMessage.variant}
+            title={toastMessage.title}
+            message={toastMessage.message}
+            onClose={() => setToastMessage(null)}
+          />
+        </div>
       )}
 
-      <h1 className="sr-only">Lịch hẹn và tiếp nhận</h1>
-      <PageHeaderCard
-        icon={<FileSignature size={24} aria-hidden="true" />}
-        title="Lịch hẹn và tiếp nhận"
-        description="Theo dõi lịch hẹn và tiếp nhận khách ký gửi tại cửa hàng."
-        actions={
-          <>
-            <NotificationBell />
-            {onSwitchRole && (
-              <button
-                type="button"
-                onClick={onSwitchRole}
-                className="rounded-2xl border border-white/80 bg-white/95 px-3.5 py-2 text-xs font-bold text-gray-800 shadow-sm transition hover:bg-white hover:border-gray-200"
-              >
-                Đổi vai trò
-              </button>
-            )}
-          </>
-        }
+      <ConsignmentReceptionModal
+        open={receptionModalOpen}
+        onClose={() => setReceptionModalOpen(false)}
+        initialAppointment={receptionAppointment}
+        onSuccess={(contract) => {
+          setToastMessage({
+            title: "Tiếp nhận thành công",
+            message: `Phiếu tiếp nhận ${contract.contractNumber} (${contract.totalApprovedItems} món) đã được lưu.`,
+            variant: "success",
+          });
+          fetchAppointments();
+          setReceptionModalOpen(false);
+        }}
       />
 
-      {/* Main 2-Column*/}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
+        <h1 className="text-2xl sm:text-[28px] font-extrabold text-gray-900 tracking-tight">
+          Lịch hẹn và tiếp nhận
+        </h1>
+
+        <div className="flex items-center gap-3">
+          <NotificationBell />
+          {onSwitchRole && (
+            <button
+              type="button"
+              onClick={onSwitchRole}
+              className="rounded-2xl border border-white/80 bg-white/95 px-3.5 py-2 text-xs font-bold text-gray-800 shadow-sm transition hover:bg-white hover:border-gray-200"
+            >
+              Đổi vai trò
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left Column (8 cols ~ 66% width) */}
         <div className="lg:col-span-8 space-y-4">
-          {/* Filter Row */}
           <div className="flex flex-wrap sm:flex-nowrap items-end gap-3">
-            <Combobox
-              className="w-full shrink-0 sm:w-44"
-              label="Ngày hẹn"
-              value={String(selectedDay)}
-              onChange={(value) => setSelectedDay(Number(value))}
-              options={Array.from({ length: daysInMonth }, (_, i) => ({
-                value: String(i + 1),
-                label: `${String(i + 1).padStart(2, "0")}/${String(calendarMonth).padStart(2, "0")}/${calendarYear}`,
-              }))}
-            />
             <Combobox
               className="w-full shrink-0 sm:w-48"
               label="Trạng thái lịch hẹn"
@@ -299,15 +288,13 @@ export function AppointmentManagement({
               onChange={setStatusFilter}
               options={[
                 { value: "all", label: "Tất cả trạng thái" },
-                { value: "CheckedIn", label: "Chờ đến" },
                 { value: "Scheduled", label: "Đã đặt lịch" },
                 { value: "Completed", label: "Đã tiếp nhận" },
-                { value: "NoShow", label: "Vắng mặt" },
+                { value: "NoShow", label: "Không đến" },
                 { value: "Cancelled", label: "Đã hủy" },
               ]}
             />
 
-            {/* Input 3: Tìm lịch hẹn (Fills remaining width of Left Column) */}
             <div className="flex-1 w-full sm:w-auto min-w-[200px]">
               <label className="block text-[11px] font-bold text-gray-700 mb-1">
                 Tìm lịch hẹn
@@ -328,7 +315,6 @@ export function AppointmentManagement({
             </div>
           </div>
 
-          {/* Main Card: Lịch tiếp nhận */}
           <div className="rounded-3xl border border-white/80 bg-white/95 backdrop-blur-sm p-6 shadow-sm space-y-4">
             <h3 className="font-extrabold text-gray-900 text-base">
               Lịch tiếp nhận
@@ -364,11 +350,10 @@ export function AppointmentManagement({
                         <tr
                           key={appt.id}
                           onClick={() => setSelectedAppointmentId(appt.id)}
-                          className={`cursor-pointer transition-all ${
-                            isSelected
+                          className={`cursor-pointer transition-all ${isSelected
                               ? "bg-[#EEF5FF] font-bold"
                               : "hover:bg-gray-50/70"
-                          }`}
+                            }`}
                         >
                           <td className="py-4 pl-3 pr-3 font-semibold text-gray-800 rounded-l-2xl">
                             {appt.startTime} - {appt.endTime}
@@ -400,7 +385,6 @@ export function AppointmentManagement({
             )}
           </div>
 
-          {/* Banner Card below Table: Có thể tiếp nhận khách đến trực tiếp */}
           <div className="rounded-2xl border border-blue-100/70 bg-[#EAF2FC] p-4 sm:p-5 shadow-sm space-y-0.5">
             <h4 className="text-sm font-bold text-gray-900">
               Có thể tiếp nhận khách đến trực tiếp
@@ -412,61 +396,18 @@ export function AppointmentManagement({
           </div>
         </div>
 
-        {/* Right Column (4 cols ~ 34% width) */}
         <div className="lg:col-span-4 space-y-4">
-          {/* Card 1: Mini Calendar "Lịch tiếp nhận" */}
           <div className="rounded-3xl border border-white/80 bg-white/95 backdrop-blur-sm p-6 shadow-sm space-y-4">
             <h3 className="font-extrabold text-gray-900 text-sm">
               Lịch tiếp nhận
             </h3>
 
-            <div>
-              <p className="text-xs font-bold text-gray-900 mb-3">
-                Tháng {calendarMonth} năm {calendarYear}
-              </p>
-
-              {/* Day headers */}
-              <div className="grid grid-cols-7 text-center text-[11px] font-bold text-gray-400 pb-2">
-                <span>T2</span>
-                <span>T3</span>
-                <span>T4</span>
-                <span>T5</span>
-                <span>T6</span>
-                <span>T7</span>
-                <span>CN</span>
-              </div>
-
-              {/* Days grid */}
-              <div className="grid grid-cols-7 gap-y-2 text-center text-xs text-gray-700">
-                {Array.from({ length: firstDayOffset }).map((_, i) => (
-                  <div key={`offset-${i}`} />
-                ))}
-
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const d = i + 1;
-                  const isDay28 = d === selectedDay;
-
-                  return (
-                    <div key={d} className="flex justify-center">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDay(d)}
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition ${
-                          isDay28
-                            ? "bg-[#F472B6] text-white font-bold shadow"
-                            : "hover:bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {d}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <InlineCalendar
+              value={selectedDate}
+              onSelect={setSelectedDate}
+            />
           </div>
 
-          {/* Card 2: "Lịch đang chọn" (Active Appointment Details) */}
           <div className="rounded-3xl border border-white/80 bg-white/95 backdrop-blur-sm p-6 shadow-sm space-y-3.5">
             <h3 className="font-extrabold text-gray-900 text-sm">
               Lịch đang chọn
@@ -480,7 +421,7 @@ export function AppointmentManagement({
                     {activeAppointment.trackingNumber}
                   </h4>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {selectedDateFormatted} •{" "}
+                    {selectedDate} •{" "}
                     {activeAppointment.timeSlotDisplay ||
                       `${activeAppointment.startTime} - ${activeAppointment.endTime}`}{" "}
                     • {activeAppointment.estimatedItemCount} món dự kiến
@@ -493,32 +434,69 @@ export function AppointmentManagement({
                   Mang trực tiếp • Tra cứu hồ sơ trước tiếp nhận.
                 </p>
 
-                {/* Cancel Button (Figma 39-1195) */}
                 {canUpdate &&
-                  activeAppointment.status !== "Completed" &&
-                  activeAppointment.status !== "Cancelled" &&
-                  activeAppointment.status !== "NoShow" && (
-                    <button
-                      type="button"
-                      onClick={() => setActionModalType("cancel")}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-red-500 hover:text-red-700 transition"
-                    >
-                      <XCircle size={14} /> Hủy hẹn
-                    </button>
+                  activeAppointment.status !== "Completed" && (
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      {(activeAppointment.status === "Scheduled" ||
+                        activeAppointment.status === "CheckedIn" ||
+                        activeAppointment.status === "NoShow") && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActionReason("");
+                              setActionModalType("cancel");
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-red-500 hover:text-red-700 transition"
+                          >
+                            <XCircle size={15} className="text-red-500" /> Hủy hẹn
+                          </button>
+                        )}
+
+                      {(activeAppointment.status === "Scheduled" ||
+                        activeAppointment.status === "CheckedIn" ||
+                        activeAppointment.status === "Cancelled") && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActionReason("");
+                              setActionModalType("noshow");
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-800 transition"
+                          >
+                            <UserX size={15} className="text-amber-600" /> Không đến
+                          </button>
+                        )}
+
+                      {(activeAppointment.status === "Cancelled" ||
+                        activeAppointment.status === "NoShow") && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActionReason("");
+                              setActionModalType("restore");
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition"
+                          >
+                            <RotateCcw size={15} className="text-blue-600" /> Đặt lại lịch
+                          </button>
+                        )}
+                    </div>
                   )}
 
-                {/* Big Pill Button: "Bắt đầu tiếp nhận" (Exact Figma 39-1195) */}
                 {canReceive && (
                   <button
                     type="button"
                     onClick={handleStartReception}
                     disabled={
                       activeAppointment.status === "Cancelled" ||
-                      activeAppointment.status === "NoShow"
+                      activeAppointment.status === "NoShow" ||
+                      activeAppointment.status === "Completed"
                     }
                     className="w-full rounded-2xl bg-button-pastel py-3 px-4 text-center text-sm font-bold text-brand-ink shadow-sm transition enabled:hover:bg-button-pastel-hover enabled:hover:shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-pink-focus enabled:active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Bắt đầu tiếp nhận
+                    {activeAppointment.status === "Completed"
+                      ? "Đã tiếp nhận hoàn tất"
+                      : "Bắt đầu tiếp nhận"}
                   </button>
                 )}
               </div>
@@ -531,13 +509,18 @@ export function AppointmentManagement({
         </div>
       </div>
 
-      {/* Bottom Button Bar: Both buttons in 1 row with equal size (Exact Image / Figma) */}
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
         {canReceive && (
           <button
             type="button"
             onClick={handleStartReception}
-            disabled={loading || !activeAppointment}
+            disabled={
+              loading ||
+              !activeAppointment ||
+              activeAppointment.status === "Cancelled" ||
+              activeAppointment.status === "NoShow" ||
+              activeAppointment.status === "Completed"
+            }
             className="w-full rounded-2xl bg-button-pastel py-3.5 px-6 text-center text-sm font-bold text-brand-ink shadow-sm transition enabled:hover:bg-button-pastel-hover enabled:hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-pink-focus enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Tiếp nhận lịch đã chọn
@@ -546,29 +529,22 @@ export function AppointmentManagement({
 
         <button
           type="button"
-          onClick={() =>
-            setToastMessage({
-              title: "Chưa hỗ trợ",
-              message: "Tiếp nhận khách trực tiếp chưa sẵn sàng.",
-              variant: "error",
-            })
-          }
+          onClick={handleDirectReception}
           className="w-full rounded-2xl border border-white/80 bg-white py-3.5 px-6 text-center text-sm font-bold text-gray-900 shadow-sm transition hover:bg-gray-50 active:scale-[0.99]"
         >
           Tiếp nhận khách trực tiếp
         </button>
       </div>
 
-      {/* Confirmation Modal for Quick Status Updates */}
       {actionModalType && activeAppointment && (
         <Modal
           open={Boolean(actionModalType)}
           onClose={() => setActionModalType(null)}
           title={
-            actionModalType === "checkin"
-              ? "Xác nhận khách đã đến quầy"
-              : actionModalType === "noshow"
-                ? "Đánh dấu khách vắng mặt"
+            actionModalType === "noshow"
+              ? "Xác nhận khách không đến"
+              : actionModalType === "restore"
+                ? "Khôi phục lịch hẹn"
                 : "Xác nhận hủy lịch hẹn"
           }
           description={`Mã lịch hẹn: ${activeAppointment.trackingNumber} — Khách: ${activeAppointment.customerName}`}
@@ -593,139 +569,30 @@ export function AppointmentManagement({
         >
           <div className="space-y-4 py-2">
             <p className="text-xs text-gray-600">
-              {actionModalType === "checkin"
-                ? 'Hệ thống sẽ cập nhật trạng thái lịch hẹn sang "Chờ đến (CheckedIn)" và gửi thông báo xác nhận tới khách hàng.'
-                : actionModalType === "noshow"
-                  ? "Đánh dấu khách hàng không đến đúng giờ hẹn (NoShow)."
-                  : "Bạn đang thực hiện hủy lịch hẹn này theo yêu cầu khách hoặc do cửa hàng bận đột xuất."}
+              {actionModalType === "noshow"
+                ? 'Đánh dấu khách hàng không đến theo lịch hẹn (Trạng thái: "Không đến"). Khách hàng sẽ nhận được thông báo qua hệ thống.'
+                : actionModalType === "restore"
+                  ? 'Khôi phục lịch hẹn này về trạng thái "Đã đặt lịch".'
+                  : "Bạn đang thực hiện hủy lịch hẹn này theo yêu cầu của khách hoặc do cửa hàng bận đột xuất."}
             </p>
 
-            {actionModalType !== "checkin" && (
+            {actionModalType !== "restore" && (
               <div>
                 <label className="block text-xs font-bold text-gray-800 mb-1">
-                  Lý do ghi nhận
+                  Lý do ghi nhận (tùy chọn)
                 </label>
                 <textarea
                   rows={2}
                   value={actionReason}
                   onChange={(e) => setActionReason(e.target.value)}
-                  placeholder="Nhập lý do..."
+                  placeholder={
+                    actionModalType === "noshow"
+                      ? "Nhập ghi chú hoặc lý do khách không đến..."
+                      : "Nhập lý do hủy lịch hẹn..."
+                  }
                   className="w-full rounded-xl border border-gray-200 p-2.5 text-xs outline-none focus:border-pink-300"
                 />
               </div>
-            )}
-          </div>
-        </Modal>
-      )}
-
-      {/* UC-02 Inspection & Contract Creation Modal */}
-      {receptionData && (
-        <Modal
-          open={Boolean(receptionData)}
-          onClose={() => setReceptionData(null)}
-          title="Tiếp Nhận Đồ Ký Gửi & Kiểm Định (UC-02)"
-          description={`Lịch hẹn: ${receptionData.trackingNumber} — ${receptionData.customerName}`}
-          footer={
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                disabled={actionLoading}
-                onClick={() => setReceptionData(null)}
-              >
-                Hủy bỏ
-              </Button>
-              <Button
-                loading={actionLoading}
-                onClick={handleCompleteContract}
-                startIcon={<FileSignature size={15} />}
-              >
-                Tạo hợp đồng & Cấp mã Barcode
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-4 py-1 text-xs">
-            {contractCreatedSuccess ? (
-              <div className="py-6 text-center space-y-2">
-                <CheckCircle2 size={40} className="mx-auto text-green-600" />
-                <p className="text-sm font-bold text-gray-900">
-                  Hợp đồng ký gửi đã được tạo thành công!
-                </p>
-                <p className="text-gray-500">
-                  Lịch hẹn đã chuyển sang trạng thái "Đã tiếp nhận (Completed)".
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 grid grid-cols-2 gap-3">
-                  <div>
-                    <span className="text-gray-400">Khách hàng:</span>
-                    <p className="font-bold text-gray-900 text-sm">
-                      {receptionData.customerName}
-                    </p>
-                    <p className="text-[11px] text-gray-500">
-                      {receptionData.customerPhone}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Số lượng mang đến:</span>
-                    <p className="font-bold text-[#E53E8A] text-sm">
-                      {receptionData.estimatedItemCount} món
-                    </p>
-                    <p className="text-[11px] text-gray-500 italic">
-                      "{receptionData.note || "Không có ghi chú"}"
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="font-bold text-gray-800 text-[11px] uppercase tracking-wider">
-                    Kiểm định tiêu chuẩn tại quầy:
-                  </p>
-                  <div className="space-y-1.5 rounded-xl border border-gray-100 p-3 bg-white">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="accent-pink-500"
-                      />
-                      <span>
-                        Độ mới đạt chuẩn $\ge 80\%$, không ố mốc, không sờn rách
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="accent-pink-500"
-                      />
-                      <span>
-                        Tem mác nguyên vẹn, phân hạng thương hiệu chuẩn xác
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="accent-pink-500"
-                      />
-                      <span>
-                        Khách đồng ý phương án hoa hồng và hoàn trả/quyên góp
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="rounded-xl bg-pink-50 p-3 text-pink-900 flex items-start gap-2">
-                  <AlertCircle
-                    size={16}
-                    className="text-[#E53E8A] shrink-0 mt-0.5"
-                  />
-                  <p className="text-[11px] leading-relaxed">
-                    Chức năng tạo hợp đồng và mã vạch chưa sẵn sàng.
-                  </p>
-                </div>
-              </>
             )}
           </div>
         </Modal>
