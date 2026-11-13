@@ -10,6 +10,7 @@ const links = [
   { to: '/catalog', label: 'Khám phá', end: false },
   { to: '/consign', label: 'Cách ký gửi', end: false },
   { to: '/appointments', label: 'Lịch hẹn', end: false },
+  { to: '/my-consignments', label: 'Theo dõi ký gửi', end: false },
 ];
 
 export function Navbar() {
@@ -17,7 +18,7 @@ export function Navbar() {
   const isCustomer = isAuthenticated && hasRole('Customer');
   const managementPath = isAuthenticated && (hasRole('Admin') || hasRole('Manager') || hasRole('Staff'))
     ? firstAllowedScreen(user?.permissions ?? []) : null;
-  const visibleLinks = links.filter(link => link.to !== '/appointments' || (isCustomer
+  const visibleLinks = links.filter(link => link.to === '/my-consignments' ? isCustomer : link.to !== '/appointments' || (isCustomer
     && (hasPermission('appointments.create') || hasPermission('appointments.own.read'))));
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -62,7 +63,7 @@ export function Navbar() {
       `}>
         <Link className="landing-logo text-[2rem] leading-none font-extrabold tracking-[-.09em] text-[#27242c] [&_span]:text-[#d988a5]" to="/" aria-label="OCS - Trang chủ" onClick={() => setMenuOpen(false)}>ocs<span>.</span></Link>
         <nav className={`
-          landing-nav flex items-center gap-[clamp(1.2rem,2.5vw,2.5rem)] max-[850px]:hidden [&_a]:text-[.78rem]
+          landing-nav flex items-center gap-[clamp(.9rem,1.6vw,1.8rem)] max-[1100px]:hidden [&_a]:whitespace-nowrap [&_a]:text-[.78rem]
           [&_a]:font-semibold [&_a]:text-[#514b54] [&_a:hover]:text-[#ae6580]
           [&_a[aria-current=page]]:text-[#ae6580]
         `} aria-label="Điều hướng chính">
@@ -106,11 +107,11 @@ export function Navbar() {
             hover:-translate-y-px hover:bg-button-pastel-hover landing-button--small !min-h-10 !px-4 !py-[.65rem]
             !text-[.73rem]
           `}>Tìm hiểu ký gửi <ArrowUpRight size={15} aria-hidden="true" /></Link>
-          <button type="button" className="landing-menu-toggle hidden size-[38px] cursor-pointer items-center justify-center rounded-lg border border-[#eee6e9] bg-white text-[#514b54] max-[850px]:inline-flex" aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={menuOpen} aria-controls="customer-mobile-menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
+          <button type="button" className="landing-menu-toggle hidden size-[38px] cursor-pointer items-center justify-center rounded-lg border border-[#eee6e9] bg-white text-[#514b54] max-[1100px]:inline-flex" aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={menuOpen} aria-controls="customer-mobile-menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
         </div>
       </div>
       {menuOpen && <nav id="customer-mobile-menu" className={`
-        landing-mobile-nav mx-auto hidden w-[min(calc(100%_-_2.5rem),1320px)] gap-[.2rem] pb-4 max-[850px]:grid
+        landing-mobile-nav mx-auto hidden w-[min(calc(100%_-_2.5rem),1320px)] gap-[.2rem] pb-4 max-[1100px]:grid
         [&_a]:px-[.3rem] [&_a]:py-[.7rem] [&_a]:text-[.85rem] [&_a]:font-semibold [&_a]:text-[#514b54]
         [&_a[aria-current=page]]:text-[#ae6580]
       `} aria-label="Điều hướng di động">

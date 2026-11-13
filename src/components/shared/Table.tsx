@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import { Button } from "./Button";
 import { EmptyState } from "./EmptyState";
 import { ErrorState } from "./ErrorState";
 import { SkeletonLoading } from "./Skeleton";
@@ -13,6 +14,14 @@ export interface TableColumn<T> {
   cellClassName?: string;
 }
 
+export function SelectedRowAccent() {
+  return <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-r bg-brand-pink" />;
+}
+
+export function TableDetailButton({ onClick }: { onClick: () => void }) {
+  return <Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); onClick(); }}>Chi tiết</Button>;
+}
+
 export interface TableProps<T> extends Omit<
   HTMLAttributes<HTMLDivElement>,
   "children"
@@ -25,6 +34,8 @@ export interface TableProps<T> extends Omit<
   disabled?: boolean;
   emptyTitle?: ReactNode;
   emptyMessage?: ReactNode;
+  onRowClick?: (row: T) => void;
+  selectedRowKey?: string | number | null;
 }
 
 export function Table<T>({
@@ -36,6 +47,8 @@ export function Table<T>({
   disabled = false,
   emptyTitle = "Không có dữ liệu",
   emptyMessage = "Chưa có mục nào để hiển thị.",
+  onRowClick,
+  selectedRowKey,
   className,
   ...props
 }: TableProps<T>) {
@@ -93,13 +106,24 @@ export function Table<T>({
                   : rowKey
                     ? String(row[rowKey])
                     : index;
+              const selected = selectedRowKey != null && String(key) === String(selectedRowKey);
 
               return (
                 <tr
                   key={key}
-                  className="transition-colors hover:bg-brand-pink-surface"
+                  tabIndex={onRowClick ? 0 : undefined}
+                  aria-selected={selected || undefined}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  onKeyDown={onRowClick ? (event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onRowClick(row);
+                    }
+                  } : undefined}
+                  className={joinClasses("transition-colors hover:bg-brand-pink-surface", onRowClick && "cursor-pointer focus-visible:outline-2 focus-visible:outline-brand-pink-focus", selected && "bg-brand-pink-surface")}
                 >
-                  {columns.map((column) => {
+                  {columns.map((column, columnIndex) => {
                     const value = column.accessor
                       ? row[column.accessor]
                       : undefined;
@@ -115,8 +139,10 @@ export function Table<T>({
                         className={joinClasses(
                           "px-4 py-3 text-ink",
                           column.cellClassName,
+                          selected && columnIndex === 0 && "relative",
                         )}
                       >
+                        {selected && columnIndex === 0 && <SelectedRowAccent />}
                         {renderedValue}
                       </td>
                     );
