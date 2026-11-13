@@ -6,7 +6,6 @@ import { ConsignmentDetailsModal } from '@/components/customer/ConsignmentDetail
 import { Badge, Button, Combobox, EmptyState, ErrorState, Input, PageHeaderCard, Pagination, SkeletonLoading, Table, TableDetailButton, type BadgeVariant, type TableColumn } from '@/components/shared';
 
 const CONTRACTS_PER_PAGE = 5;
-const REFRESH_INTERVAL_MS = 30_000;
 
 const contractStatuses: Record<string, [string, BadgeVariant]> = {
   Active: ['Đang hiệu lực', 'success'], Completed: ['Đã hoàn tất', 'info'], Cancelled: ['Đã hủy', 'danger'],
@@ -48,7 +47,7 @@ export function ConsignmentTrackingPage() {
     { key: 'endsAt', header: 'Hết hạn', render: item => date(item.endsAt), cellClassName: 'whitespace-nowrap' },
     { key: 'estimatedPayout', header: 'Dự kiến nhận', render: item => <strong className="whitespace-nowrap text-brand-highlight">{money(item.estimatedPayout)}</strong> },
     { key: 'settledAmount', header: 'Đã quyết toán', render: item => <strong className="whitespace-nowrap text-state-success-strong">{money(item.settledAmount)}</strong> },
-    { key: 'action', header: 'Thao tác', render: item => <TableDetailButton onClick={() => openContract(item.contractId)} /> },
+    { key: 'action', header: 'Chi tiết', render: item => <TableDetailButton onClick={() => openContract(item.contractId)} /> },
   ];
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -57,33 +56,6 @@ export function ConsignmentTrackingPage() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    if (loading || error !== null) return;
-    let active = true;
-    let inFlight = false;
-    const refresh = async () => {
-      if (!active || inFlight || document.visibilityState !== 'visible') return;
-      inFlight = true;
-      try {
-        const latestItems = await getMyConsignments();
-        if (active) setItems(current => JSON.stringify(current) === JSON.stringify(latestItems) ? current : latestItems);
-      } catch {
-        // Giữ dữ liệu đang hiển thị; nút Làm mới cho phép thử lại khi cần.
-      } finally {
-        inFlight = false;
-      }
-    };
-    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
-    const timer = window.setInterval(() => { void refresh(); }, REFRESH_INTERVAL_MS);
-    window.addEventListener('focus', refreshWhenVisible);
-    document.addEventListener('visibilitychange', refreshWhenVisible);
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-      window.removeEventListener('focus', refreshWhenVisible);
-      document.removeEventListener('visibilitychange', refreshWhenVisible);
-    };
-  }, [loading, error]);
   return <div className="landing-container mx-auto w-[min(calc(100%_-_5rem),1320px)] py-8 max-[850px]:w-[min(calc(100%_-_2.5rem),1320px)] sm:py-12">
     <h1 className="sr-only">Theo dõi ký gửi</h1>
     <div className="mb-6 [&_h2]:!mt-0 [&_h2]:!text-lg [&_h2]:!leading-normal [&_h2]:!tracking-normal">
@@ -109,7 +81,7 @@ export function ConsignmentTrackingPage() {
           <div className="mt-4 max-w-xs"><Combobox label="Trạng thái hợp đồng" value={status} onChange={value => { setStatus(value); setPage(1); }} options={[{ value: 'all', label: 'Tất cả trạng thái' }, { value: 'Active', label: 'Đang hiệu lực' }, { value: 'Completed', label: 'Đã hoàn tất' }, { value: 'Cancelled', label: 'Đã hủy' }]} /></div>
           {hasFilters && <button type="button" onClick={() => { setQuery(''); setSearchInput(''); setStatus('all'); setPage(1); }} className="mt-3 inline-flex min-h-9 items-center gap-1.5 text-sm font-semibold text-brand-highlight hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight"><RotateCcw size={14} aria-hidden="true" /> Xóa bộ lọc</button>}
         </div>
-        {filteredItems.length === 0 ? <div className="p-5"><EmptyState title="Không tìm thấy đợt ký gửi" description="Thử từ khóa khác hoặc xóa bộ lọc." /></div> : <><p className="px-4 py-2 text-right text-xs text-muted sm:hidden">Vuốt ngang để xem bảng</p><Table className="rounded-none border-0 !bg-white [&_thead]:!bg-surface-dashboard/70 [&_thead]:!text-text-secondary" columns={columns} data={visibleItems} rowKey="contractId" selectedRowKey={selectedContractId} onRowClick={item => setSelectedContractId(item.contractId)} />{totalPages > 1 && <div className="border-t border-border px-4 py-4"><Pagination page={page} totalPages={totalPages} onPageChange={setPage} aria-label="Phân trang đợt ký gửi" /></div>}</>}
+        {filteredItems.length === 0 ? <div className="p-5"><EmptyState title="Không tìm thấy đợt ký gửi" description="Thử từ khóa khác hoặc xóa bộ lọc." /></div> : <><div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm text-text-secondary sm:px-6"><p><strong className="tabular-nums text-brand-ink">{filteredItems.length}</strong> đợt ký gửi{hasFilters ? ' phù hợp' : ''}</p><p className="text-xs text-muted sm:hidden">Vuốt ngang để xem bảng</p></div><Table className="rounded-none border-0 !bg-white [&_thead]:!bg-surface-dashboard/70 [&_thead]:!text-text-secondary" columns={columns} data={visibleItems} rowKey="contractId" selectedRowKey={selectedContractId} onRowClick={item => setSelectedContractId(item.contractId)} />{totalPages > 1 && <div className="border-t border-border px-4 py-4"><Pagination page={page} totalPages={totalPages} onPageChange={setPage} aria-label="Phân trang đợt ký gửi" /></div>}</>}
       </section>
     </>}
     {selectedItem && <ConsignmentDetailsModal key={selectedItem.contractId} item={selectedItem} onClose={() => setDetailsOpen(false)} />}
