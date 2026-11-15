@@ -4,8 +4,8 @@ import ShopNavBar from '@/components/layout/shop/ShopNavBar';
 import { useAuth } from '@/context/AuthContext';
 import { screenOrder, screenPermissions, screenRequirements, type ShopNavId } from '@/auth/permissions';
 
-export function ContractPageLayout({ title, description, backTo, backLabel = 'Quay lại', wide = false, children }: {
-  title: string; description?: string; backTo?: string; backLabel?: string; wide?: boolean; children: ReactNode;
+export function ContractPageLayout({ title, description, backTo, backLabel = 'Quay lại', wide = false, activeItem = 'consignment', children }: {
+  title: string; description?: string; backTo?: string; backLabel?: string; wide?: boolean; activeItem?: ShopNavId; children: ReactNode;
 }) {
   const { user, logout, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
@@ -16,7 +16,7 @@ export function ContractPageLayout({ title, description, backTo, backLabel = 'Qu
   const [logoutError, setLogoutError] = useState(false);
   const canOpen = (id: ShopNavId) => hasPermission(screenPermissions[id]) && (!screenRequirements[id] || hasPermission(screenRequirements[id]));
   return <div className="flex min-h-screen flex-col gap-4 bg-surface-dashboard px-3 pb-12 pt-[11px] lg:flex-row lg:items-start">
-    <ShopNavBar activeItem="consignment" showAccounts={canOpen('accounts')} allowedItems={screenOrder.filter(canOpen)}
+    <ShopNavBar activeItem={activeItem} showAccounts={canOpen('accounts')} allowedItems={screenOrder.filter(canOpen)}
       showContractManagement={canManage} contractsActive={isManagement} onContracts={() => navigate('/shop/contracts')}
       profileName={user?.fullName || user?.email || 'Nhân viên'} onNavigate={item => navigate(item.href)}
       onProfileClick={() => navigate('/profile')} onHome={() => navigate('/')} loggingOut={loggingOut}

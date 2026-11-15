@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, ErrorState, Input, Modal, SkeletonLoading } from '@/components/shared';
 import { barcodeApi, type BarcodeLabelTemplate } from '@/api/barcode';
 import { useAuth } from '@/context/AuthContext';

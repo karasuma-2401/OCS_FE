@@ -22,6 +22,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { ContractIntakePage } from './pages/ContractIntakePage';
 import { ContractListPage, ContractPdfPage } from './pages/ContractDocumentsPage';
 import { ContractTemplatePage } from './pages/ContractTemplatePage';
+import { BarcodePrintPage } from './pages/BarcodePrintPage';
 import { SkeletonLoading } from './components/shared';
 
 const ProductRailPreviewPage = React.lazy(() => import('./pages/ProductRailPreviewPage'));
@@ -78,6 +79,8 @@ export default function App() {
       <Route path="/shop/contracts/template" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ContractTemplatePage /></ProtectedRoute>} />
       <Route path="/shop/contracts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ContractListPage /></ProtectedRoute>} />
       <Route path="/shop/contracts/:id" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><ContractPdfPage /></ProtectedRoute>} />
+      <Route path="/shop/inventory/barcode" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><BarcodePrintPage /></ProtectedRoute>} />
+      <Route path="/shop/products/barcode" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><BarcodePrintPage /></ProtectedRoute>} />
       <Route path="/admin/accounts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ShopDashboardPage initialTab="accounts" /></ProtectedRoute>} />
       <Route path="/shop/accounts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ShopDashboardPage initialTab="accounts" /></ProtectedRoute>} />
       <Route

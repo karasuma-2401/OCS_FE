@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Card, ErrorState, Input, SkeletonLoading } from '@/components/shared';
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
 import { getManagedTemplate, saveManagedTemplate, type ContractTemplate } from '@/api/contracts';
