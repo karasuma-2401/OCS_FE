@@ -67,16 +67,15 @@ export function ContractListPage() {
 
   return (
     <ContractPageLayout
-      wide
       title="Quản lý hợp đồng"
       description="Tra cứu hợp đồng đã lập và quản lý mẫu hợp đồng của cửa hàng."
-      icon={<FileText size={24} aria-hidden="true" />}
+      icon={<FileText size={22} aria-hidden="true" />}
       headerActions={
         <Link
           to="/shop/contracts/template"
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-brand-lavender bg-paper px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light focus-visible:outline-2 focus-visible:outline-brand-pink-focus transition"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-brand-lavender bg-white px-3.5 py-2 text-xs font-bold text-brand-ink hover:bg-brand-pink-surface hover:border-brand-highlight focus-visible:outline-2 focus-visible:outline-brand-pink-focus transition whitespace-nowrap shrink-0"
         >
-          <FileCog size={16} aria-hidden="true" />
+          <FileCog size={15} aria-hidden="true" />
           Quản lý mẫu hợp đồng
         </Link>
       }
@@ -85,14 +84,14 @@ export function ContractListPage() {
         title="Danh sách hợp đồng"
         description={items.length > 0 ? 'Danh sách các hợp đồng dịch vụ ký gửi đã lập tại cửa hàng.' : 'Hiện chưa có hợp đồng nào trong danh sách.'}
       >
-        <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Input
             id="contract-search"
             label="Tìm kiếm hợp đồng"
             placeholder="Mã hợp đồng, tên khách..."
             value={query}
             onChange={e => { setQuery(e.target.value); setPage(1); }}
-            startAdornment={<Search size={16} className="text-text-muted" />}
+            startAdornment={<Search size={15} className="text-text-muted shrink-0" />}
           />
           <Combobox
             label="Trạng thái hợp đồng"
@@ -118,12 +117,12 @@ export function ContractListPage() {
         </div>
 
         {hasFilter && (
-          <div className="mb-4 flex items-center justify-between rounded-xl bg-surface-dashboard/70 px-4 py-2.5 text-xs">
+          <div className="mb-4 flex items-center justify-between rounded-xl bg-surface-dashboard/70 px-4 py-2 text-xs">
             <span className="font-medium text-text-secondary">Đang áp dụng bộ lọc</span>
             <button
               type="button"
               onClick={handleResetFilters}
-              className="inline-flex items-center gap-1 font-bold text-brand-highlight hover:underline"
+              className="inline-flex items-center gap-1 font-bold text-brand-highlight hover:underline whitespace-nowrap"
             >
               <RotateCcw size={13} /> Đặt lại bộ lọc
             </button>
@@ -145,7 +144,7 @@ export function ContractListPage() {
             }
             action={
               hasFilter ? (
-                <Button variant="outline" size="sm" onClick={handleResetFilters}>
+                <Button variant="outline" size="sm" onClick={handleResetFilters} className="whitespace-nowrap shrink-0">
                   Đặt lại bộ lọc
                 </Button>
               ) : undefined
@@ -154,32 +153,32 @@ export function ContractListPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[620px] text-left text-sm">
-              <thead className="bg-brand-pink-surface text-xs uppercase tracking-wide text-muted">
+              <thead className="bg-surface-dashboard/70 text-xs font-semibold text-text-secondary">
                 <tr>
-                  <th className="px-4 py-3">Mã hợp đồng</th>
-                  <th className="px-4 py-3">Khách hàng</th>
-                  <th className="px-4 py-3">Ngày ký</th>
-                  <th className="px-4 py-3">Trạng thái</th>
-                  <th className="px-4 py-3">Thao tác</th>
+                  <th scope="col" className="w-44 px-4 py-3 font-semibold">Mã hợp đồng</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Khách hàng</th>
+                  <th scope="col" className="w-44 px-4 py-3 font-semibold whitespace-nowrap">Ngày ký</th>
+                  <th scope="col" className="w-32 px-4 py-3 text-center font-semibold whitespace-nowrap">Trạng thái</th>
+                  <th scope="col" className="w-36 px-4 py-3 text-right font-semibold whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border/60">
                 {items.map(item => (
-                  <tr key={item.id} className="hover:bg-brand-pink-surface/40">
-                    <td className="break-all px-4 py-4 font-bold text-ink">{item.contractNumber}</td>
-                    <td className="px-4 py-4">{item.customerName || 'Chưa có thông tin khách'}</td>
-                    <td className="px-4 py-4">{new Date(item.signedAt).toLocaleString('vi-VN')}</td>
-                    <td className="px-4 py-4">
-                      <Badge variant={statusVariants[item.status || 'Active'] || 'neutral'}>
+                  <tr key={item.id} className="border-t border-border/60 hover:bg-surface-active transition-colors">
+                    <td className="break-all px-4 py-3.5 font-bold font-mono text-xs text-text-primary">{item.contractNumber}</td>
+                    <td className="px-4 py-3.5 text-text-primary">{item.customerName || 'Chưa có thông tin khách'}</td>
+                    <td className="px-4 py-3.5 text-text-secondary whitespace-nowrap text-xs">{new Date(item.signedAt).toLocaleString('vi-VN')}</td>
+                    <td className="px-4 py-3.5 text-center">
+                      <Badge variant={statusVariants[item.status || 'Active'] || 'neutral'} className="whitespace-nowrap">
                         {statusLabels[item.status || 'Active'] || item.status || 'Đang hiệu lực'}
                       </Badge>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-3.5 text-right">
                       <Link
-                        className="inline-flex items-center gap-1.5 font-semibold text-brand-highlight hover:underline"
+                        className="inline-flex items-center gap-1 font-semibold text-brand-highlight hover:underline whitespace-nowrap shrink-0 text-xs"
                         to={`/shop/contracts/${item.id}`}
                       >
-                        <FileText size={15} /> Xem & In hợp đồng
+                        <FileText size={14} className="shrink-0" /> Xem & In hợp đồng
                       </Link>
                     </td>
                   </tr>
@@ -188,12 +187,12 @@ export function ContractListPage() {
             </table>
           </div>
         )}
-        <div className="mt-5 flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
-          <Button variant="outline" size="sm" disabled={page === 1 || loading} onClick={() => setPage(page - 1)}>
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-border/60 pt-3">
+          <Button variant="outline" size="sm" disabled={page === 1 || loading} onClick={() => setPage(page - 1)} className="whitespace-nowrap shrink-0">
             Trang trước
           </Button>
-          <span className="text-sm text-muted">Trang {page}</span>
-          <Button variant="outline" size="sm" disabled={items.length < 20 || loading} onClick={() => setPage(page + 1)}>
+          <span className="text-xs text-text-muted whitespace-nowrap">Trang {page}</span>
+          <Button variant="outline" size="sm" disabled={items.length < 20 || loading} onClick={() => setPage(page + 1)} className="whitespace-nowrap shrink-0">
             Trang sau
           </Button>
         </div>

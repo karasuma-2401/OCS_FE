@@ -41,7 +41,7 @@ export function ContractPageLayout({
       profileName={user?.fullName || user?.email || 'Nhân viên'} onNavigate={item => navigate(item.href)}
       onProfileClick={() => navigate('/profile')} onHome={() => navigate('/')} loggingOut={loggingOut}
       onLogout={async () => { setLoggingOut(true); setLogoutError(false); try { await logout(); navigate('/'); } catch { setLogoutError(true); } finally { setLoggingOut(false); } }} />
-    <main className={`mx-auto w-full min-w-0 flex-1 px-3 py-4 text-text-primary sm:px-6 sm:py-6 ${wide ? 'max-w-none' : 'max-w-7xl'}`}>
+    <main className={`mx-auto w-full max-w-7xl min-w-0 flex-1 p-6 text-text-primary ${wide ? '!max-w-none' : ''}`}>
       {backTo && (
         <div className="mb-4">
           <Link to={backTo} className="inline-flex items-center gap-1 text-sm font-semibold text-brand-highlight hover:underline">
