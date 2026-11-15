@@ -1483,6 +1483,9 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
           contract={createdContract}
           items={items}
           commissionShop={commissionShop}
+          customerDetails={{
+            email: customerEmail || undefined,
+          }}
         />
       )}
 

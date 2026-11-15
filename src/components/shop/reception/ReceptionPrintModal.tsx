@@ -27,6 +27,14 @@ interface ReceptionPrintModalProps {
   contract: ReceptionContractResult | null;
   items?: ConsignmentItemRow[];
   commissionShop?: number;
+  customerDetails?: {
+    email?: string;
+    identity?: string;
+    address?: string;
+    bankCode?: string;
+    bankAccount?: string;
+    bankHolder?: string;
+  };
   storeInfo?: StoreContactInfo;
 }
 
@@ -36,9 +44,12 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
   contract,
   items = [],
   commissionShop = 20,
+  customerDetails,
   storeInfo = DEFAULT_STORE_CONTACT,
 }) => {
   if (!open || !contract) return null;
+
+  const isBuyout = contract.intakeType === 'Buyout';
 
   const formatVND = (num: number) =>
     new Intl.NumberFormat('vi-VN').format(num) + 'đ';
@@ -46,6 +57,7 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
   const formatDate = (iso: string) => {
     try {
       const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
       return d.toLocaleDateString('vi-VN', {
         day: '2-digit',
         month: '2-digit',
@@ -96,10 +108,11 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
         @media print {
           @page {
             size: A4 portrait;
-            margin: 12mm 15mm 15mm 15mm;
+            margin: 12mm;
           }
           body {
             background: white !important;
+            color: black !important;
           }
           body * {
             visibility: hidden !important;
@@ -120,6 +133,14 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
             box-shadow: none !important;
             overflow: visible !important;
           }
+          #reception-printable-sheet tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          #reception-printable-sheet .signature-block {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
         }
       `}</style>
 
@@ -127,7 +148,7 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 print:hidden shrink-0">
           <div className="flex items-center gap-2 text-sm font-extrabold text-gray-900">
             <CheckCircle className="text-emerald-600" size={18} />
-            <span>Đã tạo phiếu tiếp nhận thành công</span>
+            <span>{isBuyout ? 'Đã tạo phiếu thu mua đứt thành công' : 'Đã tạo phiếu tiếp nhận ký gửi thành công'}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -137,7 +158,7 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
               style={{ color: '#FFFFFF' }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 !text-white font-bold text-xs shadow-sm transition active:scale-95"
             >
-              <Printer size={15} /> In Phiếu Tiếp Nhận (Khổ A4)
+              <Printer size={15} /> {isBuyout ? 'In Phiếu Thu Mua (Khổ A4)' : 'In Phiếu Tiếp Nhận (Khổ A4)'}
             </button>
 
             <button
@@ -182,10 +203,15 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
 
           <div className="text-center space-y-1">
             <h2 className="text-base sm:text-lg font-black text-gray-900 uppercase tracking-wide">
-              {contract.intakeType === 'Buyout'
-                ? 'Biên Bản Thu Mua Đứt Hàng Hóa'
-                : 'Biên Bản Tiếp Nhận & Hợp Đồng Ký Gửi'}
+              {isBuyout
+                ? 'Phiếu Tiếp Nhận Thu Mua Đứt'
+                : 'Phiếu Tiếp Nhận Ký Gửi Thời Trang'}
             </h2>
+            <p className="text-[11px] font-semibold text-gray-600">
+              {isBuyout
+                ? 'BIÊN BẢN THU MUA ĐỨT HÀNG HÓA'
+                : 'BIÊN BẢN TIẾP NHẬN & HỢP ĐỒNG KÝ GỬI'}
+            </p>
             <p className="text-[11px] text-gray-500 italic">
               (Bản lưu đối chiếu giữa Cửa hàng và Khách hàng)
             </p>
@@ -208,38 +234,92 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
               <div>
                 <span className="font-bold text-gray-600">Hình thức:</span>{' '}
                 <span className="font-bold text-gray-900">
-                  {contract.intakeType === 'Buyout'
+                  {isBuyout
                     ? 'Thu mua đứt (Vốn shop)'
                     : 'Hàng ký gửi hoa hồng'}
                 </span>
               </div>
+              {customerDetails?.identity && (
+                <div>
+                  <span className="font-bold text-gray-600">CCCD/Giấy tờ:</span>{' '}
+                  <span className="text-gray-900">{customerDetails.identity}</span>
+                </div>
+              )}
+              {customerDetails?.email && (
+                <div>
+                  <span className="font-bold text-gray-600">Email:</span>{' '}
+                  <span className="text-gray-900">{customerDetails.email}</span>
+                </div>
+              )}
+              {customerDetails?.address && (
+                <div>
+                  <span className="font-bold text-gray-600">Địa chỉ:</span>{' '}
+                  <span className="text-gray-900">{customerDetails.address}</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">
-              <div>
-                <span className="font-bold text-gray-600">Thời hạn đợt:</span>{' '}
-                <span className="font-bold text-gray-900">
-                  Đến ngày {formatDate(contract.endsAt)}
-                </span>
-              </div>
-              <div>
-                <span className="font-bold text-gray-600">Quy tắc hoa hồng:</span>{' '}
-                <span className="font-bold text-gray-900">
-                  Theo phân hạng thương hiệu & tỷ lệ chốt
-                </span>
-              </div>
-              <div>
-                <span className="font-bold text-gray-600">Xử lý hết hạn:</span>{' '}
-                <span className="font-bold text-gray-900">
-                  {contract.expiryHandling === 'Donate' ? 'Quyên góp từ thiện' : 'Trả lại khách'}
-                </span>
-              </div>
+              {isBuyout ? (
+                <>
+                  <div>
+                    <span className="font-bold text-gray-600">Phương thức:</span>{' '}
+                    <span className="font-bold text-gray-900">
+                      Thanh toán dứt điểm khi nhận hàng
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-gray-600">Tình trạng kiểm định:</span>{' '}
+                    <span className="font-bold text-gray-900">
+                      Đã kiểm định & chốt giá thu mua
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-gray-600">Tổng số lượng:</span>{' '}
+                    <span className="font-bold text-gray-900">
+                      {contract.totalApprovedItems} sản phẩm
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <span className="font-bold text-gray-600">Thời hạn đợt:</span>{' '}
+                    <span className="font-bold text-gray-900">
+                      Đến ngày {formatDate(contract.endsAt)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-gray-600">Quy tắc hoa hồng:</span>{' '}
+                    <span className="font-bold text-gray-900">
+                      Theo phân hạng thương hiệu & tỷ lệ chốt
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-gray-600">Xử lý hết hạn:</span>{' '}
+                    <span className="font-bold text-gray-900">
+                      {contract.expiryHandling === 'Donate' ? 'Quyên góp từ thiện' : 'Trả lại khách'}
+                    </span>
+                  </div>
+                </>
+              )}
+              {customerDetails?.bankAccount && (
+                <div>
+                  <span className="font-bold text-gray-600">Tài khoản nhận tiền:</span>{' '}
+                  <span className="font-semibold text-gray-900">
+                    {customerDetails.bankCode ? `${customerDetails.bankCode} - ` : ''}{customerDetails.bankAccount}
+                    {customerDetails.bankHolder ? ` (${customerDetails.bankHolder})` : ''}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="space-y-2">
             <h3 className="font-extrabold text-gray-900 text-xs uppercase tracking-wider">
-              Danh mục sản phẩm tiếp nhận ({contract.totalApprovedItems} món)
+              {isBuyout
+                ? `Danh mục sản phẩm thu mua đứt (${contract.totalApprovedItems} món)`
+                : `Danh mục sản phẩm tiếp nhận ký gửi (${contract.totalApprovedItems} món)`}
             </h3>
 
             <div className="rounded-xl border border-gray-300 overflow-hidden">
@@ -250,8 +330,9 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
                     <th className="py-2.5 px-3">TÊN SẢN PHẨM & MÔ TẢ</th>
                     <th className="py-2.5 px-3">PHÂN LOẠI</th>
                     <th className="py-2.5 px-3">ĐỘ MỚI</th>
-                    <th className="py-2.5 px-3 text-right">GIÁ NIÊM YẾT</th>
-                    <th className="py-2.5 pr-3 text-right">KHÁCH NHẬN</th>
+                    {!isBuyout && <th className="py-2.5 px-3 text-right">HOA HỒNG</th>}
+                    <th className="py-2.5 px-3 text-right">{isBuyout ? 'GIÁ BÁN DỰ KIẾN' : 'GIÁ NIÊM YẾT'}</th>
+                    <th className="py-2.5 pr-3 text-right">{isBuyout ? 'GIÁ THU MUA' : 'KHÁCH NHẬN'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -272,6 +353,11 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
                       </td>
                       <td className="py-2 px-3 text-gray-700">{item.category}</td>
                       <td className="py-2 px-3 text-gray-700">{item.condition}</td>
+                      {!isBuyout && (
+                        <td className="py-2 px-3 text-right font-semibold text-gray-700">
+                          {item.commissionRate}%
+                        </td>
+                      )}
                       <td className="py-2 px-3 text-right font-bold text-gray-900">
                         {formatVND(item.listedPrice)}
                       </td>
@@ -283,7 +369,7 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50 font-extrabold text-gray-900 border-t border-gray-300 text-xs">
-                    <td colSpan={4} className="py-2.5 pl-3 uppercase">
+                    <td colSpan={isBuyout ? 4 : 5} className="py-2.5 pl-3 uppercase">
                       Tổng Cộng ({contract.totalApprovedItems} món đạt chuẩn)
                     </td>
                     <td className="py-2.5 px-3 text-right font-black">
@@ -301,20 +387,36 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
           <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-3.5 space-y-1 text-[11px] text-gray-600 leading-relaxed">
             <div className="flex items-center gap-1 font-bold text-gray-800 text-[11px]">
               <ShieldCheck size={14} className="text-pink-600" />
-              <span>Quy định & Cam kết ký gửi:</span>
+              <span>{isBuyout ? 'Quy định & Cam kết thu mua đứt:' : 'Quy định & Cam kết ký gửi:'}</span>
             </div>
-            <p>
-              1. Khách hàng cam kết toàn bộ sản phẩm ký gửi có nguồn gốc xuất xứ rõ ràng, chính hãng và đúng như tiếp nhận tại quầy.
-            </p>
-            <p>
-              2. Tiền bán hàng sẽ được tất toán cho chủ hàng định kỳ hoặc ngay sau khi món đồ được bán thành công.
-            </p>
-            <p>
-              3. Khi hết hạn đợt nếu không có gia hạn, sản phẩm sẽ được xử lý theo phương án đã thỏa thuận ({contract.expiryHandling === 'Donate' ? 'Quyên góp' : 'Trả lại khách'}).
-            </p>
+            {isBuyout ? (
+              <>
+                <p>
+                  1. Khách hàng cam kết toàn bộ sản phẩm bán đứt thuộc quyền sở hữu hợp pháp của mình, là hàng chính hãng và đúng tình trạng đã kiểm định tại quầy.
+                </p>
+                <p>
+                  2. Cửa hàng thanh toán dứt điểm số tiền thu mua cho khách hàng. Sản phẩm sau khi thu mua thuộc toàn quyền sở hữu và định đoạt của cửa hàng.
+                </p>
+                <p>
+                  3. Giao dịch thu mua đứt là dứt điểm, hai bên đã kiểm tra và đồng ý với mức giá thu mua, không áp dụng đổi trả hay khiếu nại sau khi ký nhận.
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  1. Khách hàng cam kết toàn bộ sản phẩm ký gửi có nguồn gốc xuất xứ rõ ràng, chính hãng và đúng như tiếp nhận tại quầy.
+                </p>
+                <p>
+                  2. Tiền bán hàng sẽ được tất toán cho chủ hàng định kỳ hoặc ngay sau khi món đồ được bán thành công theo thông tin tài khoản đã đăng ký.
+                </p>
+                <p>
+                  3. Khi hết hạn đợt nếu không có gia hạn, sản phẩm sẽ được xử lý theo phương án đã thỏa thuận ({contract.expiryHandling === 'Donate' ? 'Quyên góp từ thiện' : 'Trả lại khách'}).
+                </p>
+              </>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-8 pt-6 pb-4 text-center text-xs">
+          <div className="signature-block grid grid-cols-2 gap-8 pt-6 pb-4 text-center text-xs">
             <div className="space-y-16">
               <div>
                 <p className="font-extrabold text-gray-900 uppercase">
@@ -332,7 +434,7 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
             <div className="space-y-16">
               <div>
                 <p className="font-extrabold text-gray-900 uppercase">
-                  Chủ Hàng Ký Gửi
+                  {isBuyout ? 'Khách Hàng / Người Bán' : 'Chủ Hàng Ký Gửi'}
                 </p>
                 <p className="text-[11px] text-gray-500 italic">
                   (Ký và ghi rõ họ tên)
