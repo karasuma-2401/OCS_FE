@@ -564,15 +564,13 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
     setPreviewLoading(true);
     try {
       const template = intakeType === 'consignment'
-        ? await consignmentApi.getReceptionTemplate().catch(() => DEFAULT_RECEPTION_TEMPLATE)
+        ? await consignmentApi.getReceptionTemplate()
         : null;
       setReceptionTemplate(template || DEFAULT_RECEPTION_TEMPLATE);
       setSignature(null);
       setPreviewOpen(true);
     } catch {
-      setReceptionTemplate(DEFAULT_RECEPTION_TEMPLATE);
-      setSignature(null);
-      setPreviewOpen(true);
+      setApiError('Không thể tải mẫu hợp đồng hiện hành. Vui lòng thử lại trước khi ký.');
     } finally {
       setPreviewLoading(false);
     }

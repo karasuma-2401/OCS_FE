@@ -102,17 +102,7 @@ export function ContractIntakePage() {
           loadContractPart('danh mục sản phẩm', getContractOptions()),
           appointmentId ? loadContractPart('lịch hẹn', appointmentApi.getById(appointmentId)) : Promise.resolve(null),
           loadContractPart('hồ sơ nhân viên', getContractEmployee()),
-          loadContractPart('mẫu hợp đồng', getIntakeTemplate().catch(() => ({
-            title: 'HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG',
-            organizationName: 'Cửa hàng Old Clothes Store (OCS)',
-            headerText: 'Chuỗi Cửa Hàng & Ký Gửi Thời Trang Tuyển Chọn',
-            footerText: 'Hợp đồng này được lập thành 02 bản có giá trị pháp lý như nhau.',
-            defaultTerms: '1. Bên A nhận giữ và bán hộ hàng hóa theo giá niêm yết đã thỏa thuận.\n2. Phí dịch vụ (hoa hồng) được trừ trực tiếp khi sản phẩm bán thành công.',
-            version: '00000000-0000-0000-0000-000000000000',
-            updatedAt: null,
-            pdfBase64: null,
-            fieldMappings: []
-          }))),
+          loadContractPart('mẫu hợp đồng', getIntakeTemplate()),
         ]);
         const existing = selectedAppointment ? await loadContractPart('hồ sơ khách hàng', getContractCustomer(selectedAppointment.customerId)) : null;
         if (alive) { setOptions(catalog); setAppointment(selectedAppointment); setCustomer(existing); setSavedCustomer(existing); setEmployee(currentEmployee); setTemplate(currentTemplate); }
