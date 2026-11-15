@@ -166,7 +166,7 @@ export function ContractListPage() {
                 {items.map(item => (
                   <tr key={item.id} className="border-t border-border/60 hover:bg-surface-active transition-colors">
                     <td className="break-all px-4 py-3.5 font-bold font-mono text-xs text-text-primary">{item.contractNumber}</td>
-                    <td className="px-4 py-3.5 text-text-primary">{item.customerName || 'Khách hàng'}</td>
+                    <td className="px-4 py-3.5 text-text-primary">{item.customerName || (item as any).CustomerName || (item as any).customerNameSnapshot || (item as any).CustomerNameSnapshot || 'Khách hàng'}</td>
                     <td className="px-4 py-3.5 text-text-secondary whitespace-nowrap text-xs">{new Date(item.signedAt).toLocaleString('vi-VN')}</td>
                     <td className="px-4 py-3.5 text-center">
                       <Badge variant={statusVariants[item.status || 'Active'] || 'neutral'} className="whitespace-nowrap">

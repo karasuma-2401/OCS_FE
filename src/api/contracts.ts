@@ -127,23 +127,23 @@ export async function getContractDetail(id: string): Promise<ContractDetail> {
       endsAt: raw.endsAt || raw.EndsAt || new Date().toISOString(),
       expiryHandling: raw.expiryHandling || raw.ExpiryHandling || 'Return',
       status: raw.status || raw.Status || 'Active',
-      customerName: raw.customerName || raw.CustomerName || '',
-      customerPhone: raw.customerPhone || raw.CustomerPhone || '',
-      customerEmail: raw.customerEmail || raw.CustomerEmail || null,
-      customerIdentity: raw.customerIdentity || raw.CustomerIdentity || null,
-      customerAddress: raw.customerAddress || raw.CustomerAddress || null,
+      customerName: raw.customerName || raw.CustomerName || raw.customerNameSnapshot || raw.CustomerNameSnapshot || '',
+      customerPhone: raw.customerPhone || raw.CustomerPhone || raw.customerPhoneSnapshot || raw.CustomerPhoneSnapshot || '',
+      customerEmail: raw.customerEmail || raw.CustomerEmail || raw.customerEmailSnapshot || raw.CustomerEmailSnapshot || null,
+      customerIdentity: raw.customerIdentity || raw.CustomerIdentity || raw.customerIdentitySnapshot || raw.CustomerIdentitySnapshot || null,
+      customerAddress: raw.customerAddress || raw.CustomerAddress || raw.customerAddressSnapshot || raw.CustomerAddressSnapshot || null,
       bankCode: raw.bankCode || raw.BankCode || raw.bankCodeSnapshot || raw.BankCodeSnapshot || null,
       bankAccountNumber: raw.bankAccountNumber || raw.BankAccountNumber || raw.bankAccountNumberSnapshot || raw.BankAccountNumberSnapshot || null,
       bankAccountHolderName: raw.bankAccountHolderName || raw.BankAccountHolderName || raw.bankAccountHolderSnapshot || raw.BankAccountHolderSnapshot || null,
-      employeeName: raw.employeeName || raw.EmployeeName || 'Nhân viên tiếp nhận',
-      employeeTitle: raw.employeeTitle || raw.EmployeeTitle || null,
-      employeePhone: raw.employeePhone || raw.EmployeePhone || null,
-      terms: raw.terms || raw.Terms || raw.template?.defaultTerms || raw.Template?.DefaultTerms || null,
+      employeeName: raw.employeeName || raw.EmployeeName || raw.employeeNameSnapshot || raw.EmployeeNameSnapshot || 'Nhân viên tiếp nhận',
+      employeeTitle: raw.employeeTitle || raw.EmployeeTitle || raw.employeeTitleSnapshot || raw.EmployeeTitleSnapshot || null,
+      employeePhone: raw.employeePhone || raw.EmployeePhone || raw.employeePhoneSnapshot || raw.EmployeePhoneSnapshot || null,
+      terms: raw.terms || raw.Terms || raw.termsSnapshot || raw.TermsSnapshot || raw.template?.defaultTerms || raw.Template?.DefaultTerms || null,
       customerSignatureDataUrl: sigDataUrl,
-      title: raw.title || raw.Title || raw.template?.title || raw.Template?.Title || null,
-      organizationName: raw.organizationName || raw.OrganizationName || raw.template?.organizationName || raw.Template?.OrganizationName || null,
-      headerText: raw.headerText || raw.HeaderText || raw.template?.headerText || raw.Template?.HeaderText || null,
-      footerText: raw.footerText || raw.FooterText || raw.template?.footerText || raw.Template?.FooterText || null,
+      title: raw.title || raw.Title || raw.templateTitleSnapshot || raw.TemplateTitleSnapshot || raw.template?.title || raw.Template?.Title || null,
+      organizationName: raw.organizationName || raw.OrganizationName || raw.organizationNameSnapshot || raw.OrganizationNameSnapshot || raw.template?.organizationName || raw.Template?.OrganizationName || null,
+      headerText: raw.headerText || raw.HeaderText || raw.headerTextSnapshot || raw.HeaderTextSnapshot || raw.template?.headerText || raw.Template?.HeaderText || null,
+      footerText: raw.footerText || raw.FooterText || raw.footerTextSnapshot || raw.FooterTextSnapshot || raw.template?.footerText || raw.Template?.FooterText || null,
       products: Array.isArray(productsRaw) ? productsRaw.map((p: any) => ({
         id: p.id || p.Id || '',
         name: p.name || p.Name || '',
@@ -183,8 +183,16 @@ export interface ContractFilterParams {
 
 export async function listContracts(params: number | ContractFilterParams = 1): Promise<ContractListItem[]> {
   const queryParams = typeof params === 'number' ? { page: params } : params;
-  const response = await apiClient.get<ContractListItem[]>('/contracts', { params: queryParams });
-  return response.data;
+  const response = await apiClient.get<any[]>('/contracts', { params: queryParams });
+  const rawList = Array.isArray(response.data) ? response.data : [];
+  return rawList.map((x: any) => ({
+    id: x.id || x.Id,
+    contractNumber: x.contractNumber || x.ContractNumber,
+    customerName: x.customerName || x.CustomerName || x.customerNameSnapshot || x.CustomerNameSnapshot || null,
+    signedAt: x.signedAt || x.SignedAt,
+    hasPdf: x.hasPdf ?? x.HasPdf ?? true,
+    status: x.status || x.Status || 'Active',
+  }));
 }
 
 export async function findContractCustomer(phone: string): Promise<ContractCustomer> {
