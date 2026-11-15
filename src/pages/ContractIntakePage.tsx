@@ -15,6 +15,7 @@ import { ContractTermsSection } from '@/components/shop/ContractTermsSection';
 import type { ContractTermsRequest } from '@/api/contractTerms';
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
 import { useAuth } from '@/context/AuthContext';
+import { formatVndPrice } from '@/api/products';
 import type { Appointment } from '@/types';
 
 const control = 'mt-1 w-full rounded-xl border border-border bg-paper px-3.5 py-2.5 text-sm text-ink focus:border-brand-pink-focus focus:outline-none focus:ring-2 focus:ring-brand-pink/25 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-muted';
@@ -246,18 +247,66 @@ export function ContractIntakePage() {
           <ContractSignature value={signature} onChange={value => { setSignature(value); if (value) setSignatureNotice(''); }} disabled={saving || readingSignature} onReadingChange={setReadingSignature} />
           {signatureNotice && <p role="status" className="text-sm text-amber-800">{signatureNotice}</p>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
-          <div className="flex flex-wrap justify-end gap-3 border-t pt-5"><Link to="/shop/consignment" className="rounded-xl border px-4 py-2 text-sm font-semibold">Hủy</Link><button type="submit" value="preview" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)} className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700 disabled:opacity-50">{saving && previewing ? 'Đang tạo bản xem trước...' : 'Xem trước PDF'}</button><button type="submit" value="create" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)} className={button}>{saving && !previewing ? 'Đang tạo...' : readingSignature ? 'Đang đọc chữ ký...' : 'Tạo hợp đồng'}</button></div>
+          <div className="flex flex-wrap justify-end gap-3 border-t pt-5"><Link to="/shop/consignment" className="rounded-xl border px-4 py-2 text-sm font-semibold">Hủy</Link><button type="submit" value="preview" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)} className="rounded-xl border border-pink-700 px-4 py-2 text-sm font-semibold text-pink-700 disabled:opacity-50">{saving && previewing ? 'Đang tải xem trước...' : 'Xem trước hợp đồng'}</button><button type="submit" value="create" disabled={saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)} className={button}>{saving && !previewing ? 'Đang tạo...' : readingSignature ? 'Đang đọc chữ ký...' : 'Tạo hợp đồng'}</button></div>
         </fieldset></form>}
       </>}
     </section>}
-    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước PDF chưa lưu hợp đồng. Hãy quay lại để ký hoặc chỉnh sửa nếu cần." className="max-w-[96rem]" footer={<button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button>}>
-      {previewUrl && <>
-        <div className="mb-3 flex flex-wrap gap-3">
-          <a href={previewUrl} download="hop-dong-xem-truoc.pdf" className="rounded-xl bg-button-pastel px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-button-pastel-hover">Tải bản xem trước PDF</a>
-          <a href={previewUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-brand-lavender px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">Mở PDF trong thẻ mới</a>
+    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước trực tiếp trên giao diện web chưa lưu vào hệ thống." className="max-w-4xl" footer={<div className="flex w-full items-center justify-between"><button type="button" onClick={() => window.print()} className="rounded-xl border border-brand-lavender bg-white px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">In bản xem trước</button><button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button></div>}>
+      {previewUrl && (
+        <div id="contract-preview-sheet" className="space-y-4 rounded-xl border border-gray-300 bg-white p-6 text-gray-900 text-xs">
+          <div className="border-b border-gray-300 pb-3 text-center">
+            <h3 className="text-base font-extrabold uppercase text-gray-900">CỬA HÀNG OLD CLOTHES STORE (OCS)</h3>
+            <p className="text-[11px] text-gray-600">BẢN XEM TRƯỚC HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-3">
+            <div>
+              <p className="font-bold text-gray-800">Khách hàng: {customer?.fullName || guest?.fullName || 'Khách vãng lai'}</p>
+              <p className="text-gray-600">SĐT: {customer?.phoneNumber || guest?.phoneNumber || '—'}</p>
+              {(customer?.identityNumber || guest?.identityNumber) && <p className="text-gray-600">CCCD: {customer?.identityNumber || guest?.identityNumber}</p>}
+            </div>
+            <div>
+              <p className="font-bold text-gray-800">Thời hạn: {new Date(signedAt).toLocaleDateString('vi-VN')} - {new Date(endsAt).toLocaleDateString('vi-VN')}</p>
+              <p className="text-gray-600">Xử lý hết hạn: {expiryHandling === 'Return' ? 'Trả lại khách' : 'Quyên góp'}</p>
+              {(customer?.bankAccountNumber || guest?.bankAccountNumber) && <p className="text-gray-600">Tài khoản: {customer?.bankAccountNumber || guest?.bankAccountNumber} ({customer?.bankCode || guest?.bankCode})</p>}
+            </div>
+          </div>
+          <div>
+            <p className="font-bold text-gray-800 mb-1">Danh sách sản phẩm ({products.length} món):</p>
+            <table className="w-full border-collapse border border-gray-300 text-left text-[11px]">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border border-gray-300 p-1.5 text-center">STT</th>
+                  <th className="border border-gray-300 p-1.5">Tên sản phẩm</th>
+                  <th className="border border-gray-300 p-1.5 text-center">Mã Barcode</th>
+                  <th className="border border-gray-300 p-1.5 text-center">Size</th>
+                  <th className="border border-gray-300 p-1.5 text-center">Tình trạng</th>
+                  <th className="border border-gray-300 p-1.5 text-right">Giá niêm yết</th>
+                  <th className="border border-gray-300 p-1.5 text-center">Hoa hồng</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((p, i) => (
+                  <tr key={i}>
+                    <td className="border border-gray-300 p-1.5 text-center">{i + 1}</td>
+                    <td className="border border-gray-300 p-1.5 font-semibold">{p.name}</td>
+                    <td className="border border-gray-300 p-1.5 font-mono text-center">{p.barcode}</td>
+                    <td className="border border-gray-300 p-1.5 text-center">{p.size}</td>
+                    <td className="border border-gray-300 p-1.5 text-center">{p.conditionPercentage}%</td>
+                    <td className="border border-gray-300 p-1.5 text-right font-medium">{formatVndPrice(p.listedPrice || 0)}</td>
+                    <td className="border border-gray-300 p-1.5 text-center">{p.agreedCommissionRate ?? 20}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {signature && (
+            <div className="pt-2 text-right">
+              <p className="text-[11px] font-bold text-gray-700">Chữ ký khách hàng:</p>
+              <img src={`data:${signature.contentType};base64,${signature.data}`} alt="Chữ ký" className="ml-auto mt-1 max-h-14 object-contain" />
+            </div>
+          )}
         </div>
-        <iframe src={`${previewUrl}#view=FitH`} title="Xem trước PDF hợp đồng" className="h-[60dvh] min-h-[18rem] w-full rounded-xl border border-border sm:h-[72dvh]" />
-      </>}
+      )}
     </Modal>
   </div></ContractPageLayout>;
 }

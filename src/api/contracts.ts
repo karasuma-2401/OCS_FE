@@ -38,6 +38,39 @@ export interface ContractProduct { name: string; barcode: string; size: string; 
 export interface ContractOption { id: string; name: string; commissionRate: number | null }
 export interface ContractOptions { brands: ContractOption[]; categories: ContractOption[]; locations: ContractOption[] }
 export interface ContractListItem { id: string; contractNumber: string; customerName: string | null; signedAt: string; hasPdf: boolean }
+export interface ContractDetailProduct {
+  id: string;
+  name: string;
+  barcode: string;
+  size: string;
+  conditionPercentage: number;
+  listedPrice: number;
+  agreedCommissionRate: number | null;
+  brandName: string;
+  categoryName: string;
+}
+export interface ContractDetail {
+  id: string;
+  contractNumber: string;
+  signedAt: string;
+  endsAt: string;
+  expiryHandling: string;
+  status: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
+  customerIdentity: string | null;
+  customerAddress: string | null;
+  bankCode: string | null;
+  bankAccountNumber: string | null;
+  bankAccountHolderName: string | null;
+  employeeName: string;
+  employeeTitle: string | null;
+  employeePhone: string | null;
+  terms: string | null;
+  customerSignatureDataUrl: string | null;
+  products: ContractDetailProduct[];
+}
 export interface ContractPdfFieldMapping { field: string; page: number; x: number; y: number; width: number; height: number }
 export interface ContractTemplate { title: string; organizationName: string; headerText: string; footerText: string; defaultTerms: string; version: string; updatedAt: string | null; pdfBase64: string | null; fieldMappings: ContractPdfFieldMapping[] }
 
@@ -63,6 +96,9 @@ export async function getContractPdf(id: string): Promise<Blob> {
 }
 export async function getContractDocument(id: string): Promise<Blob> {
   return (await apiClient.get<Blob>(`/contracts/${encodeURIComponent(id)}/document`, { responseType: 'blob' })).data;
+}
+export async function getContractDetail(id: string): Promise<ContractDetail> {
+  return (await apiClient.get<ContractDetail>(`/contracts/${encodeURIComponent(id)}/detail`)).data;
 }
 export async function listContracts(page: number): Promise<ContractListItem[]> {
   const response = await apiClient.get<ContractListItem[]>('/contracts', { params: { page } });
