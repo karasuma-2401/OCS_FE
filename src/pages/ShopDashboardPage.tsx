@@ -8,6 +8,8 @@ import { AppointmentManagement } from '@/components/shop/AppointmentManagement';
 import { AccountManagement } from '@/components/shop/AccountManagement';
 import { FunctionPermissions } from '@/components/shop/FunctionPermissions';
 import { InventoryManagement } from '@/components/shop/InventoryManagement';
+import { BuyoutManagement } from '@/components/shop/BuyoutManagement';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { PosVietQrWorkspace } from '@/components/shop/pos/PosVietQrWorkspace';
 import { screenByPath, screenOrder, screenPaths, screenPermissions, screenRequirements, type ShopNavId } from '@/auth/permissions';
 
@@ -23,6 +25,10 @@ const tabTitles: Record<ShopNavId, { title: string; desc: string }> = {
   inventory: {
     title: 'Quản Lý Kho Hàng & Sản Phẩm',
     desc: 'Quản lý danh sách sản phẩm, in nhãn barcode và cập nhật tình trạng hàng hóa.',
+  },
+  buyout: {
+    title: 'Thu mua đứt',
+    desc: 'Lập phiếu, duyệt và theo dõi các khoản thu mua.',
   },
   consignment: {
     title: 'Tiếp Nhận Ký Gửi',
@@ -91,6 +97,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         allowedItems={allowedItems}
         showContractManagement={hasRole('Admin') || hasRole('Manager')}
         onContracts={() => navigate('/shop/contracts')}
+        actions={<NotificationBell align="left" placement="above" />}
         profileName={user?.fullName || user?.email || 'Nhân viên'}
         onNavigate={handleNavigate}
         onProfileClick={() => navigate('/profile')}
@@ -114,7 +121,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         {activeTab !== 'consignment' && <h1 className="sr-only">{currentTabInfo.title}</h1>}
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
-        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'pos' ? <PosVietQrWorkspace /> : activeTab === 'settings' ? <FunctionPermissions /> : <>
+        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'buyout' ? <BuyoutManagement /> : activeTab === 'pos' ? <PosVietQrWorkspace /> : activeTab === 'settings' ? <FunctionPermissions /> : <>
           <PageHeaderCard
             icon={activeTab === 'customers' ? <Users size={24} aria-hidden="true" /> : activeTab === 'settlement' ? <Receipt size={24} aria-hidden="true" /> : <BarChart3 size={24} aria-hidden="true" />}
             title={currentTabInfo.title}

@@ -10,7 +10,6 @@ import {
   Toast,
 } from "@/components/shared";
 import { InlineCalendar, calendarISO } from "@/components/shared/calendar";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ConsignmentReceptionModal } from "./reception";
 import { useAuth } from "@/context/AuthContext";
 
@@ -264,7 +263,6 @@ export function AppointmentManagement({
         </h1>
 
         <div className="flex items-center gap-3">
-          <NotificationBell />
           {onSwitchRole && (
             <button
               type="button"
