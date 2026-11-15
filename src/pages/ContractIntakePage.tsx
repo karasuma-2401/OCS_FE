@@ -7,7 +7,7 @@ import { createContract, previewContract, getIntakeTemplate, findContractCustome
 import { ContractSignature } from '@/components/shop/ContractSignature';
 import { ContractMoneyInput } from '@/components/shop/ContractMoneyInput';
 import { prepareCameraPhoto } from '@/components/shop/contractCamera';
-import { Camera, Images, Download } from 'lucide-react';
+import { Camera, Images } from 'lucide-react';
 import { barcodeApi } from '@/api/barcode';
 import { BarcodeSymbol } from '@/components/shop/BarcodeLabels';
 import { Modal } from '@/components/shared/Modal';
@@ -220,19 +220,9 @@ export function ContractIntakePage() {
 
   return <ContractPageLayout
     title="Lập hợp đồng ký gửi"
-    description="Nhập thông tin, xem trước hợp đồng Word và xác nhận chữ ký của khách hàng."
+    description="Nhập thông tin, xem trước hợp đồng và xác nhận chữ ký của khách hàng."
     backTo="/shop/consignment"
     backLabel="Tiếp nhận ký gửi"
-    headerActions={
-      <a
-        href="/api/word-template-samples/contract"
-        download="mau-hop-dong.docx"
-        className="inline-flex items-center gap-1.5 rounded-xl border border-brand-lavender bg-white px-3.5 py-2 text-xs font-bold text-brand-ink hover:bg-brand-pink-surface hover:border-brand-highlight transition whitespace-nowrap shrink-0"
-      >
-        <Download size={15} aria-hidden="true" />
-        Tải mẫu Word
-      </a>
-    }
   >
     <div className="w-full">
     {created ? <section role="status" className="mt-6 rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">Đã tạo hợp đồng</h2><p className="mt-2 break-all">Mã hợp đồng: {created.contractNumber}</p><p className="mt-2 text-sm text-gray-600">Thông tin khách, sản phẩm và tài liệu Word đã được lưu.</p><Link className="mt-4 inline-block text-pink-700 underline" to="/shop/consignment">Về danh sách tiếp nhận</Link></section> :
@@ -277,27 +267,53 @@ export function ContractIntakePage() {
         </fieldset></form>}
       </>}
     </section>}
-    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước trực tiếp trên giao diện web chưa lưu vào hệ thống." className="max-w-4xl" footer={<div className="flex w-full items-center justify-between gap-2"><div className="flex items-center gap-2"><button type="button" onClick={() => window.print()} className="rounded-xl border border-brand-lavender bg-white px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">In bản xem trước</button><a href="/api/word-template-samples/contract" download="mau-hop-dong.docx" className="rounded-xl border border-brand-lavender bg-white px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light inline-flex items-center gap-1.5"><Download size={14} /> Tải mẫu Word</a></div><button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button></div>}>
+    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước trực tiếp trên giao diện web chưa lưu vào hệ thống." className="max-w-4xl" footer={<div className="flex w-full items-center justify-between gap-2"><div className="flex items-center gap-2"><button type="button" onClick={() => window.print()} className="rounded-xl border border-brand-lavender bg-white px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">In bản xem trước</button></div><button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button></div>}>
       {previewUrl && (
-        <div id="contract-preview-sheet" className="space-y-4 rounded-xl border border-gray-300 bg-white p-6 text-gray-900 text-xs">
+        <div id="contract-preview-sheet" className="space-y-4 rounded-xl border border-gray-300 bg-white p-6 text-gray-900 text-xs select-text">
           <div className="border-b border-gray-300 pb-3 text-center">
-            <h3 className="text-base font-extrabold uppercase text-gray-900">CỬA HÀNG OLD CLOTHES STORE (OCS)</h3>
-            <p className="text-[11px] text-gray-600">BẢN XEM TRƯỚC HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG</p>
+            <h3 className="text-base font-extrabold uppercase text-gray-900">
+              {template?.organizationName || 'CỬA HÀNG OLD CLOTHES STORE (OCS)'}
+            </h3>
+            {template?.headerText && (
+              <p className="text-[11px] text-gray-600 whitespace-pre-line mt-1">
+                {template.headerText}
+              </p>
+            )}
+            <h4 className="mt-2 text-sm font-black uppercase text-gray-900">
+              {template?.title || 'HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG'}
+            </h4>
+            <p className="text-[11px] text-gray-500 italic mt-0.5">
+              (Bản xem trước hợp đồng - Căn cứ theo thỏa thuận giữa hai bên)
+            </p>
           </div>
-          <div className="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-3">
+
+          <div className="grid grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-gray-50/70 p-3 text-xs">
             <div>
-              <p className="font-bold text-gray-800">Khách hàng: {customer?.fullName || guest?.fullName || 'Khách vãng lai'}</p>
-              <p className="text-gray-600">SĐT: {customer?.phoneNumber || guest?.phoneNumber || '—'}</p>
-              {(customer?.identityNumber || guest?.identityNumber) && <p className="text-gray-600">CCCD: {customer?.identityNumber || guest?.identityNumber}</p>}
+              <p className="font-extrabold uppercase text-gray-800 border-b border-gray-200 pb-1 mb-1">Bên A (Nhận ký gửi):</p>
+              <p className="text-gray-700">Đơn vị: <strong>{template?.organizationName || 'Old Clothes Store (OCS)'}</strong></p>
+              <p className="text-gray-700">Nhân viên tiếp nhận: {employee?.fullName || 'Nhân viên cửa hàng'}</p>
+              {employee?.jobTitle && <p className="text-gray-600">Chức vụ: {employee.jobTitle}</p>}
+              {employee?.phoneNumber && <p className="text-gray-600">SĐT: {employee.phoneNumber}</p>}
             </div>
             <div>
-              <p className="font-bold text-gray-800">Thời hạn: {new Date(signedAt).toLocaleDateString('vi-VN')} - {new Date(endsAt).toLocaleDateString('vi-VN')}</p>
-              <p className="text-gray-600">Xử lý hết hạn: {expiryHandling === 'Return' ? 'Trả lại khách' : 'Quyên góp'}</p>
-              {(customer?.bankAccountNumber || guest?.bankAccountNumber) && <p className="text-gray-600">Tài khoản: {customer?.bankAccountNumber || guest?.bankAccountNumber} ({customer?.bankCode || guest?.bankCode})</p>}
+              <p className="font-extrabold uppercase text-gray-800 border-b border-gray-200 pb-1 mb-1">Bên B (Ký gửi):</p>
+              <p className="text-gray-700">Khách hàng: <strong className="text-gray-900">{customer?.fullName || guest?.fullName || 'Khách vãng lai'}</strong></p>
+              <p className="text-gray-700">SĐT: <span className="font-mono font-semibold">{customer?.phoneNumber || guest?.phoneNumber || '—'}</span></p>
+              {(customer?.identityNumber || guest?.identityNumber) && <p className="text-gray-600">CCCD: <span className="font-mono">{customer?.identityNumber || guest?.identityNumber}</span></p>}
+              {(customer?.address || guest?.address) && <p className="text-gray-600">Địa chỉ: {customer?.address || guest?.address}</p>}
+              {(customer?.bankAccountNumber || guest?.bankAccountNumber) && (
+                <p className="text-gray-600">Tài khoản: <span className="font-mono">{customer?.bankAccountNumber || guest?.bankAccountNumber}</span> ({customer?.bankCode || guest?.bankCode})</p>
+              )}
             </div>
           </div>
+
+          <div className="rounded-lg border border-gray-200 bg-white p-2.5 text-xs flex justify-between gap-2">
+            <div>Thời hạn: <strong>{new Date(signedAt).toLocaleDateString('vi-VN')}</strong> đến <strong>{new Date(endsAt).toLocaleDateString('vi-VN')}</strong></div>
+            <div>Hình thức khi hết hạn: <strong>{expiryHandling === 'Return' ? 'Trả lại khách hàng' : 'Quyên góp'}</strong></div>
+          </div>
+
           <div>
-            <p className="font-bold text-gray-800 mb-1">Danh sách sản phẩm ({products.length} món):</p>
+            <p className="font-extrabold uppercase text-gray-900 mb-1">Danh sách sản phẩm ký gửi ({products.length} món):</p>
             <table className="w-full border-collapse border border-gray-300 text-left text-[11px]">
               <thead className="bg-gray-100">
                 <tr>
@@ -305,32 +321,66 @@ export function ContractIntakePage() {
                   <th className="border border-gray-300 p-1.5">Tên sản phẩm</th>
                   <th className="border border-gray-300 p-1.5 text-center">Mã Barcode</th>
                   <th className="border border-gray-300 p-1.5 text-center">Size</th>
-                  <th className="border border-gray-300 p-1.5 text-center">Tình trạng</th>
+                  <th className="border border-gray-300 p-1.5 text-center">Độ mới</th>
                   <th className="border border-gray-300 p-1.5 text-right">Giá niêm yết</th>
                   <th className="border border-gray-300 p-1.5 text-center">Hoa hồng</th>
+                  <th className="border border-gray-300 p-1.5 text-right">Dự kiến nhận</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((p, i) => (
-                  <tr key={i}>
-                    <td className="border border-gray-300 p-1.5 text-center">{i + 1}</td>
-                    <td className="border border-gray-300 p-1.5 font-semibold">{p.name}</td>
-                    <td className="border border-gray-300 p-1.5 font-mono text-center">{p.barcode}</td>
-                    <td className="border border-gray-300 p-1.5 text-center">{p.size}</td>
-                    <td className="border border-gray-300 p-1.5 text-center">{p.conditionPercentage}%</td>
-                    <td className="border border-gray-300 p-1.5 text-right font-medium">{formatVndPrice(p.listedPrice || 0)}</td>
-                    <td className="border border-gray-300 p-1.5 text-center">{p.agreedCommissionRate ?? 20}%</td>
-                  </tr>
-                ))}
+                {products.map((p, i) => {
+                  const comm = p.agreedCommissionRate ?? 20;
+                  const payout = (p.listedPrice || 0) * (1 - comm / 100);
+                  return (
+                    <tr key={i}>
+                      <td className="border border-gray-300 p-1.5 text-center">{i + 1}</td>
+                      <td className="border border-gray-300 p-1.5 font-bold text-gray-900">{p.name}</td>
+                      <td className="border border-gray-300 p-1.5 font-mono text-center">{p.barcode}</td>
+                      <td className="border border-gray-300 p-1.5 text-center">{p.size}</td>
+                      <td className="border border-gray-300 p-1.5 text-center">{p.conditionPercentage}%</td>
+                      <td className="border border-gray-300 p-1.5 text-right font-medium">{formatVndPrice(p.listedPrice || 0)}</td>
+                      <td className="border border-gray-300 p-1.5 text-center">{comm}%</td>
+                      <td className="border border-gray-300 p-1.5 text-right font-bold text-gray-900">{formatVndPrice(payout)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          {signature && (
-            <div className="pt-2 text-right">
-              <p className="text-[11px] font-bold text-gray-700">Chữ ký khách hàng:</p>
-              <img src={`data:${signature.contentType};base64,${signature.data}`} alt="Chữ ký" className="ml-auto mt-1 max-h-14 object-contain" />
+
+          {template?.defaultTerms && (
+            <div>
+              <p className="font-extrabold uppercase text-gray-900 mb-1">ĐIỀU KHOẢN VÀ THỎA THUẬN KÝ GỬI:</p>
+              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 text-[11px] leading-relaxed text-gray-800 whitespace-pre-wrap">
+                {template.defaultTerms}
+              </div>
             </div>
           )}
+
+          <p className="mt-3 text-[11px] text-gray-600 italic whitespace-pre-line">
+            {template?.footerText || '* Hợp đồng được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ 01 bản làm căn cứ đối soát và nhận tiền thanh toán khi sản phẩm được bán.'}
+          </p>
+
+          <div className="grid grid-cols-2 gap-4 text-center text-xs pt-4 border-t border-gray-200">
+            <div>
+              <p className="font-extrabold uppercase text-gray-900">ĐẠI DIỆN BÊN A (OCS)</p>
+              <div className="h-16 flex items-center justify-center">
+                <span className="font-serif italic text-gray-400 text-xs">[Đã xác nhận điện tử]</span>
+              </div>
+              <p className="font-bold text-gray-900">{employee?.fullName || 'Nhân viên tiếp nhận'}</p>
+            </div>
+            <div>
+              <p className="font-extrabold uppercase text-gray-900">ĐẠI DIỆN BÊN B (KHÁCH HÀNG)</p>
+              <div className="h-16 flex items-center justify-center">
+                {signature ? (
+                  <img src={`data:${signature.contentType};base64,${signature.data}`} alt="Chữ ký" className="max-h-14 object-contain" />
+                ) : (
+                  <span className="font-serif italic text-gray-400 text-xs">[Chưa ký xác nhận]</span>
+                )}
+              </div>
+              <p className="font-bold text-gray-900">{customer?.fullName || guest?.fullName || 'Khách ký gửi'}</p>
+            </div>
+          </div>
         </div>
       )}
     </Modal>

@@ -70,6 +70,10 @@ export interface ContractDetail {
   terms: string | null;
   customerSignatureDataUrl: string | null;
   products: ContractDetailProduct[];
+  title?: string | null;
+  organizationName?: string | null;
+  headerText?: string | null;
+  footerText?: string | null;
 }
 export interface ContractPdfFieldMapping { field: string; page: number; x: number; y: number; width: number; height: number }
 export interface ContractTemplate { title: string; organizationName: string; headerText: string; footerText: string; defaultTerms: string; version: string; updatedAt: string | null; pdfBase64: string | null; fieldMappings: ContractPdfFieldMapping[] }
@@ -124,6 +128,10 @@ export async function getContractDetail(id: string): Promise<ContractDetail> {
       employeePhone: web.employeePhone || null,
       terms: web.terms || web.template?.defaultTerms || null,
       customerSignatureDataUrl: web.signature ? `data:${web.signature.contentType};base64,${web.signature.data}` : null,
+      title: web.template?.title || web.title || null,
+      organizationName: web.template?.organizationName || web.organizationName || null,
+      headerText: web.template?.headerText || web.headerText || null,
+      footerText: web.template?.footerText || web.footerText || null,
       products: Array.isArray(web.products) ? web.products.map((p: any) => ({
         id: p.id || '',
         name: p.name || '',

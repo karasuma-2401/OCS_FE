@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   Loader2,
   RotateCcw,
-  Download,
 } from 'lucide-react';
 import type {
   Appointment,
@@ -1139,15 +1138,6 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
           </div>}
 
           <div className="flex items-center gap-3 sm:ml-auto">
-            <a
-              href="/api/word-template-samples/contract"
-              download="mau-hop-dong.docx"
-              className="flex items-center gap-1.5 rounded-2xl border border-border bg-surface-default hover:bg-surface-dashboard px-3.5 py-3 text-xs font-bold text-text-secondary transition shadow-xs"
-              title="Tải mẫu văn bản hợp đồng Word"
-            >
-              <Download size={15} /> Tải mẫu hợp đồng
-            </a>
-
             <button
               type="button"
               onClick={handleSaveDraft}
@@ -1234,14 +1224,6 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <a
-                  href="/api/word-template-samples/contract"
-                  download="mau-hop-dong.docx"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-bold text-text-primary hover:bg-surface-default transition shadow-2xs"
-                  title="Tải văn bản mẫu hợp đồng Word"
-                >
-                  <Download size={14} /> Tải mẫu Word
-                </a>
                 <button
                   type="button"
                   onClick={() => { if (!submitting) { setSignature(null); setPreviewOpen(false); } }}

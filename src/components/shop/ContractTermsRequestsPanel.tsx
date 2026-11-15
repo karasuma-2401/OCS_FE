@@ -1,6 +1,5 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { apiClient } from '@/api/client';
 import { parseProblemDetails } from '@/api/auth';
 import { contractTermsApi, type ContractTermsRequest } from '@/api/contractTerms';
 import { Button, Card, Input, SkeletonLoading } from '@/components/shared';
@@ -19,15 +18,6 @@ export function ContractTermsRequestsPanel() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  const download = async () => {
-    setError('');
-    try {
-      const result = await apiClient.get<Blob>('/word-template-samples/contract/saved/download', { responseType: 'blob' });
-      const url = URL.createObjectURL(result.data); const link = document.createElement('a');
-      link.href = url; link.download = 'mau-hop-dong-hien-hanh.docx'; link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch { setError('Không thể tải mẫu hợp đồng hiện hành.'); }
-  };
   const decide = async (item: ContractTermsRequest, approve: boolean) => {
     const note = (notes[item.id] || '').trim(); const file = files[item.id];
     if (approve && (!file || !file.name.toLowerCase().endsWith('.docx') || file.size > 2 * 1024 * 1024)) { setError('Chọn tệp Word không quá 2 MB để duyệt.'); return; }
@@ -45,7 +35,7 @@ export function ContractTermsRequestsPanel() {
     } finally { setBusy(''); }
   };
   return <Card title="Yêu cầu điều chỉnh điều khoản" description="Xem xét từng yêu cầu trước khi nhân viên tạo hợp đồng." className="mt-5">
-    <div className="mb-4 flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => void load()}>Tải lại yêu cầu</Button><Button variant="ghost" size="sm" onClick={() => void download()}>Tải mẫu hợp đồng hiện hành</Button></div>
+    <div className="mb-4 flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => void load()}>Tải lại yêu cầu</Button></div>
     {error && <p role="alert" className="mb-3 text-sm text-state-danger">{error}</p>}{notice && <p role="status" className="mb-3 text-sm text-state-success">{notice}</p>}
     {loading ? <SkeletonLoading variant="list" count={2} /> : items.length === 0 ? <p className="text-sm text-muted">Không có yêu cầu đang chờ.</p> : <div className="space-y-4">{items.map(item => <section key={item.id} className="space-y-3 rounded-xl border border-border p-4">
       <div><p className="text-sm font-bold text-ink">{item.requestedByName || 'Nhân viên'} · {new Date(item.createdAt).toLocaleString('vi-VN')}</p><p className="mt-2 whitespace-pre-wrap text-sm text-ink">{item.reason}</p></div>

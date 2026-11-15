@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { FileCog, FileText, Printer, RotateCcw, Search, Tag, Download } from 'lucide-react';
+import { FileCog, FileText, Printer, RotateCcw, Search, Tag } from 'lucide-react';
 import { barcodeApi, type BarcodeLabelProduct } from '@/api/barcode';
 import { BarcodePrintDialog } from '@/components/shop/BarcodeLabels';
 import { getContractDetail, listContracts, type ContractListItem, type ContractDetail } from '@/api/contracts';
@@ -370,24 +370,6 @@ export function ContractPdfPage() {
                 <Tag size={16} /> In barcode sản phẩm ({contract.products.length})
               </Button>
 
-              <a
-                href="/api/word-template-samples/contract"
-                download="mau-hop-dong.docx"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3.5 py-2 text-xs font-bold text-text-primary hover:bg-surface-active transition whitespace-nowrap"
-                title="Tải văn bản mẫu hợp đồng Word"
-              >
-                <Download size={15} /> Tải mẫu Word
-              </a>
-
-              <a
-                href={`/api/contracts/${encodeURIComponent(contract.id)}/pdf`}
-                download={`hop-dong-${contract.contractNumber}.pdf`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3.5 py-2 text-xs font-bold text-text-primary hover:bg-surface-active transition whitespace-nowrap"
-                title="Tải bản PDF hợp đồng"
-              >
-                <Download size={15} /> Tải PDF
-              </a>
-
               <Button
                 variant="primary"
                 onClick={handlePrint}
@@ -413,17 +395,25 @@ export function ContractPdfPage() {
             <div className="flex justify-between items-start border-b border-gray-400 pb-5">
               <div>
                 <h1 className="text-lg sm:text-xl font-extrabold uppercase tracking-tight text-gray-900">
-                  CỬA HÀNG OLD CLOTHES STORE (OCS)
+                  {contract.organizationName || 'CỬA HÀNG OLD CLOTHES STORE (OCS)'}
                 </h1>
-                <p className="text-xs text-gray-600">
-                  Chuỗi Cửa Hàng & Ký Gửi Thời Trang Tuyển Chọn
-                </p>
-                <p className="text-xs text-gray-600">
-                  Địa chỉ: 123 Đường Thời Trang, Quận 1, TP. Hồ Chí Minh
-                </p>
-                <p className="text-xs text-gray-600">
-                  Hotline: 1900 6868 · Website: ocs.fashion.vn
-                </p>
+                {contract.headerText ? (
+                  <p className="text-xs text-gray-600 whitespace-pre-line mt-1">
+                    {contract.headerText}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs text-gray-600">
+                      Chuỗi Cửa Hàng & Ký Gửi Thời Trang Tuyển Chọn
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Địa chỉ: 123 Đường Thời Trang, Quận 1, TP. Hồ Chí Minh
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Hotline: 1900 6868 · Website: ocs.fashion.vn
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="text-right text-xs">
@@ -442,7 +432,7 @@ export function ContractPdfPage() {
             {/* Tiêu đề chính */}
             <div className="my-6 text-center">
               <h2 className="text-lg sm:text-xl font-black uppercase tracking-wide text-gray-900">
-                HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG
+                {contract.title || 'HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG'}
               </h2>
               <p className="mt-1 text-xs text-gray-500 italic">
                 (Căn cứ theo Bộ luật Dân sự và thỏa thuận giữa hai bên)
@@ -457,7 +447,7 @@ export function ContractPdfPage() {
                   BÊN A (BÊN NHẬN KÝ GỬI):
                 </p>
                 <div>
-                  <span className="font-bold text-gray-700">Đơn vị:</span> Cửa hàng Old Clothes Store (OCS)
+                  <span className="font-bold text-gray-700">Đơn vị:</span> {contract.organizationName || 'Cửa hàng Old Clothes Store (OCS)'}
                 </div>
                 <div>
                   <span className="font-bold text-gray-700">Đại diện tiếp nhận:</span> {contract.employeeName || 'Nhân viên cửa hàng'}
@@ -608,8 +598,8 @@ export function ContractPdfPage() {
             )}
 
             {/* Lưu ý kết thúc */}
-            <p className="mt-4 text-[11px] text-gray-600 italic">
-              * Hợp đồng được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ 01 bản làm căn cứ đối soát và nhận tiền thanh toán khi sản phẩm được bán.
+            <p className="mt-4 text-[11px] text-gray-600 italic whitespace-pre-line">
+              {contract.footerText || '* Hợp đồng được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ 01 bản làm căn cứ đối soát và nhận tiền thanh toán khi sản phẩm được bán.'}
             </p>
 
             {/* Chữ ký xác nhận */}

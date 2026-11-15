@@ -16,9 +16,9 @@ const DEMO_PRODUCT: BarcodeLabelProduct = {
 };
 
 const DEFAULT_TEMPLATE: BarcodeLabelTemplate = {
-  widthMm: 65,
+  widthMm: 60,
   heightMm: 35,
-  columns: 2,
+  columns: 3,
   fontSizePt: 8,
   version: '00000000-0000-0000-0000-000000000000',
   updatedAt: null,

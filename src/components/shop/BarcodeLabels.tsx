@@ -35,12 +35,6 @@ export function BarcodeLabel({ item, template }: { item: BarcodeLabelProduct; te
   const headerPt = Math.max(Math.round(basePt * 0.8), 6);
   const barcodePt = Math.max(Math.round(basePt * 0.75), 6);
 
-  const rightParts = [
-    sizeDisplay ? `SIZE: ${sizeDisplay}` : null,
-    conditionDisplay ? `ĐỘ MỚI: ${conditionDisplay}` : null,
-  ].filter(Boolean);
-  const rightText = rightParts.length > 0 ? rightParts.join(' · ') : 'CHÍNH HÃNG';
-
   return (
     <div
       className="barcode-print-item flex shrink-0 flex-col justify-between overflow-hidden border border-gray-400 bg-white p-2 text-black select-none"
@@ -57,11 +51,11 @@ export function BarcodeLabel({ item, template }: { item: BarcodeLabelProduct; te
           className="flex items-center justify-between border-b border-gray-300 pb-0.5 font-bold tracking-tight uppercase text-gray-700"
           style={{ fontSize: `${headerPt}pt` }}
         >
-          <span className="truncate max-w-[48%]" title={brandDisplay ? `Hãng: ${brandDisplay}` : 'OCS FASHION'}>
-            {brandDisplay ? `HÃNG: ${brandDisplay}` : 'OCS FASHION'}
+          <span className="truncate max-w-[42%]" title={`Hãng: ${brandDisplay || 'OCS'}`}>
+            HÃNG: {brandDisplay || 'OCS'}
           </span>
           <span className="shrink-0 text-gray-600 font-bold">
-            {rightText}
+            SIZE: {sizeDisplay || '—'} · ĐỘ MỚI: {conditionDisplay || '—'}
           </span>
         </div>
 
@@ -98,9 +92,9 @@ export function BarcodeLabel({ item, template }: { item: BarcodeLabelProduct; te
 }
 
 const DEFAULT_TEMPLATE: BarcodeLabelTemplate = {
-  widthMm: 65,
+  widthMm: 60,
   heightMm: 35,
-  columns: 2,
+  columns: 3,
   fontSizePt: 8,
   version: '00000000-0000-0000-0000-000000000000',
   updatedAt: null,
@@ -195,10 +189,14 @@ export function BarcodePrintDialog({ open, onClose, items }: { open: boolean; on
             box-shadow: none !important;
             overflow: visible !important;
             display: grid !important;
+            grid-template-columns: repeat(${template.columns}, ${template.widthMm}mm) !important;
             justify-content: center !important;
             gap: 3mm !important;
           }
           .barcode-print-item {
+            width: ${template.widthMm}mm !important;
+            height: ${template.heightMm}mm !important;
+            font-size: ${template.fontSizePt}pt !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
             box-sizing: border-box !important;
