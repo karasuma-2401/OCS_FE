@@ -11,7 +11,16 @@ const source = readFileSync(new URL('../src/components/shop/reception/ReceptionP
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
 const module = { exports: {} };
 const icons = new Proxy({}, { get: () => () => React.createElement('svg') });
-new Function('require', 'module', 'exports', compiled)(name => name === 'lucide-react' ? icons : require(name), module, module.exports);
+const sheetSource = readFileSync(new URL('../src/components/shop/UnifiedContractSheet.tsx', import.meta.url), 'utf8');
+const sheetCompiled = ts.transpileModule(sheetSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
+const sheetModule = { exports: {} };
+new Function('require', 'module', 'exports', sheetCompiled)(name => name === 'lucide-react' ? icons : require(name), sheetModule, sheetModule.exports);
+
+new Function('require', 'module', 'exports', compiled)(name => {
+  if (name === 'lucide-react') return icons;
+  if (name === '@/components/shop/UnifiedContractSheet' || name === '../UnifiedContractSheet') return sheetModule.exports;
+  return require(name);
+}, module, module.exports);
 const { ReceptionPrintModal } = module.exports;
 
 const contract = {

@@ -141,7 +141,16 @@ export function getTierDefaultCommissionRate(tier?: BrandTierType): number {
   }
 }
 
-export interface ReceptionTemplate { title: string; organizationName: string; headerText: string; footerText: string; defaultTerms: string; version: string }
+export interface ReceptionTemplate {
+  title: string;
+  organizationName: string;
+  headerText: string;
+  footerText: string;
+  defaultTerms: string;
+  version: string;
+  defaultTermDays?: number;
+  defaultExpiryHandling?: 'Return' | 'Donate';
+}
 export const consignmentApi = {
   async getReceptionTemplate(): Promise<ReceptionTemplate> { return (await apiClient.get<ReceptionTemplate>('/consignments/reception-template')).data; },
   async getCategories(): Promise<CategoryOption[]> {

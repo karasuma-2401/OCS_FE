@@ -8,7 +8,7 @@ import { ContractTermsRequestsPanel } from '@/components/shop/ContractTermsReque
 import { useAuth } from '@/context/AuthContext';
 import { Badge, Button, Card, Combobox, DatePicker, EmptyState, ErrorState, Input, SkeletonLoading } from '@/components/shared';
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
-import { formatVndPrice } from '@/api/products';
+import { UnifiedContractSheet } from '@/components/shop/UnifiedContractSheet';
 
 const statusLabels: Record<string, string> = {
   Active: 'Đang hiệu lực',
@@ -206,7 +206,7 @@ export function ContractPdfPage() {
   const { id = '' } = useParams();
   const { hasPermission, hasRole } = useAuth();
   const canManage = hasRole('Admin') || hasRole('Manager');
-  const permitted = canManage || (hasPermission('appointments.staff.reception') && hasPermission('customers.read'));
+  const permitted = canManage || hasRole('Staff') || (hasPermission('appointments.staff.reception') && hasPermission('customers.read'));
 
   const [contract, setContract] = useState<ContractDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -265,29 +265,6 @@ export function ContractPdfPage() {
         .finally(() => setLabelsLoading(false));
     }
   };
-
-  const formatDate = (iso: string) => {
-    try {
-      const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return iso;
-      return d.toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return iso;
-    }
-  };
-
-  const totalQuantity = contract?.products?.length || 0;
-  const totalListedPrice = contract?.products?.reduce((sum, p) => sum + p.listedPrice, 0) || 0;
-  const totalPayoutEst = contract?.products?.reduce((sum, p) => {
-    const rate = p.agreedCommissionRate ?? 20;
-    return sum + (p.listedPrice * (1 - rate / 100));
-  }, 0) || 0;
 
   return (
     <ContractPageLayout
@@ -387,251 +364,31 @@ export function ContractPdfPage() {
           )}
 
           {/* Printable Web Contract Sheet */}
-          <div
-            id="contract-printable-sheet"
-            className="rounded-2xl border border-gray-300 bg-white p-8 sm:p-12 text-gray-900 shadow-md print:border-none print:p-0 print:shadow-none select-text"
-          >
-            {/* Header Quốc hiệu / Cửa hàng */}
-            <div className="flex justify-between items-start border-b border-gray-400 pb-5">
-              <div>
-                <h1 className="text-lg sm:text-xl font-extrabold uppercase tracking-tight text-gray-900">
-                  {contract.organizationName || 'CỬA HÀNG OLD CLOTHES STORE (OCS)'}
-                </h1>
-                {contract.headerText ? (
-                  <p className="text-xs text-gray-600 whitespace-pre-line mt-1">
-                    {contract.headerText}
-                  </p>
-                ) : (
-                  <>
-                    <p className="text-xs text-gray-600">
-                      Chuỗi Cửa Hàng & Ký Gửi Thời Trang Tuyển Chọn
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      Địa chỉ: 123 Đường Thời Trang, Quận 1, TP. Hồ Chí Minh
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      Hotline: 1900 6868 · Website: ocs.fashion.vn
-                    </p>
-                  </>
-                )}
-              </div>
-
-              <div className="text-right text-xs">
-                <p className="font-extrabold text-gray-900 uppercase">
-                  Số HĐ: <span className="font-mono text-sm">{contract.contractNumber}</span>
-                </p>
-                <p className="text-gray-600">
-                  Ngày ký: {formatDate(contract.signedAt)}
-                </p>
-                <p className="text-gray-600">
-                  Thời hạn đến: {formatDate(contract.endsAt)}
-                </p>
-              </div>
-            </div>
-
-            {/* Tiêu đề chính */}
-            <div className="my-6 text-center">
-              <h2 className="text-lg sm:text-xl font-black uppercase tracking-wide text-gray-900">
-                {contract.title || 'HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG'}
-              </h2>
-              <p className="mt-1 text-xs text-gray-500 italic">
-                (Căn cứ theo Bộ luật Dân sự và thỏa thuận giữa hai bên)
-              </p>
-            </div>
-
-            {/* Thông tin Bên A & Bên B */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl border border-gray-300 bg-gray-50/60 p-4 text-xs">
-              {/* Bên A: Cửa hàng */}
-              <div className="space-y-1.5">
-                <p className="font-extrabold uppercase text-gray-900 border-b border-gray-300 pb-1">
-                  BÊN A (BÊN NHẬN KÝ GỬI):
-                </p>
-                <div>
-                  <span className="font-bold text-gray-700">Đơn vị:</span> {contract.organizationName || 'Cửa hàng Old Clothes Store (OCS)'}
-                </div>
-                <div>
-                  <span className="font-bold text-gray-700">Đại diện tiếp nhận:</span> {contract.employeeName || 'Nhân viên cửa hàng'}
-                </div>
-                {contract.employeeTitle && (
-                  <div>
-                    <span className="font-bold text-gray-700">Chức vụ:</span> {contract.employeeTitle}
-                  </div>
-                )}
-                {contract.employeePhone && (
-                  <div>
-                    <span className="font-bold text-gray-700">Điện thoại liên hệ:</span> <span className="font-mono">{contract.employeePhone}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Bên B: Khách hàng */}
-              <div className="space-y-1.5">
-                <p className="font-extrabold uppercase text-gray-900 border-b border-gray-300 pb-1">
-                  BÊN B (BÊN KÝ GỬI):
-                </p>
-                <div>
-                  <span className="font-bold text-gray-700">Họ và tên:</span>{' '}
-                  <span className="font-extrabold text-gray-900">{contract.customerName || 'Khách hàng'}</span>
-                </div>
-                <div>
-                  <span className="font-bold text-gray-700">Số điện thoại:</span>{' '}
-                  <span className="font-mono font-semibold">{contract.customerPhone || '—'}</span>
-                </div>
-                {contract.customerIdentity && (
-                  <div>
-                    <span className="font-bold text-gray-700">Số CCCD / Định danh:</span>{' '}
-                    <span className="font-mono">{contract.customerIdentity}</span>
-                  </div>
-                )}
-                {contract.customerAddress && (
-                  <div>
-                    <span className="font-bold text-gray-700">Địa chỉ:</span> {contract.customerAddress}
-                  </div>
-                )}
-                {contract.bankAccountNumber && (
-                  <div>
-                    <span className="font-bold text-gray-700">Tài khoản nhận tiền:</span>{' '}
-                    <span className="font-mono">{contract.bankAccountNumber}</span> ({contract.bankCode || 'Ngân hàng'}) - Chủ TK: {contract.bankAccountHolderName || contract.customerName}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Thông tin thỏa thuận chung */}
-            <div className="mt-4 rounded-xl border border-gray-200 bg-white p-3 text-xs flex flex-wrap justify-between gap-2">
-              <div>
-                <span className="font-bold text-gray-700">Thời hạn hợp đồng:</span> Từ {formatDate(contract.signedAt)} đến {formatDate(contract.endsAt)}
-              </div>
-              <div>
-                <span className="font-bold text-gray-700">Hình thức xử lý khi hết hạn:</span>{' '}
-                <span className="font-semibold text-gray-900">
-                  {contract.expiryHandling === 'Return' ? 'Trả lại khách hàng' : 'Quyên góp theo chính sách'}
-                </span>
-              </div>
-            </div>
-
-            {/* Bảng danh sách sản phẩm ký gửi - In đúng, đủ, KHÔNG CÓ ẢNH */}
-            <div className="mt-6">
-              <h3 className="text-xs font-extrabold uppercase tracking-wide text-gray-900 mb-2">
-                DANH MỤC HÀNG HÓA KÝ GỬI ({contract.products.length} MÓN):
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-gray-400 text-left text-xs">
-                  <thead className="bg-gray-100 text-gray-800">
-                    <tr>
-                      <th className="border border-gray-400 px-2.5 py-2 text-center w-10">STT</th>
-                      <th className="border border-gray-400 px-2.5 py-2">Tên sản phẩm</th>
-                      <th className="border border-gray-400 px-2.5 py-2 text-center">Mã vạch (Barcode)</th>
-                      <th className="border border-gray-400 px-2.5 py-2">Phân loại & Hiệu</th>
-                      <th className="border border-gray-400 px-2.5 py-2 text-center w-14">Size</th>
-                      <th className="border border-gray-400 px-2.5 py-2 text-center w-16">Tình trạng</th>
-                      <th className="border border-gray-400 px-2.5 py-2 text-right">Giá niêm yết</th>
-                      <th className="border border-gray-400 px-2.5 py-2 text-center w-16">Hoa hồng</th>
-                      <th className="border border-gray-400 px-2.5 py-2 text-right">Dự kiến nhận</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {contract.products.map((item, idx) => {
-                      const commRate = item.agreedCommissionRate ?? 20;
-                      const payout = item.listedPrice * (1 - commRate / 100);
-                      return (
-                        <tr key={item.id || idx} className="hover:bg-gray-50/50">
-                          <td className="border border-gray-400 px-2.5 py-2 text-center font-medium">
-                            {idx + 1}
-                          </td>
-                          <td className="border border-gray-400 px-2.5 py-2 font-bold text-gray-900">
-                            {item.name}
-                          </td>
-                          <td className="border border-gray-400 px-2.5 py-2 font-mono text-center text-xs">
-                            {item.barcode || 'Chưa cấp'}
-                          </td>
-                          <td className="border border-gray-400 px-2.5 py-2">
-                            {item.categoryName} {item.brandName ? `· ${item.brandName}` : ''}
-                          </td>
-                          <td className="border border-gray-400 px-2.5 py-2 text-center font-semibold">
-                            {item.size || '-'}
-                          </td>
-                          <td className="border border-gray-400 px-2.5 py-2 text-center">
-                            {item.conditionPercentage}%
-                          </td>
-                          <td className="border border-gray-400 px-2.5 py-2 text-right font-semibold">
-                            {formatVndPrice(item.listedPrice)}
-                          </td>
-                          <td className="border border-gray-400 px-2.5 py-2 text-center text-gray-700">
-                            {commRate}%
-                          </td>
-                          <td className="border border-gray-400 px-2.5 py-2 text-right font-bold text-gray-900">
-                            {formatVndPrice(payout)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-
-                    {/* Dòng tổng kết */}
-                    <tr className="bg-gray-100 font-extrabold text-gray-900">
-                      <td colSpan={6} className="border border-gray-400 px-2.5 py-2 text-right uppercase">
-                        Tổng cộng ({totalQuantity} sản phẩm):
-                      </td>
-                      <td className="border border-gray-400 px-2.5 py-2 text-right font-black">
-                        {formatVndPrice(totalListedPrice)}
-                      </td>
-                      <td className="border border-gray-400 px-2.5 py-2 text-center">-</td>
-                      <td className="border border-gray-400 px-2.5 py-2 text-right font-black text-rose-800">
-                        {formatVndPrice(totalPayoutEst)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Điều khoản hợp đồng */}
-            {contract.terms && (
-              <div className="mt-6">
-                <h3 className="text-xs font-extrabold uppercase tracking-wide text-gray-900 mb-2">
-                  ĐIỀU KHOẢN VÀ THỎA THUẬN KÝ GỬI:
-                </h3>
-                <div className="rounded-xl border border-gray-300 bg-gray-50/50 p-4 text-xs leading-relaxed text-gray-800 whitespace-pre-wrap">
-                  {contract.terms}
-                </div>
-              </div>
-            )}
-
-            {/* Lưu ý kết thúc */}
-            <p className="mt-4 text-[11px] text-gray-600 italic whitespace-pre-line">
-              {contract.footerText || '* Hợp đồng được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ 01 bản làm căn cứ đối soát và nhận tiền thanh toán khi sản phẩm được bán.'}
-            </p>
-
-            {/* Chữ ký xác nhận */}
-            <div className="signature-block mt-8 grid grid-cols-2 gap-8 text-center text-xs">
-              <div className="space-y-1">
-                <p className="font-extrabold uppercase text-gray-900">ĐẠI DIỆN BÊN A (OCS)</p>
-                <p className="text-[11px] text-gray-500 italic">(Ký, ghi rõ họ tên)</p>
-                <div className="h-20 flex items-center justify-center">
-                  <span className="font-serif italic text-gray-400 text-sm">[Đã xác nhận điện tử]</span>
-                </div>
-                <p className="font-bold text-gray-900">{contract.employeeName || 'Nhân viên tiếp nhận'}</p>
-                {contract.employeeTitle && <p className="text-[11px] text-gray-600">{contract.employeeTitle}</p>}
-              </div>
-
-              <div className="space-y-1">
-                <p className="font-extrabold uppercase text-gray-900">ĐẠI DIỆN BÊN B (KHÁCH HÀNG)</p>
-                <p className="text-[11px] text-gray-500 italic">(Ký, ghi rõ họ tên)</p>
-                <div className="h-20 flex items-center justify-center">
-                  {contract.customerSignatureDataUrl ? (
-                    <img
-                      src={contract.customerSignatureDataUrl}
-                      alt="Chữ ký khách hàng"
-                      className="max-h-16 max-w-[80%] object-contain"
-                    />
-                  ) : (
-                    <span className="font-serif italic text-gray-400 text-sm">[Chữ ký khách hàng]</span>
-                  )}
-                </div>
-                <p className="font-bold text-gray-900">{contract.customerName || 'Khách hàng'}</p>
-              </div>
-            </div>
-          </div>
+          <UnifiedContractSheet
+            contractNumber={contract.contractNumber}
+            title={contract.title}
+            organizationName={contract.organizationName}
+            headerText={contract.headerText}
+            footerText={contract.footerText}
+            signedAt={contract.signedAt}
+            endsAt={contract.endsAt}
+            expiryHandling={contract.expiryHandling}
+            employeeName={contract.employeeName}
+            employeeTitle={contract.employeeTitle}
+            employeePhone={contract.employeePhone}
+            customerName={contract.customerName}
+            customerPhone={contract.customerPhone}
+            customerEmail={contract.customerEmail}
+            customerIdentity={contract.customerIdentity}
+            customerAddress={contract.customerAddress}
+            bankCode={contract.bankCode}
+            bankAccountNumber={contract.bankAccountNumber}
+            bankAccountHolderName={contract.bankAccountHolderName}
+            products={contract.products}
+            terms={contract.terms}
+            signatureDataUrl={contract.customerSignatureDataUrl}
+            printableId="contract-printable-sheet"
+          />
 
           {/* Barcode Print Modal */}
           <BarcodePrintDialog

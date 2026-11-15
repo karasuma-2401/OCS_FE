@@ -76,7 +76,19 @@ export interface ContractDetail {
   footerText?: string | null;
 }
 export interface ContractPdfFieldMapping { field: string; page: number; x: number; y: number; width: number; height: number }
-export interface ContractTemplate { title: string; organizationName: string; headerText: string; footerText: string; defaultTerms: string; version: string; updatedAt: string | null; pdfBase64: string | null; fieldMappings: ContractPdfFieldMapping[] }
+export interface ContractTemplate {
+  title: string;
+  organizationName: string;
+  headerText: string;
+  footerText: string;
+  defaultTerms: string;
+  version: string;
+  updatedAt: string | null;
+  pdfBase64: string | null;
+  fieldMappings: ContractPdfFieldMapping[];
+  defaultTermDays?: number;
+  defaultExpiryHandling?: 'Return' | 'Donate';
+}
 
 export async function getIntakeTemplate(): Promise<ContractTemplate> {
   return (await apiClient.get<ContractTemplate>('/contracts/template')).data;

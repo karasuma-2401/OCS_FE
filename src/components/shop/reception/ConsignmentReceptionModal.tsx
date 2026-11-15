@@ -2,13 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { findContractCustomer, getContractCustomer, updateContractCustomer, type ContractCustomer, type ContractImage } from '@/api/contracts';
 import { parseProblemDetails } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
-import { Button, Card, Combobox, Input } from '@/components/shared';
+import { Button, Card, Combobox, Input, Select } from '@/components/shared';
 import { ContractSignature } from '@/components/shop/ContractSignature';
 import { ContractMoneyInput } from '@/components/shop/ContractMoneyInput';
+import { UnifiedContractSheet } from '@/components/shop/UnifiedContractSheet';
 import {
   X,
   FileText,
-  UserCheck,
   Lock,
   Tag,
   Coins,
@@ -84,7 +84,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
   onSuccess,
   embedded = false,
 }) => {
-  const { hasPermission, hasRole } = useAuth();
+  const { user, hasPermission, hasRole } = useAuth();
   const canUpdateCustomer = hasRole('Admin') || hasPermission('customers.update');
   const [customerProfile, setCustomerProfile] = useState<ContractCustomer | null>(null);
   const [savedCustomer, setSavedCustomer] = useState<ContractCustomer | null>(null);
@@ -119,6 +119,8 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
   const [customerHistoryCount, setCustomerHistoryCount] = useState<number>(0);
   const [termDays, setTermDays] = useState<number>(60);
   const [termDaysInput, setTermDaysInput] = useState<string>('60');
+  const [signedAtDate, setSignedAtDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [expiryHandling, setExpiryHandling] = useState<'Return' | 'Donate'>('Return');
   const [commissionShop, setCommissionShop] = useState<number>(20);
 
   const clearFieldError = (field: string) => {
@@ -227,17 +229,24 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
 
     const loadAndInit = async () => {
       try {
-        const [fetchedCats, fetchedBrands] = await Promise.all([
+        const [fetchedCats, fetchedBrands, fetchedTemplate] = await Promise.all([
           consignmentApi.getCategories(),
           consignmentApi.getBrands(),
+          consignmentApi.getReceptionTemplate().catch(() => null),
         ]);
         if (!cancelled) {
           setCategories(fetchedCats);
-
-        }
-        if (!cancelled) {
           setBrands(fetchedBrands);
-
+          if (fetchedTemplate) {
+            setReceptionTemplate(fetchedTemplate);
+            if (fetchedTemplate.defaultTermDays) {
+              setTermDays(fetchedTemplate.defaultTermDays);
+              setTermDaysInput(String(fetchedTemplate.defaultTermDays));
+            }
+            if (fetchedTemplate.defaultExpiryHandling === 'Donate' || fetchedTemplate.defaultExpiryHandling === 'Return') {
+              setExpiryHandling(fetchedTemplate.defaultExpiryHandling);
+            }
+          }
         }
         if (!cancelled && (!fetchedCats.length || !fetchedBrands.length)) setApiError('Chưa có danh mục hoặc thương hiệu đang hoạt động. Vui lòng cập nhật danh mục trước khi tiếp nhận.');
       } catch {
@@ -310,12 +319,12 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
     const totalShop = totalListed - totalCustomer;
     return { totalCount, totalListed, totalCustomer, totalShop };
   }, [items]);
-  const today = new Date();
-  const endDate = new Date(today);
-  endDate.setDate(today.getDate() + termDays);
+  const signedDateObj = signedAtDate ? new Date(signedAtDate) : new Date();
+  const endDate = new Date(signedDateObj);
+  endDate.setDate(signedDateObj.getDate() + termDays);
   const formatDateVN = (d: Date) =>
     `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-  const dateRangeStr = `${formatDateVN(today)} – ${formatDateVN(endDate)}`;
+  const dateRangeStr = `Thời hạn: ${formatDateVN(signedDateObj)} – ${formatDateVN(endDate)} (${termDays} ngày)`;
   const handleRestoreDraft = () => {
     if (!draftBanner) return;
     const d = draftBanner.data;
@@ -641,7 +650,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
           ...customerExtra,
         },
         actualItemCount: actualItemCount > 0 ? actualItemCount : items.length,
-        expiryHandling: 'Return' as const,
+        expiryHandling: expiryHandling,
         termDays,
         note: batchNote,
         items: items.map((i) => {
@@ -917,8 +926,8 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
             {customerHistoryCount > 0 && <p className="mt-2 text-sm text-muted">Khách đã ký gửi {customerHistoryCount} món.</p>}
           </Card>
 
-          <Card className="!bg-surface-default !border-border" title="Thông tin đợt ký gửi" description="Thời hạn và số lượng thực tế của đợt tiếp nhận.">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Card className="!bg-surface-default !border-border" title="Thông tin đợt ký gửi" description="Thời hạn, ngày ký và phương thức xử lý sau thời hạn của đợt tiếp nhận.">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Input
                 label="Số món thực tế"
                 type="text"
@@ -927,6 +936,12 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
                 value={actualItemCountInput}
                 onChange={event => handleActualItemCountChange(event.target.value)}
                 onBlur={handleActualItemCountBlur}
+              />
+              <Input
+                label="Ngày ký tiếp nhận"
+                type="date"
+                value={signedAtDate}
+                onChange={event => setSignedAtDate(event.target.value)}
               />
               <Input
                 label="Thời hạn (ngày)"
@@ -940,9 +955,24 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
                 }}
                 onBlur={() => handleTermDaysChange(Number(termDaysInput) || 1)}
               />
-              <Input label="Ghi chú đợt" value={batchNote} onChange={event => setBatchNote(event.target.value)} />
+              <Select
+                label="Phương thức hoàn trả"
+                value={expiryHandling}
+                onChange={event => setExpiryHandling(event.target.value as 'Return' | 'Donate')}
+              >
+                <option value="Return">Khách nhận lại đồ khi hết hạn</option>
+                <option value="Donate">Quyên góp từ thiện theo chính sách</option>
+              </Select>
+              <div className="sm:col-span-2 lg:col-span-4">
+                <Input
+                  label="Ghi chú đợt"
+                  value={batchNote}
+                  onChange={event => setBatchNote(event.target.value)}
+                  placeholder="Ghi chú thêm về đợt tiếp nhận (nếu có)..."
+                />
+              </div>
             </div>
-            <p className="mt-3 text-sm text-muted">{dateRangeStr}</p>
+            <p className="mt-3 text-sm font-medium text-brand-highlight">{dateRangeStr}</p>
           </Card>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             
@@ -1208,7 +1238,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
 
       {previewOpen && (
         <div className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-3xl bg-surface-default shadow-2xl border border-border/80 overflow-hidden text-text-primary font-sans">
+          <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl bg-surface-default shadow-2xl border border-border/80 overflow-hidden text-text-primary font-sans">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/70 bg-surface-dashboard/80 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-pink-light text-brand-highlight shadow-xs">
@@ -1216,10 +1246,10 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-text-primary">
-                    Xem Lại & Đối Soát Phiếu Tiếp Nhận
+                    Xem Lại Hợp Đồng & Ký Tên Tiếp Nhận
                   </h3>
                   <p className="text-[11px] text-text-muted mt-0.5">
-                    Kiểm tra kỹ thông tin khách hàng, số lượng đồ thực tế và mức hoa hồng trước khi lưu phiếu tiếp nhận
+                    Kiểm tra các điều khoản theo hợp đồng mẫu và ký xác nhận trực tiếp vào ô BÊN B bên dưới.
                   </p>
                 </div>
               </div>
@@ -1234,135 +1264,55 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-border/80 bg-surface-dashboard p-4 space-y-2">
-                  <h4 className="font-extrabold text-text-primary text-xs uppercase tracking-wider text-brand-highlight flex items-center gap-1.5">
-                    <UserCheck size={14} /> Thông tin khách hàng & Tiếp nhận
-                  </h4>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                    <div>
-                      <span className="text-text-muted">Chủ ký gửi:</span>{' '}
-                      <strong className="text-text-primary font-extrabold">{customerName}</strong>
-                    </div>
-                    <div>
-                      <span className="text-text-muted">Số điện thoại:</span>{' '}
-                      <strong className="text-text-primary font-extrabold">{customerPhone}</strong>
-                    </div>
-                    <div>
-                      <span className="text-text-muted">Email:</span>{' '}
-                      <span className="text-text-secondary">{customerEmail || 'Chưa cung cấp'}</span>
-                    </div>
-                    {extraFields.map(([field, label]) => <div key={field}><span className="text-text-muted">{label}:</span> <span className="text-text-secondary">{customerExtra[field] || 'Chưa cung cấp'}</span></div>)}                    <div>
-                      <span className="text-text-muted">Hình thức:</span>{' '}
-                      <span className="font-bold text-brand-highlight">
-                        {intakeType === 'consignment' ? 'Hàng Ký Gửi (%)' : 'Mua Đứt (Vốn shop)'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-text-muted">Số lượng đồ thực tế:</span>{' '}
-                      <strong className="text-brand-highlight font-extrabold">{actualItemCount} món</strong>
-                    </div>
-                    <div>
-                      <span className="text-text-muted">Số món đã nhập:</span>{' '}
-                      <strong className="text-text-primary font-bold">{items.length} món</strong>
-                    </div>
-                  </div>
-                </div>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              <UnifiedContractSheet
+                title={receptionTemplate?.title || (intakeType === 'buyout' ? 'BIÊN BẢN THU MUA ĐỨT HÀNG HÓA' : 'HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG')}
+                organizationName={receptionTemplate?.organizationName || 'CỬA HÀNG OLD CLOTHES STORE (OCS)'}
+                headerText={receptionTemplate?.headerText}
+                footerText={receptionTemplate?.footerText}
+                contractNumber="[TẠO MỚI KHI LƯU]"
+                signedAt={signedDateObj.toISOString()}
+                endsAt={endDate.toISOString()}
+                expiryHandling={expiryHandling}
+                employeeName={user?.fullName || 'Nhân viên tiếp nhận'}
+                employeeTitle={user?.roles?.[0] || 'Nhân viên tiếp nhận'}
+                employeePhone={user?.phoneNumber || null}
+                customerName={customerName}
+                customerPhone={customerPhone}
+                customerEmail={customerEmail || null}
+                customerIdentity={customerExtra.identityNumber || null}
+                customerAddress={customerExtra.address || null}
+                bankCode={customerExtra.bankCode || null}
+                bankAccountNumber={customerExtra.bankAccountNumber || null}
+                bankAccountHolderName={customerExtra.bankAccountHolderName || null}
+                products={items.map((it, idx) => ({
+                  id: it.id,
+                  name: it.name,
+                  barcode: (it as any).barcode || `OCS-AUTO-${idx + 1}`,
+                  brandName: it.brand,
+                  categoryName: it.category,
+                  size: it.size,
+                  material: it.material,
+                  conditionPercentage: Number(it.condition.replace(/[^0-9]/g, '')) || 95,
+                  listedPrice: it.listedPrice,
+                  agreedCommissionRate: intakeType === 'consignment' ? it.commissionRate : 0,
+                  customerPayout: it.customerPayout,
+                }))}
+                terms={receptionTemplate?.defaultTerms || (intakeType === 'buyout' ? BUYOUT_RECEPTION_TERMS : undefined)}
+                batchNote={batchNote || null}
+                isDraftPreview={true}
+                signatureNode={
+                  <ContractSignature
+                    value={signature}
+                    onChange={setSignature}
+                    disabled={submitting || readingSignature}
+                    onReadingChange={setReadingSignature}
+                    compact={true}
+                  />
+                }
+              />
 
-                <div className="rounded-2xl border border-border/80 bg-surface-dashboard p-4 space-y-2">
-                  <h4 className="font-extrabold text-text-primary text-xs uppercase tracking-wider text-brand-highlight flex items-center gap-1.5">
-                    <Coins size={14} /> Thỏa thuận hoa hồng & Thời hạn
-                  </h4>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                    <div>
-                      <span className="text-text-muted">Thời hạn ký gửi:</span>{' '}
-                      <strong className="text-text-primary font-bold">{termDays} ngày</strong>
-                    </div>
-                    <div>
-                      <span className="text-text-muted">Khoảng thời gian:</span>{' '}
-                      <span className="text-text-secondary font-medium">{dateRangeStr}</span>
-                    </div>
-                    <div className="col-span-2 pt-1 border-t border-border/50">
-                      <span className="text-text-muted">Ghi chú đợt:</span>{' '}
-                      <span className="text-text-secondary italic">{batchNote || 'Không có ghi chú'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-extrabold text-text-primary">
-                    Danh Sách Sản Phẩm Tiếp Nhận ({items.length} món)
-                  </span>
-                  <span className="text-text-muted text-[11px]">
-                    Được tạo từ phiếu tiếp nhận
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto rounded-2xl border border-border/80 bg-surface-default shadow-2xs max-h-64">
-                  <table className="w-full text-left text-xs">
-                    <thead className="sticky top-0 z-10 bg-surface-dashboard/90 backdrop-blur-sm border-b border-border/60">
-                      <tr className="text-[11px] font-bold text-text-muted uppercase">
-                        <th className="py-2.5 pl-3 w-8">#</th>
-                        <th className="py-2.5 px-3">TÊN SẢN PHẨM</th>
-                        <th className="py-2.5 px-3">THƯƠNG HIỆU</th>
-                        <th className="py-2.5 px-3">PHÂN LOẠI</th>
-                        <th className="py-2.5 px-3">SIZE / VẢI</th>
-                        <th className="py-2.5 px-3">ĐỘ MỚI</th>
-                        <th className="py-2.5 px-3">HOA HỒNG</th><th className="py-2.5 px-3 text-right">GIÁ NIÊM YẾT</th>
-                        <th className="py-2.5 pr-3 text-right">KHÁCH NHẬN</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {items.map((it, idx) => (
-                        <tr key={it.id} className="hover:bg-surface-active/50">
-                          <td className="py-2.5 pl-3 font-semibold text-text-muted">{idx + 1}</td>
-                          <td className="py-2.5 px-3 font-bold text-text-primary">{it.name}</td>
-                          <td className="py-2.5 px-3 text-text-secondary">{it.brand || 'Khác'}</td>
-                          <td className="py-2.5 px-3 text-text-secondary">{it.category}</td>
-                          <td className="py-2.5 px-3 text-text-muted font-medium">
-                            {it.size}{it.material ? ` • ${it.material}` : ''}
-                          </td>
-                          <td className="py-2.5 px-3 text-text-secondary">{it.condition}</td>
-                          <td className="py-2.5 px-3">{intakeType === 'consignment' ? `${it.commissionRate}%` : '—'}</td><td className="py-2.5 px-3 text-right font-bold text-text-primary">
-                            {formatVND(it.listedPrice)}
-                          </td>
-                          <td className="py-2.5 pr-3 text-right font-extrabold text-brand-highlight">
-                            {formatVND(it.customerPayout)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {items.some(item => item.images?.length) && <Card title="Ảnh sản phẩm trong hợp đồng">{items.filter(item => item.images?.length).map(item => <div key={item.id} className="mb-3"><p className="mb-2 font-bold text-text-primary">{item.name}</p><div className="flex flex-wrap gap-2">{item.images?.map((url, index) => <img key={`${url}-${index}`} src={url} alt={`${item.name} - ảnh ${index + 1}`} className="h-24 w-24 rounded-lg object-cover" />)}</div></div>)}</Card>}
-              {intakeType === 'buyout' && <Card className="!bg-surface-default !border-border" title="Xác nhận thu mua"><p className="text-sm text-text-secondary">{BUYOUT_RECEPTION_TERMS}</p></Card>}
-              {receptionTemplate && <Card className="!bg-surface-default !border-border" title={receptionTemplate.title} description={receptionTemplate.organizationName}>
-                {receptionTemplate.headerText && <p className="whitespace-pre-wrap text-sm text-text-primary">{receptionTemplate.headerText}</p>}
-                <h4 className="mt-3 font-bold text-text-primary">Điều khoản hợp đồng</h4>
-                <p className="mt-2 whitespace-pre-wrap text-sm text-text-secondary">{receptionTemplate.defaultTerms || 'Chưa có điều khoản bổ sung.'}</p>
-                {receptionTemplate.footerText && <p className="mt-3 whitespace-pre-wrap text-sm text-text-secondary">{receptionTemplate.footerText}</p>}
-              </Card>}
-              <ContractSignature value={signature} onChange={setSignature} disabled={submitting || readingSignature} onReadingChange={setReadingSignature} />
-              {apiError && <p role="alert" className="text-sm text-state-danger">{apiError}</p>}
-              <div className="grid grid-cols-3 gap-3 rounded-2xl border border-border/80 bg-surface-dashboard/60 p-4 text-center">
-                <div>
-                  <p className="text-[11px] text-text-muted font-semibold">Tổng giá niêm yết</p>
-                  <p className="text-base font-extrabold text-text-primary mt-0.5">{formatVND(stats.totalListed)}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-brand-highlight font-semibold">Tiền dự kiến khách nhận</p>
-                  <p className="text-base font-extrabold text-brand-highlight mt-0.5">{formatVND(stats.totalCustomer)}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-text-muted font-semibold">Hoa hồng shop dự kiến</p>
-                  <p className="text-base font-extrabold text-text-primary mt-0.5">{formatVND(stats.totalShop)}</p>
-                </div>
-              </div>
+              {apiError && <p role="alert" className="text-sm font-semibold text-state-danger text-center">{apiError}</p>}
             </div>
 
             <div className="flex items-center justify-between px-6 py-4 border-t border-border/70 bg-surface-default shrink-0">
@@ -1374,23 +1324,30 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
                 <RotateCcw size={14} /> Quay lại chỉnh sửa
               </button>
 
-              <button
-                type="button"
-                onClick={handleSubmitReception}
-                disabled={submitting || readingSignature || !signature}
-                style={{ color: '#FFFFFF' }}
-                className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-pink to-brand-pink-hover hover:opacity-95 px-6 py-2.5 text-xs font-extrabold !text-white shadow-md transition active:scale-95 disabled:opacity-50"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 size={15} className="animate-spin text-white" /> Đang lưu phiếu...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={15} className="text-white" /> Xác Nhận & Lưu Phiếu Tiếp Nhận
-                  </>
+              <div className="flex items-center gap-3">
+                {!signature && (
+                  <span className="text-xs text-amber-600 font-semibold italic">
+                    * Vui lòng ký tên vào ô BÊN B trên hợp đồng
+                  </span>
                 )}
-              </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitReception}
+                  disabled={submitting || readingSignature || !signature}
+                  style={{ color: '#FFFFFF' }}
+                  className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-pink to-brand-pink-hover hover:opacity-95 px-6 py-2.5 text-xs font-extrabold !text-white shadow-md transition active:scale-95 disabled:opacity-50"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin text-white" /> Đang lưu phiếu...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={15} className="text-white" /> Xác Nhận & Lưu Phiếu Tiếp Nhận
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
