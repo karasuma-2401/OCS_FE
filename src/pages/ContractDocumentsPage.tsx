@@ -252,6 +252,9 @@ export function ContractPdfPage() {
         name: p.name,
         barcode: p.barcode,
         listedPrice: p.listedPrice,
+        size: p.size || undefined,
+        brand: p.brandName || undefined,
+        condition: p.conditionPercentage ? `${p.conditionPercentage}%` : undefined,
       })));
     } else {
       setLabelsLoading(true);

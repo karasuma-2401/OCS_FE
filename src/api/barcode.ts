@@ -1,6 +1,14 @@
 import { apiClient } from './client';
 
-export interface BarcodeLabelProduct { id: string; name: string; barcode: string; listedPrice: number }
+export interface BarcodeLabelProduct {
+  id: string;
+  name: string;
+  barcode: string;
+  listedPrice: number;
+  size?: string | null;
+  brand?: string | null;
+  condition?: string | null;
+}
 export interface BarcodeLabelTemplate { widthMm: number; heightMm: number; columns: number; fontSizePt: number; version: string; updatedAt: string | null }
 
 export const barcodeApi = {

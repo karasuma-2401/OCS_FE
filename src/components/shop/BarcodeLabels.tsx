@@ -22,32 +22,74 @@ export function BarcodeSymbol({ value, className = '' }: { value: string; classN
 }
 
 export function BarcodeLabel({ item, template }: { item: BarcodeLabelProduct; template: BarcodeLabelTemplate }) {
+  const brandDisplay = (item.brand || '').trim();
+  const sizeDisplay = (item.size || '').trim();
+  const rawCondition = (item.condition || '').trim();
+  const conditionDisplay = rawCondition
+    ? /^\d+$/.test(rawCondition)
+      ? `${rawCondition}%`
+      : rawCondition
+    : '';
+
+  const basePt = template.fontSizePt || 8;
+  const headerPt = Math.max(Math.round(basePt * 0.8), 6);
+  const barcodePt = Math.max(Math.round(basePt * 0.75), 6);
+
+  const rightParts = [
+    sizeDisplay ? `SIZE: ${sizeDisplay}` : null,
+    conditionDisplay ? `ĐỘ MỚI: ${conditionDisplay}` : null,
+  ].filter(Boolean);
+  const rightText = rightParts.length > 0 ? rightParts.join(' · ') : 'CHÍNH HÃNG';
+
   return (
     <div
-      className="barcode-print-item flex shrink-0 flex-col justify-between overflow-hidden border border-gray-400 bg-white p-2 text-black"
+      className="barcode-print-item flex shrink-0 flex-col justify-between overflow-hidden border border-gray-400 bg-white p-2 text-black select-none"
       style={{
         width: `${template.widthMm}mm`,
         height: `${template.heightMm}mm`,
-        fontSize: `${template.fontSizePt}pt`,
+        fontSize: `${basePt}pt`,
         boxSizing: 'border-box',
       }}
     >
       <div className="min-h-0 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-gray-300 pb-0.5 text-[6pt] font-bold tracking-wider text-gray-600 uppercase">
-          <span>OCS FASHION</span>
-          <span>CHÍNH HÃNG</span>
+        {/* Hàng tiêu đề: Hãng (Brand) bên trái, Size & Độ mới bên phải */}
+        <div
+          className="flex items-center justify-between border-b border-gray-300 pb-0.5 font-bold tracking-tight uppercase text-gray-700"
+          style={{ fontSize: `${headerPt}pt` }}
+        >
+          <span className="truncate max-w-[48%]" title={brandDisplay ? `Hãng: ${brandDisplay}` : 'OCS FASHION'}>
+            {brandDisplay ? `HÃNG: ${brandDisplay}` : 'OCS FASHION'}
+          </span>
+          <span className="shrink-0 text-gray-600 font-bold">
+            {rightText}
+          </span>
         </div>
-        <p className="mt-0.5 line-clamp-2 font-bold leading-tight text-gray-900" title={item.name}>
+
+        {/* Tên sản phẩm */}
+        <p
+          className="mt-0.5 line-clamp-2 font-bold leading-tight text-gray-900"
+          title={item.name}
+          style={{ fontSize: `${basePt}pt` }}
+        >
           {item.name}
         </p>
-        <p className="font-extrabold text-black leading-tight">
+
+        {/* Giá niêm yết */}
+        <p
+          className="font-extrabold text-black leading-tight"
+          style={{ fontSize: `${Math.round(basePt * 1.05)}pt` }}
+        >
           {formatVndPrice(item.listedPrice)}
         </p>
       </div>
 
+      {/* Barcode Code 128 */}
       <div className="flex min-h-0 flex-col items-center justify-center pt-0.5">
-        <BarcodeSymbol value={item.barcode} className="h-6 w-full max-w-[98%]" />
-        <p className="break-all text-center font-mono leading-none tracking-wider text-gray-800" style={{ fontSize: '6pt' }}>
+        <BarcodeSymbol value={item.barcode} className="h-6.5 w-full max-w-[96%]" />
+        <p
+          className="break-all text-center font-mono leading-none tracking-wider text-gray-800"
+          style={{ fontSize: `${barcodePt}pt` }}
+        >
           {item.barcode || 'Chưa có barcode'}
         </p>
       </div>
@@ -152,10 +194,16 @@ export function BarcodePrintDialog({ open, onClose, items }: { open: boolean; on
             border: none !important;
             box-shadow: none !important;
             overflow: visible !important;
+            display: grid !important;
+            justify-content: center !important;
+            gap: 3mm !important;
           }
           .barcode-print-item {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
+            box-sizing: border-box !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>

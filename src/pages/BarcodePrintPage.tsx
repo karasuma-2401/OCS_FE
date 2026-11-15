@@ -234,6 +234,9 @@ export function BarcodePrintPage() {
         name: p.name,
         barcode: p.barcode,
         listedPrice: p.listedPrice,
+        size: p.size || undefined,
+        brand: p.brand || undefined,
+        condition: p.conditionPercentage ? `${p.conditionPercentage}%` : undefined,
       })),
     );
   };
@@ -456,7 +459,7 @@ export function BarcodePrintPage() {
                             {item.name}
                           </p>
                           <p className="text-xs text-text-secondary mt-0.5">
-                            {item.category}{item.brand ? ` · ${item.brand}` : ''}{item.size ? ` · Size ${item.size}` : ''}
+                            {item.category}{item.brand ? ` · ${item.brand}` : ''}{item.size ? ` · Size ${item.size}` : ''}{item.conditionPercentage ? ` · Mới ${item.conditionPercentage}%` : ''}
                           </p>
                         </td>
 

@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Button, ErrorState, Input, Modal, SkeletonLoading } from '@/components/shared';
-import { barcodeApi, type BarcodeLabelTemplate } from '@/api/barcode';
+import { barcodeApi, type BarcodeLabelProduct, type BarcodeLabelTemplate } from '@/api/barcode';
 import { useAuth } from '@/context/AuthContext';
-import { BarcodeSymbol } from './BarcodeLabels';
-import { formatVndPrice } from '@/api/products';
+import { BarcodeLabel } from './BarcodeLabels';
 import { ShieldAlert, CheckCircle2, RotateCcw } from 'lucide-react';
+
+const DEMO_PRODUCT: BarcodeLabelProduct = {
+  id: 'demo-sample-1',
+  name: 'Áo Polo Piqué Cổ Bẻ Cao Cấp',
+  barcode: 'OCS-20261115-DEMO',
+  listedPrice: 350000,
+  size: 'L',
+  brand: 'ZARA',
+  condition: '95%',
+};
 
 const DEFAULT_TEMPLATE: BarcodeLabelTemplate = {
   widthMm: 65,
@@ -258,34 +267,9 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
                 </p>
               </div>
 
-              {/* Tem mẫu */}
-              <div
-                className="flex flex-col justify-between overflow-hidden rounded-lg border border-gray-400 bg-white p-2.5 text-black shadow-md transition-all select-none"
-                style={{
-                  width: `${template.widthMm * 3.78}px`,
-                  minHeight: `${template.heightMm * 3.78}px`,
-                  fontSize: `${template.fontSizePt}pt`,
-                }}
-              >
-                <div>
-                  <div className="flex items-center justify-between border-b border-gray-200 pb-1 text-[8px] font-bold tracking-tight text-gray-500 uppercase">
-                    <span>OCS FASHION</span>
-                    <span>SIZE: L · 95%</span>
-                  </div>
-                  <p className="mt-1 line-clamp-2 font-extrabold leading-tight text-gray-900" title="Áo Polo Unisex Piqué Cotton Cổ Bẻ">
-                    Áo Polo Piqué Cổ Bẻ Cao Cấp
-                  </p>
-                  <p className="font-black text-rose-700 leading-tight">
-                    {formatVndPrice(350000)}
-                  </p>
-                </div>
-
-                <div className="my-1 flex flex-col items-center justify-center">
-                  <BarcodeSymbol value="OCS-20261115-DEMO" className="h-9 w-full max-w-[95%]" />
-                  <span className="font-mono text-[7pt] tracking-widest text-gray-700">
-                    OCS-20261115-DEMO
-                  </span>
-                </div>
+              {/* Tem mẫu: Đồng bộ 100% với BarcodeLabel khi in thực tế */}
+              <div className="shadow-lg rounded-lg overflow-hidden transition-all bg-white">
+                <BarcodeLabel item={DEMO_PRODUCT} template={template} />
               </div>
 
               <p className="mt-4 text-center text-xs text-muted italic">
