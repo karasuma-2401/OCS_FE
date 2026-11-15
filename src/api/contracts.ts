@@ -102,48 +102,57 @@ export async function getContractDocument(id: string): Promise<Blob> {
   return (await apiClient.get<Blob>(`/contracts/${encodeURIComponent(id)}/document`, { responseType: 'blob' })).data;
 }
 export async function getContractDetail(id: string): Promise<ContractDetail> {
+  const mapData = (raw: any): ContractDetail => {
+    const productsRaw = raw.products || raw.Products || [];
+    const sig = raw.signature || raw.Signature;
+    const sigDataUrl = raw.customerSignatureDataUrl || raw.CustomerSignatureDataUrl ||
+      (sig?.data ? `data:${sig.contentType || 'image/png'};base64,${sig.data}` : null);
+
+    return {
+      id: raw.id || raw.Id || id,
+      contractNumber: raw.contractNumber || raw.ContractNumber || 'HĐ-KÝ-GỬI',
+      signedAt: raw.signedAt || raw.SignedAt || new Date().toISOString(),
+      endsAt: raw.endsAt || raw.EndsAt || new Date().toISOString(),
+      expiryHandling: raw.expiryHandling || raw.ExpiryHandling || 'Return',
+      status: raw.status || raw.Status || 'Active',
+      customerName: raw.customerName || raw.CustomerName || '',
+      customerPhone: raw.customerPhone || raw.CustomerPhone || '',
+      customerEmail: raw.customerEmail || raw.CustomerEmail || null,
+      customerIdentity: raw.customerIdentity || raw.CustomerIdentity || null,
+      customerAddress: raw.customerAddress || raw.CustomerAddress || null,
+      bankCode: raw.bankCode || raw.BankCode || raw.bankCodeSnapshot || raw.BankCodeSnapshot || null,
+      bankAccountNumber: raw.bankAccountNumber || raw.BankAccountNumber || raw.bankAccountNumberSnapshot || raw.BankAccountNumberSnapshot || null,
+      bankAccountHolderName: raw.bankAccountHolderName || raw.BankAccountHolderName || raw.bankAccountHolderSnapshot || raw.BankAccountHolderSnapshot || null,
+      employeeName: raw.employeeName || raw.EmployeeName || 'Nhân viên tiếp nhận',
+      employeeTitle: raw.employeeTitle || raw.EmployeeTitle || null,
+      employeePhone: raw.employeePhone || raw.EmployeePhone || null,
+      terms: raw.terms || raw.Terms || raw.template?.defaultTerms || raw.Template?.DefaultTerms || null,
+      customerSignatureDataUrl: sigDataUrl,
+      title: raw.title || raw.Title || raw.template?.title || raw.Template?.Title || null,
+      organizationName: raw.organizationName || raw.OrganizationName || raw.template?.organizationName || raw.Template?.OrganizationName || null,
+      headerText: raw.headerText || raw.HeaderText || raw.template?.headerText || raw.Template?.HeaderText || null,
+      footerText: raw.footerText || raw.FooterText || raw.template?.footerText || raw.Template?.FooterText || null,
+      products: Array.isArray(productsRaw) ? productsRaw.map((p: any) => ({
+        id: p.id || p.Id || '',
+        name: p.name || p.Name || '',
+        barcode: p.barcode || p.Barcode || '',
+        size: p.size || p.Size || '',
+        conditionPercentage: p.conditionPercentage ?? p.ConditionPercentage ?? 100,
+        listedPrice: p.listedPrice ?? p.ListedPrice ?? 0,
+        agreedCommissionRate: p.agreedCommissionRate ?? p.AgreedCommissionRate ?? p.commissionRate ?? p.CommissionRate ?? null,
+        brandName: p.brandName || p.BrandName || p.brand || p.Brand || '',
+        categoryName: p.categoryName || p.CategoryName || p.category || p.Category || '',
+      })) : [],
+    };
+  };
+
   try {
-    return (await apiClient.get<ContractDetail>(`/contracts/${encodeURIComponent(id)}/detail`)).data;
+    const res = await apiClient.get<Record<string, any>>(`/contracts/${encodeURIComponent(id)}/detail`);
+    return mapData(res.data);
   } catch {
     // Dự phòng gọi endpoint /web nếu endpoint /detail gặp sự cố
     const res = await apiClient.get<Record<string, any>>(`/contracts/${encodeURIComponent(id)}/web`);
-    const web = res.data;
-    return {
-      id: web.id || id,
-      contractNumber: web.contractNumber || 'HĐ-KÝ-GỬI',
-      signedAt: web.signedAt || new Date().toISOString(),
-      endsAt: web.endsAt || new Date().toISOString(),
-      expiryHandling: web.expiryHandling || 'Return',
-      status: web.status || 'Active',
-      customerName: web.customerName || 'Khách hàng',
-      customerPhone: web.customerPhone || '',
-      customerEmail: web.customerEmail || null,
-      customerIdentity: web.customerIdentity || null,
-      customerAddress: web.customerAddress || null,
-      bankCode: web.bankCodeSnapshot || web.bankCode || null,
-      bankAccountNumber: web.bankAccountNumberSnapshot || web.bankAccountNumber || null,
-      bankAccountHolderName: web.bankAccountHolderSnapshot || web.bankAccountHolderName || null,
-      employeeName: web.employeeName || 'Nhân viên tiếp nhận',
-      employeeTitle: web.employeeTitle || null,
-      employeePhone: web.employeePhone || null,
-      terms: web.terms || web.template?.defaultTerms || null,
-      customerSignatureDataUrl: web.signature ? `data:${web.signature.contentType};base64,${web.signature.data}` : null,
-      title: web.template?.title || web.title || null,
-      organizationName: web.template?.organizationName || web.organizationName || null,
-      headerText: web.template?.headerText || web.headerText || null,
-      footerText: web.template?.footerText || web.footerText || null,
-      products: Array.isArray(web.products) ? web.products.map((p: any) => ({
-        id: p.id || '',
-        name: p.name || '',
-        barcode: p.barcode || '',
-        size: p.size || '',
-        conditionPercentage: p.conditionPercentage || 95,
-        listedPrice: p.listedPrice || 0,
-        agreedCommissionRate: p.commissionRate ?? p.agreedCommissionRate ?? 20,
-        brandName: p.brand || p.brandName || '',
-        categoryName: p.category || p.categoryName || '',
-      })) : [],
-    };
+    return mapData(res.data);
   }
 }
 export interface ContractFilterParams {

@@ -166,7 +166,7 @@ export function ContractListPage() {
                 {items.map(item => (
                   <tr key={item.id} className="border-t border-border/60 hover:bg-surface-active transition-colors">
                     <td className="break-all px-4 py-3.5 font-bold font-mono text-xs text-text-primary">{item.contractNumber}</td>
-                    <td className="px-4 py-3.5 text-text-primary">{item.customerName || 'Chưa có thông tin khách'}</td>
+                    <td className="px-4 py-3.5 text-text-primary">{item.customerName || 'Khách hàng'}</td>
                     <td className="px-4 py-3.5 text-text-secondary whitespace-nowrap text-xs">{new Date(item.signedAt).toLocaleString('vi-VN')}</td>
                     <td className="px-4 py-3.5 text-center">
                       <Badge variant={statusVariants[item.status || 'Active'] || 'neutral'} className="whitespace-nowrap">
@@ -471,11 +471,11 @@ export function ContractPdfPage() {
                 </p>
                 <div>
                   <span className="font-bold text-gray-700">Họ và tên:</span>{' '}
-                  <span className="font-extrabold text-gray-900">{contract.customerName}</span>
+                  <span className="font-extrabold text-gray-900">{contract.customerName || 'Khách hàng'}</span>
                 </div>
                 <div>
                   <span className="font-bold text-gray-700">Số điện thoại:</span>{' '}
-                  <span className="font-mono font-semibold">{contract.customerPhone}</span>
+                  <span className="font-mono font-semibold">{contract.customerPhone || '—'}</span>
                 </div>
                 {contract.customerIdentity && (
                   <div>
@@ -628,7 +628,7 @@ export function ContractPdfPage() {
                     <span className="font-serif italic text-gray-400 text-sm">[Chữ ký khách hàng]</span>
                   )}
                 </div>
-                <p className="font-bold text-gray-900">{contract.customerName}</p>
+                <p className="font-bold text-gray-900">{contract.customerName || 'Khách hàng'}</p>
               </div>
             </div>
           </div>

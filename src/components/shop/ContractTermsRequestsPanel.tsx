@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { parseProblemDetails } from '@/api/auth';
 import { contractTermsApi, type ContractTermsRequest } from '@/api/contractTerms';
