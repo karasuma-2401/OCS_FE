@@ -4,6 +4,7 @@ import { parseProblemDetails } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
 import { Button, Card, Combobox, Input } from '@/components/shared';
 import { ContractSignature } from '@/components/shop/ContractSignature';
+import { ContractMoneyInput } from '@/components/shop/ContractMoneyInput';
 import {
   X,
   FileText,
@@ -18,6 +19,7 @@ import {
   CheckCircle2,
   Loader2,
   RotateCcw,
+  Download,
 } from 'lucide-react';
 import type {
   Appointment,
@@ -36,6 +38,15 @@ import {
   type ReceptionTemplate,
   type ReceptionDraft,
 } from '@/api/consignmentApi';
+
+const DEFAULT_RECEPTION_TEMPLATE: ReceptionTemplate = {
+  title: 'HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG',
+  organizationName: 'Cửa hàng Old Clothes Store (OCS)',
+  headerText: 'Chuỗi Cửa Hàng & Ký Gửi Thời Trang Tuyển Chọn',
+  footerText: 'Hợp đồng này được lập thành 02 bản có giá trị pháp lý như nhau.',
+  defaultTerms: '1. Bên A nhận giữ và bán hộ hàng hóa theo giá niêm yết đã thỏa thuận.\n2. Phí dịch vụ (hoa hồng) được trừ trực tiếp khi sản phẩm bán thành công.\n3. Khi hết hạn hợp đồng, sản phẩm chưa bán sẽ được xử lý theo thỏa thuận đã cam kết.',
+  version: '00000000-0000-0000-0000-000000000000',
+};
 
 type CustomerExtra = { identityNumber: string; address: string; bankCode: string; bankAccountNumber: string; bankAccountHolderName: string };
 const emptyExtra = (): CustomerExtra => ({ identityNumber: '', address: '', bankCode: '', bankAccountNumber: '', bankAccountHolderName: '' });
@@ -101,11 +112,41 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
   const [actualItemCount, setActualItemCount] = useState<number>(
     initialAppointment?.estimatedItemCount || 1,
   );
+  const [actualItemCountInput, setActualItemCountInput] = useState<string>(
+    String(initialAppointment?.estimatedItemCount || 1),
+  );
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [previewOpen, setPreviewOpen] = useState(false);
   const [customerHistoryCount, setCustomerHistoryCount] = useState<number>(0);
   const [termDays, setTermDays] = useState<number>(60);
   const [termDaysInput, setTermDaysInput] = useState<string>('60');
   const [commissionShop, setCommissionShop] = useState<number>(20);
+
+  const clearFieldError = (field: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const handleActualItemCountChange = (valStr: string) => {
+    setActualItemCountInput(valStr);
+    clearFieldError('actualItemCount');
+    const parsed = parseInt(valStr, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      setActualItemCount(parsed);
+    }
+  };
+
+  const handleActualItemCountBlur = () => {
+    const parsed = parseInt(actualItemCountInput, 10);
+    const minAllowed = Math.max(1, items.length);
+    const valid = isNaN(parsed) ? minAllowed : Math.min(500, Math.max(minAllowed, parsed));
+    setActualItemCount(valid);
+    setActualItemCountInput(String(valid));
+  };
 
   const handleTermDaysChange = (value: number, syncInput = true) => {
     if (Number.isNaN(value)) return;
@@ -396,10 +437,34 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
     }
     onClose();
   };
-  const addItem = () => setItems(current => [...current, {
-    id: crypto.randomUUID(), name: '', size: '', material: '', category: '', categoryId: '', brandId: '', brand: '',
-    condition: '100%', conditionPercent: 100, listedPrice: 0, customerPayout: 0, images: [],
-  }]);
+  const addItem = () => {
+    setItems((current) => {
+      const next = [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          name: '',
+          size: '',
+          material: '',
+          category: '',
+          categoryId: '',
+          brandId: '',
+          brand: '',
+          condition: '100%',
+          conditionPercent: 100,
+          listedPrice: 0,
+          customerPayout: 0,
+          images: [],
+        },
+      ];
+      if (next.length > actualItemCount) {
+        setActualItemCount(next.length);
+        setActualItemCountInput(String(next.length));
+      }
+      return next;
+    });
+    clearFieldError('items');
+  };
   const updateItem = (id: string, changes: Partial<ConsignmentItemRow>) => setItems(current => current.map(item => {
     if (item.id !== id) return item;
     const next = { ...item, ...changes };
@@ -433,34 +498,76 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
   };
 
   const handleOpenPreview = async () => {
-    if ((!initialAppointment && verifiedPhone !== customerPhone.trim()) || (initialAppointment && !customerProfile)) { setApiError('Vui lòng tải hoặc tra cứu hồ sơ khách hàng trước khi tiếp tục.'); return; }
-    if (customerDirty) { setApiError('Vui lòng cập nhật hồ sơ khách hàng trước khi tiếp tục.'); return; }
-    const bank = [customerExtra.bankCode, customerExtra.bankAccountNumber, customerExtra.bankAccountHolderName];
-    if (bank.some(x => x.trim()) && bank.some(x => !x.trim())) { setApiError('Vui lòng nhập đủ thông tin tài khoản ngân hàng.'); return; }
+    const errors: Record<string, string> = {};
     const cleanName = customerName.trim() || initialAppointment?.customerName || '';
     const cleanPhone = customerPhone.trim() || initialAppointment?.customerPhone || '';
 
-    if (!cleanName || !cleanPhone) {
-      setApiError('Vui lòng nhập đầy đủ họ tên và số điện thoại chủ ký gửi.');
-      return;
+    if (!cleanPhone) {
+      errors.customerPhone = 'Vui lòng nhập số điện thoại chủ ký gửi.';
+    } else if (!/^0\d{9}$/.test(cleanPhone)) {
+      errors.customerPhone = 'Số điện thoại phải gồm 10 chữ số bắt đầu bằng 0.';
+    } else if (!initialAppointment && verifiedPhone !== cleanPhone) {
+      errors.customerPhone = 'Vui lòng tra cứu số điện thoại trước khi tiếp tục.';
+    }
+
+    if (!cleanName) {
+      errors.customerName = 'Vui lòng nhập đầy đủ họ tên chủ ký gửi.';
+    }
+
+    if (customerDirty) {
+      errors.customerName = 'Vui lòng bấm cập nhật hồ sơ khách hàng trước khi tiếp tục.';
+    }
+
+    const bank = [customerExtra.bankCode, customerExtra.bankAccountNumber, customerExtra.bankAccountHolderName];
+    if (bank.some((x) => x.trim()) && bank.some((x) => !x.trim())) {
+      if (!customerExtra.bankCode.trim()) errors.bankCode = 'Vui lòng nhập ngân hàng.';
+      if (!customerExtra.bankAccountNumber.trim()) errors.bankAccountNumber = 'Vui lòng nhập số tài khoản.';
+      if (!customerExtra.bankAccountHolderName.trim()) errors.bankAccountHolderName = 'Vui lòng nhập tên chủ tài khoản.';
+    }
+
+    const parsedActual = parseInt(actualItemCountInput, 10);
+    if (!Number.isInteger(actualItemCount) || isNaN(parsedActual) || parsedActual < items.length || parsedActual > 500) {
+      errors.actualItemCount = `Số món thực tế phải từ ${items.length} đến tối đa 500.`;
     }
 
     if (items.length === 0) {
-      setApiError('Vui lòng thêm ít nhất 1 sản phẩm vào đợt ký gửi trước khi xem lại.');
+      errors.items = 'Vui lòng thêm ít nhất 1 sản phẩm vào đợt ký gửi trước khi xem lại.';
+    } else {
+      items.forEach((i) => {
+        if (!i.name.trim()) errors[`item_name_${i.id}`] = 'Vui lòng nhập tên sản phẩm.';
+        if (!i.brandId || !brands.some((brand) => brand.id === i.brandId)) errors[`item_brand_${i.id}`] = 'Vui lòng chọn thương hiệu.';
+        if (!i.categoryId || !categories.some((category) => category.id === i.categoryId)) errors[`item_category_${i.id}`] = 'Vui lòng chọn danh mục.';
+        if (!i.size) errors[`item_size_${i.id}`] = 'Vui lòng chọn kích thước.';
+        if (!i.listedPrice || i.listedPrice <= 0) errors[`item_price_${i.id}`] = 'Giá niêm yết phải lớn hơn 0đ.';
+        if (intakeType === 'consignment' && (i.commissionRate == null || i.commissionRate < 0 || i.commissionRate > 100)) {
+          errors[`item_commission_${i.id}`] = 'Hoa hồng shop từ 0% đến 100%.';
+        }
+      });
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setApiError('Vui lòng kiểm tra và sửa các thông tin chưa hợp lệ bên dưới.');
       return;
     }
-    if (!Number.isInteger(actualItemCount) || actualItemCount < items.length || actualItemCount > 500) { setApiError('Số món thực tế phải từ số sản phẩm đã nhập đến tối đa 500.'); return; }
 
-    if (items.some(i => !i.name.trim() || !brands.some(brand => brand.id === i.brandId) || !categories.some(category => category.id === i.categoryId) || !i.size || i.listedPrice <= 0 || i.conditionPercent < 0 || i.conditionPercent > 100 || (intakeType === 'consignment' && (i.commissionRate == null || i.commissionRate < 0 || i.commissionRate > 100)))) {
-      setApiError('Vui lòng nhập đủ tên, thương hiệu, danh mục, kích thước, giá và hoa hồng hợp lệ cho từng sản phẩm.'); return;
-    }
+    setFieldErrors({});
     setApiError(null);
     setPreviewLoading(true);
     try {
-      const template = intakeType === 'consignment' ? await consignmentApi.getReceptionTemplate() : null;
-      setReceptionTemplate(template); setSignature(null); setPreviewOpen(true);
-    } catch { setApiError('Không thể tải mẫu hợp đồng. Vui lòng thử lại.'); }
-    finally { setPreviewLoading(false); }
+      const template = intakeType === 'consignment'
+        ? await consignmentApi.getReceptionTemplate().catch(() => DEFAULT_RECEPTION_TEMPLATE)
+        : null;
+      setReceptionTemplate(template || DEFAULT_RECEPTION_TEMPLATE);
+      setSignature(null);
+      setPreviewOpen(true);
+    } catch {
+      setReceptionTemplate(DEFAULT_RECEPTION_TEMPLATE);
+      setSignature(null);
+      setPreviewOpen(true);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   React.useEffect(() => {
@@ -468,28 +575,58 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
   }, [intakeType]);
 
   const handleSubmitReception = async () => {
-    if (!previewOpen || !signature || readingSignature || submitting) { setApiError('Khách hàng cần xem lại và ký xác nhận trước khi lưu.'); return; }
-    if ((!initialAppointment && verifiedPhone !== customerPhone.trim()) || (initialAppointment && !customerProfile)) { setApiError('Vui lòng tải hoặc tra cứu hồ sơ khách hàng trước khi tiếp tục.'); return; }
-    if (customerDirty) { setApiError('Vui lòng cập nhật hồ sơ khách hàng trước khi tiếp tục.'); return; }
-    const bank = [customerExtra.bankCode, customerExtra.bankAccountNumber, customerExtra.bankAccountHolderName];
-    if (bank.some(x => x.trim()) && bank.some(x => !x.trim())) { setApiError('Vui lòng nhập đủ thông tin tài khoản ngân hàng.'); return; }
+    if (!previewOpen || !signature || readingSignature || submitting) {
+      setApiError('Khách hàng cần xem lại và ký xác nhận trước khi lưu.');
+      return;
+    }
     const cleanName = customerName.trim() || initialAppointment?.customerName || '';
     const cleanPhone = customerPhone.trim() || initialAppointment?.customerPhone || '';
 
-    if (!cleanName || !cleanPhone) {
-      setApiError('Vui lòng nhập đầy đủ họ tên và số điện thoại chủ ký gửi.');
-      return;
+    const errors: Record<string, string> = {};
+    if (!cleanPhone) {
+      errors.customerPhone = 'Vui lòng nhập số điện thoại chủ ký gửi.';
+    } else if (!/^0\d{9}$/.test(cleanPhone)) {
+      errors.customerPhone = 'Số điện thoại phải gồm 10 chữ số bắt đầu bằng 0.';
+    } else if (!initialAppointment && verifiedPhone !== cleanPhone) {
+      errors.customerPhone = 'Vui lòng tra cứu số điện thoại trước khi tiếp tục.';
     }
-
+    if (!cleanName) {
+      errors.customerName = 'Vui lòng nhập đầy đủ họ tên chủ ký gửi.';
+    }
+    if (customerDirty) {
+      errors.customerName = 'Vui lòng cập nhật hồ sơ khách hàng trước khi tiếp tục.';
+    }
+    const bank = [customerExtra.bankCode, customerExtra.bankAccountNumber, customerExtra.bankAccountHolderName];
+    if (bank.some((x) => x.trim()) && bank.some((x) => !x.trim())) {
+      if (!customerExtra.bankCode.trim()) errors.bankCode = 'Vui lòng nhập ngân hàng.';
+      if (!customerExtra.bankAccountNumber.trim()) errors.bankAccountNumber = 'Vui lòng nhập số tài khoản.';
+      if (!customerExtra.bankAccountHolderName.trim()) errors.bankAccountHolderName = 'Vui lòng nhập tên chủ tài khoản.';
+    }
+    const parsedActual = parseInt(actualItemCountInput, 10);
+    if (!Number.isInteger(actualItemCount) || isNaN(parsedActual) || parsedActual < items.length || parsedActual > 500) {
+      errors.actualItemCount = `Số món thực tế phải từ ${items.length} đến tối đa 500.`;
+    }
     if (items.length === 0) {
-      setApiError('Vui lòng thêm ít nhất 1 sản phẩm vào đợt ký gửi.');
+      errors.items = 'Vui lòng thêm ít nhất 1 sản phẩm vào đợt ký gửi.';
+    } else {
+      items.forEach((i) => {
+        if (!i.name.trim()) errors[`item_name_${i.id}`] = 'Vui lòng nhập tên sản phẩm.';
+        if (!i.brandId || !brands.some((b) => b.id === i.brandId)) errors[`item_brand_${i.id}`] = 'Vui lòng chọn thương hiệu.';
+        if (!i.categoryId || !categories.some((c) => c.id === i.categoryId)) errors[`item_category_${i.id}`] = 'Vui lòng chọn danh mục.';
+        if (!i.size) errors[`item_size_${i.id}`] = 'Vui lòng chọn kích thước.';
+        if (!i.listedPrice || i.listedPrice <= 0) errors[`item_price_${i.id}`] = 'Giá niêm yết phải lớn hơn 0đ.';
+        if (intakeType === 'consignment' && (i.commissionRate == null || i.commissionRate < 0 || i.commissionRate > 100)) {
+          errors[`item_commission_${i.id}`] = 'Hoa hồng shop từ 0% đến 100%.';
+        }
+      });
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setApiError('Vui lòng kiểm tra và sửa các thông tin chưa hợp lệ.');
       return;
     }
-    if (!Number.isInteger(actualItemCount) || actualItemCount < items.length || actualItemCount > 500) { setApiError('Số món thực tế phải từ số sản phẩm đã nhập đến tối đa 500.'); return; }
-
-    if (items.some(i => !i.name.trim() || !brands.some(brand => brand.id === i.brandId) || !categories.some(category => category.id === i.categoryId) || !i.size || i.listedPrice <= 0 || i.conditionPercent < 0 || i.conditionPercent > 100 || (intakeType === 'consignment' && (i.commissionRate == null || i.commissionRate < 0 || i.commissionRate > 100)))) {
-      setApiError('Vui lòng nhập đủ thông tin hợp lệ cho từng sản phẩm.'); return;
-    }
+    setFieldErrors({});
     setSubmitting(true);
     setApiError(null);
     try {
@@ -627,11 +764,6 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
 
         
         <div className="flex-1 overflow-y-auto px-8 py-7 space-y-6 text-xs">
-          {apiError && (
-            <div className="rounded-2xl border border-state-danger-border bg-state-danger-soft px-4 py-3 text-xs font-semibold text-state-danger">
-              {apiError}
-            </div>
-          )}
 
           
           <div className="space-y-2">
@@ -714,24 +846,101 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
           )}
 
           
+          {/* Card Thông tin khách hàng */}
           <Card title="Thông tin khách hàng" description={initialAppointment ? 'Hồ sơ khách theo lịch hẹn.' : 'Tra cứu theo số điện thoại trước khi tiếp nhận.'} className="!bg-surface-default !border-border">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Input label="Số điện thoại" type="tel" value={customerPhone} disabled={Boolean(initialAppointment) || lookingUpCustomer} onChange={event => { setCustomerPhone(event.target.value); setCustomerProfile(null); setSavedCustomer(null); setNewCustomer(false); setVerifiedPhone(''); setGuestExtra(emptyExtra()); setCustomerName(''); setCustomerEmail(''); setCustomerMessage(''); }} />
-              {!initialAppointment && <div className="self-end"><Button variant="outline" loading={lookingUpCustomer} onClick={() => void lookupCustomer()}>Tra cứu khách hàng</Button></div>}
+              <Input
+                label="Số điện thoại"
+                type="tel"
+                value={customerPhone}
+                error={fieldErrors.customerPhone}
+                disabled={Boolean(initialAppointment) || lookingUpCustomer}
+                onChange={event => {
+                  setCustomerPhone(event.target.value);
+                  clearFieldError('customerPhone');
+                  setCustomerProfile(null);
+                  setSavedCustomer(null);
+                  setNewCustomer(false);
+                  setVerifiedPhone('');
+                  setGuestExtra(emptyExtra());
+                  setCustomerName('');
+                  setCustomerEmail('');
+                  setCustomerMessage('');
+                }}
+              />
+              {!initialAppointment && (
+                <div className="self-end">
+                  <Button variant="outline" loading={lookingUpCustomer} onClick={() => void lookupCustomer()}>Tra cứu khách hàng</Button>
+                </div>
+              )}
               {(customerProfile || newCustomer || initialAppointment) && <>
-                <Input label="Họ và tên" value={customerName} disabled={Boolean(customerProfile || initialAppointment)} onChange={event => setCustomerName(event.target.value)} />
-                <Input label="Email" type="email" value={customerEmail} disabled={Boolean(customerProfile) && !canUpdateCustomer} onChange={event => setCustomerEmail(event.target.value)} />
-                {extraFields.map(([field, label]) => <Input key={field} label={label} value={customerExtra[field]} disabled={Boolean(customerProfile) && !canUpdateCustomer} onChange={event => { const value = event.target.value; if (customerProfile) setCustomerProfile(current => current ? { ...current, [field]: value } : null); else setGuestExtra(current => ({ ...current, [field]: value })); }} />)}
+                <Input
+                  label="Họ và tên"
+                  value={customerName}
+                  error={fieldErrors.customerName}
+                  disabled={Boolean(customerProfile || initialAppointment)}
+                  onChange={event => {
+                    setCustomerName(event.target.value);
+                    clearFieldError('customerName');
+                  }}
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  value={customerEmail}
+                  error={fieldErrors.customerEmail}
+                  disabled={Boolean(customerProfile) && !canUpdateCustomer}
+                  onChange={event => {
+                    setCustomerEmail(event.target.value);
+                    clearFieldError('customerEmail');
+                  }}
+                />
+                {extraFields.map(([field, label]) => (
+                  <Input
+                    key={field}
+                    label={label}
+                    value={customerExtra[field]}
+                    error={fieldErrors[field]}
+                    disabled={Boolean(customerProfile) && !canUpdateCustomer}
+                    onChange={event => {
+                      const value = event.target.value;
+                      clearFieldError(field);
+                      if (customerProfile) setCustomerProfile(current => current ? { ...current, [field]: value } : null);
+                      else setGuestExtra(current => ({ ...current, [field]: value }));
+                    }}
+                  />
+                ))}
               </>}
             </div>
             {customerProfile && canUpdateCustomer && <div className="mt-4"><Button variant="outline" disabled={!customerDirty} loading={lookingUpCustomer} onClick={() => void saveCustomerProfile()}>Cập nhật hồ sơ khách hàng</Button><p className="mt-2 text-xs text-muted">Thay đổi email đăng nhập có thể yêu cầu khách kích hoạt lại tài khoản.</p></div>}
             {initialAppointment && !customerProfile && customerMessage && <Button variant="outline" loading={lookingUpCustomer} onClick={() => void reloadAppointmentCustomer()}>Tải lại hồ sơ</Button>}
             {customerMessage && <p role="status" className="mt-3 text-sm text-text-secondary">{customerMessage}</p>}
             {customerHistoryCount > 0 && <p className="mt-2 text-sm text-muted">Khách đã ký gửi {customerHistoryCount} món.</p>}
-          </Card>          <Card className="!bg-surface-default !border-border" title="Thông tin đợt ký gửi" description="Thời hạn và số lượng thực tế của đợt tiếp nhận.">
+          </Card>
+
+          <Card className="!bg-surface-default !border-border" title="Thông tin đợt ký gửi" description="Thời hạn và số lượng thực tế của đợt tiếp nhận.">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Input label="Số món thực tế" type="number" min={1} max={500} value={actualItemCount} onChange={event => setActualItemCount(Math.max(1, Number(event.target.value) || 1))} />
-              <Input label="Thời hạn (ngày)" type="number" min={1} max={60} value={termDaysInput} onChange={event => { setTermDaysInput(event.target.value); if (event.target.value) handleTermDaysChange(Number(event.target.value), false); }} onBlur={() => handleTermDaysChange(Number(termDaysInput) || 1)} />
+              <Input
+                label="Số món thực tế"
+                type="text"
+                inputMode="numeric"
+                error={fieldErrors.actualItemCount}
+                value={actualItemCountInput}
+                onChange={event => handleActualItemCountChange(event.target.value)}
+                onBlur={handleActualItemCountBlur}
+              />
+              <Input
+                label="Thời hạn (ngày)"
+                type="number"
+                min={1}
+                max={60}
+                value={termDaysInput}
+                onChange={event => {
+                  setTermDaysInput(event.target.value);
+                  if (event.target.value) handleTermDaysChange(Number(event.target.value), false);
+                }}
+                onBlur={() => handleTermDaysChange(Number(termDaysInput) || 1)}
+              />
               <Input label="Ghi chú đợt" value={batchNote} onChange={event => setBatchNote(event.target.value)} />
             </div>
             <p className="mt-3 text-sm text-muted">{dateRangeStr}</p>
@@ -804,19 +1013,107 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
           </div>
 
           
+          {/* Card Danh sách sản phẩm */}
           <Card className="!bg-surface-default !border-border" title="Danh sách sản phẩm" description="Tạo sản phẩm trước, sau đó nhập thông tin và ảnh trong từng sản phẩm." actions={<Button variant="outline" onClick={addItem}>Thêm sản phẩm</Button>}>
+            {fieldErrors.items && (
+              <div className="mb-3 rounded-xl border border-state-danger-border bg-state-danger-soft p-3 text-xs font-semibold text-state-danger">
+                {fieldErrors.items}
+              </div>
+            )}
             {items.length === 0 && <p className="text-sm text-muted">Chưa có sản phẩm. Chọn Thêm sản phẩm để bắt đầu.</p>}
             <div className="space-y-4">
               {items.map((item, index) => <Card key={item.id} className="!bg-surface-default !border-border" title={`Sản phẩm ${index + 1}`} actions={<Button variant="outline" onClick={() => void handleRemoveItem(item.id)}>Xóa</Button>}>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <Input label="Tên sản phẩm" value={item.name} maxLength={200} onChange={event => updateItem(item.id, { name: event.target.value })} />
-                  <Combobox label="Thương hiệu" value={item.brandId} placeholder="Chọn thương hiệu" options={brands.map(brand => ({ value: brand.id, label: brand.name }))} onChange={value => { const brand = brands.find(b => b.id === value); if (brand) updateItem(item.id, { brandId: brand.id, brand: brand.name, brandTier: brand.tier, commissionRate: brand.defaultCommissionRate > 0 ? brand.defaultCommissionRate : getTierDefaultCommissionRate(brand.tier) }); }} />
-                  <Combobox label="Danh mục" value={item.categoryId} placeholder="Chọn danh mục" options={categories.map(category => ({ value: category.id, label: category.name }))} onChange={value => updateItem(item.id, { categoryId: value, category: categories.find(category => category.id === value)?.name || '' })} />
-                  <Combobox label="Kích thước" value={item.size} placeholder="Chọn kích thước" options={COMMON_SIZES.map(value => ({ value, label: value }))} onChange={value => updateItem(item.id, { size: value })} />
-                  <Combobox label="Chất liệu" value={item.material || ''} placeholder="Chọn chất liệu" options={COMMON_MATERIALS.map(value => ({ value, label: value }))} onChange={value => updateItem(item.id, { material: value })} />
-                  <Input label="Độ mới (%)" type="number" min={0} max={100} value={item.conditionPercent} onChange={event => updateItem(item.id, { conditionPercent: Number(event.target.value) })} />
-                  <Input label="Giá niêm yết (đ)" type="number" min={0} value={item.listedPrice || ''} onChange={event => updateItem(item.id, { listedPrice: Number(event.target.value) })} />
-                  {intakeType === 'consignment' && <Input label="Hoa hồng shop (%)" type="number" min={0} max={100} step="0.01" value={item.commissionRate ?? ''} onChange={event => updateItem(item.id, { commissionRate: event.target.value === '' ? undefined : Number(event.target.value) })} />}
+                  <Input
+                    label="Tên sản phẩm"
+                    value={item.name}
+                    maxLength={200}
+                    error={fieldErrors[`item_name_${item.id}`]}
+                    onChange={event => {
+                      updateItem(item.id, { name: event.target.value });
+                      clearFieldError(`item_name_${item.id}`);
+                    }}
+                  />
+                  <Combobox
+                    label="Thương hiệu"
+                    value={item.brandId}
+                    placeholder="Chọn thương hiệu"
+                    error={fieldErrors[`item_brand_${item.id}`]}
+                    options={brands.map(brand => ({ value: brand.id, label: brand.name }))}
+                    onChange={value => {
+                      const brand = brands.find(b => b.id === value);
+                      if (brand) {
+                        updateItem(item.id, {
+                          brandId: brand.id,
+                          brand: brand.name,
+                          brandTier: brand.tier,
+                          commissionRate: brand.defaultCommissionRate > 0 ? brand.defaultCommissionRate : getTierDefaultCommissionRate(brand.tier)
+                        });
+                        clearFieldError(`item_brand_${item.id}`);
+                      }
+                    }}
+                  />
+                  <Combobox
+                    label="Danh mục"
+                    value={item.categoryId}
+                    placeholder="Chọn danh mục"
+                    error={fieldErrors[`item_category_${item.id}`]}
+                    options={categories.map(category => ({ value: category.id, label: category.name }))}
+                    onChange={value => {
+                      updateItem(item.id, { categoryId: value, category: categories.find(category => category.id === value)?.name || '' });
+                      clearFieldError(`item_category_${item.id}`);
+                    }}
+                  />
+                  <Combobox
+                    label="Kích thước"
+                    value={item.size}
+                    placeholder="Chọn kích thước"
+                    error={fieldErrors[`item_size_${item.id}`]}
+                    options={COMMON_SIZES.map(value => ({ value, label: value }))}
+                    onChange={value => {
+                      updateItem(item.id, { size: value });
+                      clearFieldError(`item_size_${item.id}`);
+                    }}
+                  />
+                  <Combobox
+                    label="Chất liệu"
+                    value={item.material || ''}
+                    placeholder="Chọn chất liệu"
+                    options={COMMON_MATERIALS.map(value => ({ value, label: value }))}
+                    onChange={value => updateItem(item.id, { material: value })}
+                  />
+                  <Input
+                    label="Độ mới (%)"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={item.conditionPercent}
+                    onChange={event => updateItem(item.id, { conditionPercent: Number(event.target.value) })}
+                  />
+                  <ContractMoneyInput
+                    label="Giá niêm yết (đ)"
+                    value={item.listedPrice}
+                    error={fieldErrors[`item_price_${item.id}`]}
+                    onChange={val => {
+                      updateItem(item.id, { listedPrice: val || 0 });
+                      clearFieldError(`item_price_${item.id}`);
+                    }}
+                  />
+                  {intakeType === 'consignment' && (
+                    <Input
+                      label="Hoa hồng shop (%)"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      value={item.commissionRate ?? ''}
+                      error={fieldErrors[`item_commission_${item.id}`]}
+                      onChange={event => {
+                        updateItem(item.id, { commissionRate: event.target.value === '' ? undefined : Number(event.target.value) });
+                        clearFieldError(`item_commission_${item.id}`);
+                      }}
+                    />
+                  )}
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-3"><Button variant="outline" onClick={() => setPhotoModalItem(item)}>Chụp / tải ảnh ({item.images?.length || 0})</Button><span className="text-sm text-muted">Dự kiến khách nhận: {formatVND(item.customerPayout)}</span></div>
                 {!!item.images?.length && <div className="mt-3 flex flex-wrap gap-2">{item.images.map(url => <img key={url} src={url} alt={`Ảnh ${item.name || `sản phẩm ${index + 1}`}`} className="h-20 w-20 rounded-lg object-cover" />)}</div>}
@@ -824,6 +1121,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
             </div>
           </Card>
         </div>
+        {/* Footer controls */}
         <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-8 py-5 border-t border-border/70 bg-surface-default shrink-0 ${embedded ? 'rounded-b-2xl' : ''}`}>
           {(!embedded || apiError) && <div className="flex items-center gap-3">
             {!embedded && <button
@@ -841,6 +1139,15 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
           </div>}
 
           <div className="flex items-center gap-3 sm:ml-auto">
+            <a
+              href="/api/word-template-samples/contract"
+              download="mau-hop-dong.docx"
+              className="flex items-center gap-1.5 rounded-2xl border border-border bg-surface-default hover:bg-surface-dashboard px-3.5 py-3 text-xs font-bold text-text-secondary transition shadow-xs"
+              title="Tải mẫu văn bản hợp đồng Word"
+            >
+              <Download size={15} /> Tải mẫu hợp đồng
+            </a>
+
             <button
               type="button"
               onClick={handleSaveDraft}
@@ -926,13 +1233,23 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => { if (!submitting) { setSignature(null); setPreviewOpen(false); } }}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:text-text-primary hover:bg-surface-default transition"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <a
+                  href="/api/word-template-samples/contract"
+                  download="mau-hop-dong.docx"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-bold text-text-primary hover:bg-surface-default transition shadow-2xs"
+                  title="Tải văn bản mẫu hợp đồng Word"
+                >
+                  <Download size={14} /> Tải mẫu Word
+                </a>
+                <button
+                  type="button"
+                  onClick={() => { if (!submitting) { setSignature(null); setPreviewOpen(false); } }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:text-text-primary hover:bg-surface-default transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">

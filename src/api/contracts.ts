@@ -98,7 +98,45 @@ export async function getContractDocument(id: string): Promise<Blob> {
   return (await apiClient.get<Blob>(`/contracts/${encodeURIComponent(id)}/document`, { responseType: 'blob' })).data;
 }
 export async function getContractDetail(id: string): Promise<ContractDetail> {
-  return (await apiClient.get<ContractDetail>(`/contracts/${encodeURIComponent(id)}/detail`)).data;
+  try {
+    return (await apiClient.get<ContractDetail>(`/contracts/${encodeURIComponent(id)}/detail`)).data;
+  } catch {
+    // Dự phòng gọi endpoint /web nếu endpoint /detail gặp sự cố
+    const res = await apiClient.get<Record<string, any>>(`/contracts/${encodeURIComponent(id)}/web`);
+    const web = res.data;
+    return {
+      id: web.id || id,
+      contractNumber: web.contractNumber || 'HĐ-KÝ-GỬI',
+      signedAt: web.signedAt || new Date().toISOString(),
+      endsAt: web.endsAt || new Date().toISOString(),
+      expiryHandling: web.expiryHandling || 'Return',
+      status: web.status || 'Active',
+      customerName: web.customerName || 'Khách hàng',
+      customerPhone: web.customerPhone || '',
+      customerEmail: web.customerEmail || null,
+      customerIdentity: web.customerIdentity || null,
+      customerAddress: web.customerAddress || null,
+      bankCode: web.bankCodeSnapshot || web.bankCode || null,
+      bankAccountNumber: web.bankAccountNumberSnapshot || web.bankAccountNumber || null,
+      bankAccountHolderName: web.bankAccountHolderSnapshot || web.bankAccountHolderName || null,
+      employeeName: web.employeeName || 'Nhân viên tiếp nhận',
+      employeeTitle: web.employeeTitle || null,
+      employeePhone: web.employeePhone || null,
+      terms: web.terms || web.template?.defaultTerms || null,
+      customerSignatureDataUrl: web.signature ? `data:${web.signature.contentType};base64,${web.signature.data}` : null,
+      products: Array.isArray(web.products) ? web.products.map((p: any) => ({
+        id: p.id || '',
+        name: p.name || '',
+        barcode: p.barcode || '',
+        size: p.size || '',
+        conditionPercentage: p.conditionPercentage || 95,
+        listedPrice: p.listedPrice || 0,
+        agreedCommissionRate: p.commissionRate ?? p.agreedCommissionRate ?? 20,
+        brandName: p.brand || p.brandName || '',
+        categoryName: p.category || p.categoryName || '',
+      })) : [],
+    };
+  }
 }
 export interface ContractFilterParams {
   page?: number;

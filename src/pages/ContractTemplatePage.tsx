@@ -3,7 +3,7 @@ import { Button, Card, ErrorState, Input, SkeletonLoading } from '@/components/s
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
 import { getManagedTemplate, saveManagedTemplate, type ContractTemplate } from '@/api/contracts';
 import { useAuth } from '@/context/AuthContext';
-import { CheckCircle2, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Download } from 'lucide-react';
 
 const DEFAULT_TERMS_FALLBACK = `1. BÊN A cam kết bảo quản sản phẩm ký gửi của BÊN B trong điều kiện tốt nhất, phù hợp với tiêu chuẩn bảo quản hàng thời trang.
 2. BÊN B cam kết các sản phẩm ký gửi thuộc quyền sở hữu hợp pháp của mình, có nguồn gốc xuất xứ rõ ràng và tình trạng đúng như mô tả.
@@ -81,11 +81,20 @@ export function ContractTemplatePage() {
 
   return (
     <ContractPageLayout
-      wide
       title="Quản lý mẫu hợp đồng"
       description="Cấu hình tiêu đề, thông tin đơn vị và điều khoản mẫu hợp đồng hiển thị trên giao diện web."
       backTo="/shop/contracts"
       backLabel="Quản lý hợp đồng"
+      headerActions={
+        <a
+          href="/api/word-template-samples/contract"
+          download="mau-hop-dong.docx"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-brand-lavender bg-white px-3.5 py-2 text-xs font-bold text-brand-ink hover:bg-brand-pink-surface hover:border-brand-highlight transition whitespace-nowrap shrink-0"
+        >
+          <Download size={15} aria-hidden="true" />
+          Tải mẫu Word
+        </a>
+      }
     >
       <div className="space-y-6">
         {!canEdit && (

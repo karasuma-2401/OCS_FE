@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { FileCog, FileText, Printer, RotateCcw, Search, Tag } from 'lucide-react';
+import { FileCog, FileText, Printer, RotateCcw, Search, Tag, Download } from 'lucide-react';
 import { barcodeApi, type BarcodeLabelProduct } from '@/api/barcode';
 import { BarcodePrintDialog } from '@/components/shop/BarcodeLabels';
 import { getContractDetail, listContracts, type ContractListItem, type ContractDetail } from '@/api/contracts';
@@ -291,7 +291,6 @@ export function ContractPdfPage() {
 
   return (
     <ContractPageLayout
-      wide
       title="Chi tiết & In hợp đồng"
       description="Xem và in hợp đồng ký gửi thời trang trực tiếp qua giao diện web chuẩn khổ giấy A4."
       backTo={canManage ? '/shop/contracts' : '/shop/consignment'}
@@ -370,6 +369,24 @@ export function ContractPdfPage() {
               >
                 <Tag size={16} /> In barcode sản phẩm ({contract.products.length})
               </Button>
+
+              <a
+                href="/api/word-template-samples/contract"
+                download="mau-hop-dong.docx"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3.5 py-2 text-xs font-bold text-text-primary hover:bg-surface-active transition whitespace-nowrap"
+                title="Tải văn bản mẫu hợp đồng Word"
+              >
+                <Download size={15} /> Tải mẫu Word
+              </a>
+
+              <a
+                href={`/api/contracts/${encodeURIComponent(contract.id)}/pdf`}
+                download={`hop-dong-${contract.contractNumber}.pdf`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3.5 py-2 text-xs font-bold text-text-primary hover:bg-surface-active transition whitespace-nowrap"
+                title="Tải bản PDF hợp đồng"
+              >
+                <Download size={15} /> Tải PDF
+              </a>
 
               <Button
                 variant="primary"

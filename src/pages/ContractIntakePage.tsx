@@ -7,7 +7,7 @@ import { createContract, previewContract, getIntakeTemplate, findContractCustome
 import { ContractSignature } from '@/components/shop/ContractSignature';
 import { ContractMoneyInput } from '@/components/shop/ContractMoneyInput';
 import { prepareCameraPhoto } from '@/components/shop/contractCamera';
-import { Camera, Images } from 'lucide-react';
+import { Camera, Images, Download } from 'lucide-react';
 import { barcodeApi } from '@/api/barcode';
 import { BarcodeSymbol } from '@/components/shop/BarcodeLabels';
 import { Modal } from '@/components/shared/Modal';
@@ -103,7 +103,17 @@ export function ContractIntakePage() {
           loadContractPart('danh mục sản phẩm', getContractOptions()),
           appointmentId ? loadContractPart('lịch hẹn', appointmentApi.getById(appointmentId)) : Promise.resolve(null),
           loadContractPart('hồ sơ nhân viên', getContractEmployee()),
-          loadContractPart('mẫu hợp đồng', getIntakeTemplate()),
+          loadContractPart('mẫu hợp đồng', getIntakeTemplate().catch(() => ({
+            title: 'HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG',
+            organizationName: 'Cửa hàng Old Clothes Store (OCS)',
+            headerText: 'Chuỗi Cửa Hàng & Ký Gửi Thời Trang Tuyển Chọn',
+            footerText: 'Hợp đồng này được lập thành 02 bản có giá trị pháp lý như nhau.',
+            defaultTerms: '1. Bên A nhận giữ và bán hộ hàng hóa theo giá niêm yết đã thỏa thuận.\n2. Phí dịch vụ (hoa hồng) được trừ trực tiếp khi sản phẩm bán thành công.',
+            version: '00000000-0000-0000-0000-000000000000',
+            updatedAt: null,
+            pdfBase64: null,
+            fieldMappings: []
+          }))),
         ]);
         const existing = selectedAppointment ? await loadContractPart('hồ sơ khách hàng', getContractCustomer(selectedAppointment.customerId)) : null;
         if (alive) { setOptions(catalog); setAppointment(selectedAppointment); setCustomer(existing); setSavedCustomer(existing); setEmployee(currentEmployee); setTemplate(currentTemplate); }
@@ -208,7 +218,23 @@ export function ContractIntakePage() {
     finally { setSaving(false); setPreviewing(false); }
   };
 
-  return <ContractPageLayout title="Lập hợp đồng ký gửi" description="Nhập thông tin, xem trước hợp đồng Word và xác nhận chữ ký của khách hàng." backTo="/shop/consignment" backLabel="Tiếp nhận ký gửi"><div className="mx-auto max-w-6xl">
+  return <ContractPageLayout
+    title="Lập hợp đồng ký gửi"
+    description="Nhập thông tin, xem trước hợp đồng Word và xác nhận chữ ký của khách hàng."
+    backTo="/shop/consignment"
+    backLabel="Tiếp nhận ký gửi"
+    headerActions={
+      <a
+        href="/api/word-template-samples/contract"
+        download="mau-hop-dong.docx"
+        className="inline-flex items-center gap-1.5 rounded-xl border border-brand-lavender bg-white px-3.5 py-2 text-xs font-bold text-brand-ink hover:bg-brand-pink-surface hover:border-brand-highlight transition whitespace-nowrap shrink-0"
+      >
+        <Download size={15} aria-hidden="true" />
+        Tải mẫu Word
+      </a>
+    }
+  >
+    <div className="w-full">
     {created ? <section role="status" className="mt-6 rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">Đã tạo hợp đồng</h2><p className="mt-2 break-all">Mã hợp đồng: {created.contractNumber}</p><p className="mt-2 text-sm text-gray-600">Thông tin khách, sản phẩm và tài liệu Word đã được lưu.</p><Link className="mt-4 inline-block text-pink-700 underline" to="/shop/consignment">Về danh sách tiếp nhận</Link></section> :
     <section className="rounded-2xl border border-brand-lavender/40 bg-paper p-5 shadow-sm sm:p-6">
       {loading ? <p role="status">Đang tải dữ liệu...</p> : !options || (!direct && !appointment) ? <div><p role="alert">{error || 'Vui lòng chọn lịch hẹn hoặc tiếp nhận khách trực tiếp.'}</p>{error && <button type="button" onClick={() => setLoadAttempt(value => value + 1)} className="mt-3 text-sm font-semibold text-pink-700 underline">Thử tải lại</button>}</div> : <>
@@ -251,7 +277,7 @@ export function ContractIntakePage() {
         </fieldset></form>}
       </>}
     </section>}
-    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước trực tiếp trên giao diện web chưa lưu vào hệ thống." className="max-w-4xl" footer={<div className="flex w-full items-center justify-between"><button type="button" onClick={() => window.print()} className="rounded-xl border border-brand-lavender bg-white px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">In bản xem trước</button><button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button></div>}>
+    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước trực tiếp trên giao diện web chưa lưu vào hệ thống." className="max-w-4xl" footer={<div className="flex w-full items-center justify-between gap-2"><div className="flex items-center gap-2"><button type="button" onClick={() => window.print()} className="rounded-xl border border-brand-lavender bg-white px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">In bản xem trước</button><a href="/api/word-template-samples/contract" download="mau-hop-dong.docx" className="rounded-xl border border-brand-lavender bg-white px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light inline-flex items-center gap-1.5"><Download size={14} /> Tải mẫu Word</a></div><button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button></div>}>
       {previewUrl && (
         <div id="contract-preview-sheet" className="space-y-4 rounded-xl border border-gray-300 bg-white p-6 text-gray-900 text-xs">
           <div className="border-b border-gray-300 pb-3 text-center">
