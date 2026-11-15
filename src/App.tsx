@@ -19,6 +19,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { ConsignmentTrackingPage } from './pages/ConsignmentTrackingPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ReceptionPage } from './pages/ReceptionPage';
 import { ContractIntakePage } from './pages/ContractIntakePage';
 import { ContractListPage, ContractPdfPage } from './pages/ContractDocumentsPage';
 import { ContractTemplatePage } from './pages/ContractTemplatePage';
@@ -74,6 +75,7 @@ export default function App() {
       <Route path="/ui-components/product-rail-gallery" element={<React.Suspense fallback={<SkeletonLoading variant="page" label="Đang tải thư viện sản phẩm..." className="p-6" />}><ProductRailPreviewPage /></React.Suspense>} />
 
       {/* Protected Shop / Admin routes */}
+      <Route path="/shop/reception/new" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><ReceptionPage /></ProtectedRoute>} />
       <Route path="/shop/contracts/new" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><ContractIntakePage /></ProtectedRoute>} />
       <Route path="/shop/appointment-slots" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><AppointmentSlotsPage /></ProtectedRoute>} />
       <Route path="/shop/contracts/template" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ContractTemplatePage /></ProtectedRoute>} />

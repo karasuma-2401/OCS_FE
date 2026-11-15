@@ -37,7 +37,7 @@ export interface ContractImage { contentType: string; data: string }
 export interface ContractProduct { name: string; barcode: string; size: string; description: string; conditionPercentage: number; listedPrice: number | null; agreedCommissionRate: number | null; brandId: string; categoryId: string; storageLocationId: string | null; images: ContractImage[] }
 export interface ContractOption { id: string; name: string; commissionRate: number | null }
 export interface ContractOptions { brands: ContractOption[]; categories: ContractOption[]; locations: ContractOption[] }
-export interface ContractListItem { id: string; contractNumber: string; customerName: string | null; signedAt: string; hasPdf: boolean }
+export interface ContractListItem { id: string; contractNumber: string; customerName: string | null; signedAt: string; hasPdf: boolean; status?: string }
 export interface ContractDetailProduct {
   id: string;
   name: string;
@@ -100,8 +100,17 @@ export async function getContractDocument(id: string): Promise<Blob> {
 export async function getContractDetail(id: string): Promise<ContractDetail> {
   return (await apiClient.get<ContractDetail>(`/contracts/${encodeURIComponent(id)}/detail`)).data;
 }
-export async function listContracts(page: number): Promise<ContractListItem[]> {
-  const response = await apiClient.get<ContractListItem[]>('/contracts', { params: { page } });
+export interface ContractFilterParams {
+  page?: number;
+  query?: string;
+  status?: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export async function listContracts(params: number | ContractFilterParams = 1): Promise<ContractListItem[]> {
+  const queryParams = typeof params === 'number' ? { page: params } : params;
+  const response = await apiClient.get<ContractListItem[]>('/contracts', { params: queryParams });
   return response.data;
 }
 

@@ -81,3 +81,16 @@ test('table renders rows and empty state; legacy ui exports the same components'
   assert.match(table, /scope="col"/);
   assert.match(empty, /Không có sản phẩm/);
 });
+
+test('shop detail layout keeps the list in the page and exposes a closable detail region', () => {
+  const { DetailSplitLayout, DetailPanel } = loadComponent('DetailSplitLayout');
+  const tree = React.createElement(DetailSplitLayout, { open: true },
+    React.createElement('section', null, 'Danh sách lịch hẹn'),
+    React.createElement(DetailPanel, { panelRef: { current: null }, title: 'Chi tiết lịch hẹn', description: 'Thông tin lịch hẹn', onClose() {} }, 'Lịch đã chọn'));
+  const html = renderToStaticMarkup(tree);
+  assert.match(html, /Danh sách lịch hẹn/);
+  assert.match(html, /<aside[^>]*aria-label="Chi tiết lịch hẹn"/);
+  assert.match(html, /aria-label="Đóng chi tiết lịch hẹn"/);
+  assert.match(html, /Lịch đã chọn/);
+  assert.doesNotMatch(html, /aria-modal|role="dialog"/);
+});

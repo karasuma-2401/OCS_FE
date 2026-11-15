@@ -30,7 +30,9 @@ export { Select } from "./Select";
 export type { SelectProps } from "./Select";
 export { Skeleton, SkeletonLoading } from "./Skeleton";
 export type { SkeletonLoadingProps } from "./Skeleton";
-export { Table, SelectedRowAccent, TableDetailButton } from "./Table";
+export { Table, SelectedRowAccent, TableDetailButton, DetailIconButton } from "./Table";
 export type { TableColumn, TableProps } from "./Table";
 export { Toast } from "./Toast";
 export type { ToastProps, ToastVariant } from "./Toast";
+
+export { DetailSplitLayout, DetailPanel } from './DetailSplitLayout';

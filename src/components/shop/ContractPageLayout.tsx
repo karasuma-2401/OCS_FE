@@ -1,11 +1,31 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { FileText } from 'lucide-react';
 import ShopNavBar from '@/components/layout/shop/ShopNavBar';
+import { PageHeaderCard } from '@/components/shared/PageHeaderCard';
 import { useAuth } from '@/context/AuthContext';
 import { screenOrder, screenPermissions, screenRequirements, type ShopNavId } from '@/auth/permissions';
 
-export function ContractPageLayout({ title, description, backTo, backLabel = 'Quay lại', wide = false, activeItem = 'consignment', children }: {
-  title: string; description?: string; backTo?: string; backLabel?: string; wide?: boolean; activeItem?: ShopNavId; children: ReactNode;
+export function ContractPageLayout({
+  title,
+  description,
+  backTo,
+  backLabel = 'Quay lại',
+  wide = false,
+  activeItem = 'consignment',
+  icon,
+  headerActions,
+  children,
+}: {
+  title?: string;
+  description?: string;
+  backTo?: string;
+  backLabel?: string;
+  wide?: boolean;
+  activeItem?: ShopNavId;
+  icon?: ReactNode;
+  headerActions?: ReactNode;
+  children: ReactNode;
 }) {
   const { user, logout, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
@@ -21,9 +41,24 @@ export function ContractPageLayout({ title, description, backTo, backLabel = 'Qu
       profileName={user?.fullName || user?.email || 'Nhân viên'} onNavigate={item => navigate(item.href)}
       onProfileClick={() => navigate('/profile')} onHome={() => navigate('/')} loggingOut={loggingOut}
       onLogout={async () => { setLoggingOut(true); setLogoutError(false); try { await logout(); navigate('/'); } catch { setLogoutError(true); } finally { setLoggingOut(false); } }} />
-    <main className={`mx-auto w-full min-w-0 flex-1 px-2 py-6 text-text-primary sm:px-6 ${wide ? 'max-w-none' : 'max-w-7xl'}`}>
-      {backTo && <Link to={backTo} className="text-sm font-semibold text-brand-highlight hover:underline">← {backLabel}</Link>}
-      <header className={`mb-6 ${backTo ? 'mt-4' : ''}`}><h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">{title}</h1>{description && <p className="mt-2 text-sm text-muted">{description}</p>}</header>
+    <main className={`mx-auto w-full min-w-0 flex-1 px-3 py-4 text-text-primary sm:px-6 sm:py-6 ${wide ? 'max-w-none' : 'max-w-7xl'}`}>
+      {backTo && (
+        <div className="mb-4">
+          <Link to={backTo} className="inline-flex items-center gap-1 text-sm font-semibold text-brand-highlight hover:underline">
+            ← {backLabel}
+          </Link>
+        </div>
+      )}
+      {title && (
+        <div className="mb-6">
+          <PageHeaderCard
+            icon={icon ?? <FileText size={22} aria-hidden="true" />}
+            title={title}
+            description={description ?? ''}
+            actions={headerActions}
+          />
+        </div>
+      )}
       {logoutError && <p role="alert" className="mb-4 text-sm text-state-danger">Không thể đăng xuất. Vui lòng thử lại.</p>}
       {children}
     </main>

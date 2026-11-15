@@ -19,6 +19,26 @@ export interface BrandOption {
   isActive?: boolean;
 }
 
+export type ReceptionDraftItem = CreateReceptionRequest['items'][number] & { id?: string; coverImageUrl?: string };
+export interface ReceptionDraft {
+  draftId: string;
+  savedAt: string;
+  intakeType: 'Consignment' | 'Buyout';
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string | null;
+  identityNumber?: string | null;
+  address?: string | null;
+  bankCode?: string | null;
+  bankAccountNumber?: string | null;
+  bankAccountHolderName?: string | null;
+  actualItemCount?: number | null;
+  termDays: number;
+  commissionShop: number;
+  note?: string | null;
+  items: ReceptionDraftItem[];
+}
+
 interface RawBrandResponse {
   id: string;
   name: string;
@@ -121,7 +141,9 @@ export function getTierDefaultCommissionRate(tier?: BrandTierType): number {
   }
 }
 
+export interface ReceptionTemplate { title: string; organizationName: string; headerText: string; footerText: string; defaultTerms: string; version: string }
 export const consignmentApi = {
+  async getReceptionTemplate(): Promise<ReceptionTemplate> { return (await apiClient.get<ReceptionTemplate>('/consignments/reception-template')).data; },
   async getCategories(): Promise<CategoryOption[]> {
     const response = await apiClient.get<CategoryOption[]>('/categories', {
       params: { activeOnly: true },
@@ -130,7 +152,6 @@ export const consignmentApi = {
   },
 
   async getBrands(): Promise<BrandOption[]> {
-    try {
       const response = await apiClient.get<PagedBrandsResponse>('/brands', {
         params: { page: 1, pageSize: 100 },
       });
@@ -146,17 +167,7 @@ export const consignmentApi = {
               : getTierDefaultCommissionRate(b.tier),
           isActive: b.isActive,
         }));
-      const filtered = fetched.filter((b) => b.name !== 'Không có thương hiệu');
-      const hasOther = filtered.some(
-        (b) => b.name === 'Khác' || b.id === '40000000-0000-0000-0000-000000000099',
-      );
-      if (!hasOther) {
-        filtered.unshift(DEFAULT_BRANDS[0]);
-      }
-      return filtered;
-    } catch {
-      return DEFAULT_BRANDS;
-    }
+      return fetched;
   },
 
   async getCustomerItemHistoryCount(
@@ -193,10 +204,12 @@ export const consignmentApi = {
     customerName: string;
     customerPhone: string;
     customerEmail?: string;
+    identityNumber?: string; address?: string; bankCode?: string; bankAccountNumber?: string; bankAccountHolderName?: string;
+    actualItemCount?: number;
     termDays: number;
     commissionShop: number;
     note?: string;
-    items: Array<any>;
+    items: ReceptionDraftItem[];
   }): Promise<{ draftId: string; savedAt: string }> {
     const response = await apiClient.post<{ draftId: string; savedAt: string }>(
       '/consignments/draft',
@@ -205,9 +218,9 @@ export const consignmentApi = {
     return response.data;
   },
 
-  async getDraftByAppointment(appointmentId: string): Promise<any | null> {
+  async getDraftByAppointment(appointmentId: string): Promise<ReceptionDraft | null> {
     try {
-      const response = await apiClient.get<any>(
+      const response = await apiClient.get<ReceptionDraft>(
         `/consignments/draft/by-appointment/${appointmentId}`,
       );
       return response.data || null;
@@ -216,9 +229,9 @@ export const consignmentApi = {
     }
   },
 
-  async getLatestWalkInDraft(): Promise<any | null> {
+  async getLatestWalkInDraft(): Promise<ReceptionDraft | null> {
     try {
-      const response = await apiClient.get<any>('/consignments/draft/walkin');
+      const response = await apiClient.get<ReceptionDraft>('/consignments/draft/walkin');
       return response.data || null;
     } catch {
       return null;

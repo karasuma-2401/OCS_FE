@@ -1,65 +1,156 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { FileCog, FileText, Printer, Tag } from 'lucide-react';
+import { FileCog, FileText, Printer, RotateCcw, Search, Tag } from 'lucide-react';
 import { barcodeApi, type BarcodeLabelProduct } from '@/api/barcode';
 import { BarcodePrintDialog } from '@/components/shop/BarcodeLabels';
 import { getContractDetail, listContracts, type ContractListItem, type ContractDetail } from '@/api/contracts';
 import { ContractTermsRequestsPanel } from '@/components/shop/ContractTermsRequestsPanel';
 import { useAuth } from '@/context/AuthContext';
-import { Button, Card, ErrorState, SkeletonLoading } from '@/components/shared';
+import { Badge, Button, Card, Combobox, DatePicker, EmptyState, ErrorState, Input, SkeletonLoading } from '@/components/shared';
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
 import { formatVndPrice } from '@/api/products';
+
+const statusLabels: Record<string, string> = {
+  Active: 'Đang hiệu lực',
+  Completed: 'Đã hoàn tất',
+  Cancelled: 'Đã hủy',
+};
+
+const statusVariants: Record<string, 'success' | 'info' | 'danger' | 'neutral'> = {
+  Active: 'success',
+  Completed: 'info',
+  Cancelled: 'danger',
+};
 
 export function ContractListPage() {
   const { hasRole } = useAuth();
   const permitted = hasRole('Admin') || hasRole('Manager');
   const [page, setPage] = useState(1);
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [items, setItems] = useState<ContractListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
 
+  const hasFilter = Boolean(query.trim() || status || fromDate || toDate);
+
+  const handleResetFilters = () => {
+    setQuery('');
+    setStatus('');
+    setFromDate('');
+    setToDate('');
+    setPage(1);
+  };
+
   useEffect(() => {
     if (!permitted) return;
     let active = true;
-    setLoading(true); setError('');
-    listContracts(page)
+    setLoading(true);
+    setError('');
+    listContracts({
+      page,
+      query: query.trim() || undefined,
+      status: status || undefined,
+      fromDate: fromDate ? `${fromDate}T00:00:00Z` : undefined,
+      toDate: toDate ? `${toDate}T23:59:59Z` : undefined,
+    })
       .then(data => { if (active) setItems(data); })
       .catch(() => { if (active) setError('Không thể tải danh sách hợp đồng.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [page, permitted, retry]);
+  }, [page, permitted, retry, query, status, fromDate, toDate]);
 
   if (!permitted) return <Navigate to="/unauthorized" replace />;
 
   return (
     <ContractPageLayout
+      wide
       title="Quản lý hợp đồng"
       description="Tra cứu hợp đồng đã lập và quản lý mẫu hợp đồng của cửa hàng."
+      icon={<FileText size={24} aria-hidden="true" />}
+      headerActions={
+        <Link
+          to="/shop/contracts/template"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-brand-lavender bg-paper px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light focus-visible:outline-2 focus-visible:outline-brand-pink-focus transition"
+        >
+          <FileCog size={16} aria-hidden="true" />
+          Quản lý mẫu hợp đồng
+        </Link>
+      }
     >
       <Card
         title="Danh sách hợp đồng"
-        description="Xem và in các hợp đồng đã được lập tại cửa hàng."
-        actions={
-          <Link
-            to="/shop/contracts/template"
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-brand-lavender bg-paper px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light focus-visible:outline-2 focus-visible:outline-brand-pink-focus"
-          >
-            <FileCog size={16} aria-hidden="true" />
-            Quản lý mẫu hợp đồng
-          </Link>
-        }
+        description={items.length > 0 ? 'Danh sách các hợp đồng dịch vụ ký gửi đã lập tại cửa hàng.' : 'Hiện chưa có hợp đồng nào trong danh sách.'}
       >
+        <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Input
+            id="contract-search"
+            label="Tìm kiếm hợp đồng"
+            placeholder="Mã hợp đồng, tên khách..."
+            value={query}
+            onChange={e => { setQuery(e.target.value); setPage(1); }}
+            startAdornment={<Search size={16} className="text-text-muted" />}
+          />
+          <Combobox
+            label="Trạng thái hợp đồng"
+            value={status}
+            onChange={val => { setStatus(val); setPage(1); }}
+            options={[
+              { value: '', label: 'Tất cả trạng thái' },
+              { value: 'Active', label: 'Đang hiệu lực' },
+              { value: 'Completed', label: 'Đã hoàn tất' },
+              { value: 'Cancelled', label: 'Đã hủy' },
+            ]}
+          />
+          <DatePicker
+            label="Từ ngày ký"
+            value={fromDate}
+            onChange={val => { setFromDate(val); setPage(1); }}
+          />
+          <DatePicker
+            label="Đến ngày ký"
+            value={toDate}
+            onChange={val => { setToDate(val); setPage(1); }}
+          />
+        </div>
+
+        {hasFilter && (
+          <div className="mb-4 flex items-center justify-between rounded-xl bg-surface-dashboard/70 px-4 py-2.5 text-xs">
+            <span className="font-medium text-text-secondary">Đang áp dụng bộ lọc</span>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="inline-flex items-center gap-1 font-bold text-brand-highlight hover:underline"
+            >
+              <RotateCcw size={13} /> Đặt lại bộ lọc
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <SkeletonLoading variant="list" count={3} />
         ) : error ? (
           <ErrorState description={error} onRetry={() => setRetry(value => value + 1)} />
         ) : items.length === 0 ? (
-          <div className="py-12 text-center">
-            <FileText className="mx-auto mb-3 text-brand-highlight" size={28} aria-hidden="true" />
-            <p className="font-bold text-ink">Chưa có hợp đồng ở trang này</p>
-            <p className="mt-1 text-sm text-muted">Các hợp đồng được tạo sẽ xuất hiện tại đây.</p>
-          </div>
+          <EmptyState
+            icon={<FileText size={36} className="text-brand-highlight" />}
+            title={hasFilter ? 'Không tìm thấy hợp đồng' : 'Chưa có hợp đồng nào'}
+            description={
+              hasFilter
+                ? 'Không tìm thấy hợp đồng nào khớp với các điều kiện tìm kiếm hiện tại.'
+                : 'Chưa có hợp đồng nào được tạo trong hệ thống. Khi nhân viên lập hợp đồng mới tại quầy, hợp đồng sẽ xuất hiện tại đây.'
+            }
+            action={
+              hasFilter ? (
+                <Button variant="outline" size="sm" onClick={handleResetFilters}>
+                  Đặt lại bộ lọc
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[620px] text-left text-sm">
@@ -68,6 +159,7 @@ export function ContractListPage() {
                   <th className="px-4 py-3">Mã hợp đồng</th>
                   <th className="px-4 py-3">Khách hàng</th>
                   <th className="px-4 py-3">Ngày ký</th>
+                  <th className="px-4 py-3">Trạng thái</th>
                   <th className="px-4 py-3">Thao tác</th>
                 </tr>
               </thead>
@@ -77,6 +169,11 @@ export function ContractListPage() {
                     <td className="break-all px-4 py-4 font-bold text-ink">{item.contractNumber}</td>
                     <td className="px-4 py-4">{item.customerName || 'Chưa có thông tin khách'}</td>
                     <td className="px-4 py-4">{new Date(item.signedAt).toLocaleString('vi-VN')}</td>
+                    <td className="px-4 py-4">
+                      <Badge variant={statusVariants[item.status || 'Active'] || 'neutral'}>
+                        {statusLabels[item.status || 'Active'] || item.status || 'Đang hiệu lực'}
+                      </Badge>
+                    </td>
                     <td className="px-4 py-4">
                       <Link
                         className="inline-flex items-center gap-1.5 font-semibold text-brand-highlight hover:underline"
