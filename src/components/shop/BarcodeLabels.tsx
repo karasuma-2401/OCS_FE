@@ -106,6 +106,15 @@ export function BarcodePrintDialog({ open, onClose, items }: { open: boolean; on
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (open) {
+      document.body.setAttribute('data-print-mode', 'barcode');
+      return () => {
+        document.body.removeAttribute('data-print-mode');
+      };
+    }
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
     let active = true;
     setLoading(true);
@@ -172,6 +181,19 @@ export function BarcodePrintDialog({ open, onClose, items }: { open: boolean; on
           }
           body * {
             visibility: hidden !important;
+          }
+          #contract-printable-sheet,
+          #contract-printable-sheet *,
+          .unified-contract-sheet-wrapper,
+          .unified-contract-sheet-wrapper * {
+            display: none !important;
+            visibility: hidden !important;
+            position: absolute !important;
+            left: -99999px !important;
+            top: -99999px !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
           }
           #barcode-printable-area, #barcode-printable-area * {
             visibility: visible !important;

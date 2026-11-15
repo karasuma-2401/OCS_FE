@@ -172,13 +172,14 @@ export const UnifiedContractSheet: React.FC<UnifiedContractSheetProps> = ({
             background: white !important;
             color: black !important;
           }
-          body * {
+          body:not([data-print-mode="barcode"]) * {
             visibility: hidden !important;
           }
-          #${printableId}, #${printableId} * {
+          body:not([data-print-mode="barcode"]) #${printableId},
+          body:not([data-print-mode="barcode"]) #${printableId} * {
             visibility: visible !important;
           }
-          #${printableId} {
+          body:not([data-print-mode="barcode"]) #${printableId} {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
@@ -190,6 +191,19 @@ export const UnifiedContractSheet: React.FC<UnifiedContractSheetProps> = ({
             border: none !important;
             box-shadow: none !important;
             overflow: visible !important;
+          }
+          body[data-print-mode="barcode"] #${printableId},
+          body[data-print-mode="barcode"] #${printableId} *,
+          body[data-print-mode="barcode"] .unified-contract-sheet-wrapper,
+          body[data-print-mode="barcode"] .unified-contract-sheet-wrapper * {
+            display: none !important;
+            visibility: hidden !important;
+            position: absolute !important;
+            left: -99999px !important;
+            top: -99999px !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
           }
           #${printableId} tr {
             break-inside: avoid !important;
