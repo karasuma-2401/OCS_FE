@@ -162,9 +162,15 @@ export async function getContractDetail(id: string): Promise<ContractDetail> {
     const res = await apiClient.get<Record<string, any>>(`/contracts/${encodeURIComponent(id)}/detail`);
     return mapData(res.data);
   } catch {
-    // Dự phòng gọi endpoint /web nếu endpoint /detail gặp sự cố
-    const res = await apiClient.get<Record<string, any>>(`/contracts/${encodeURIComponent(id)}/web`);
-    return mapData(res.data);
+    try {
+      // Dự phòng gọi endpoint /web nếu endpoint /detail gặp sự cố
+      const res = await apiClient.get<Record<string, any>>(`/contracts/${encodeURIComponent(id)}/web`);
+      return mapData(res.data);
+    } catch {
+      // Dự phòng gọi endpoint /contracts/{id} cơ bản
+      const res = await apiClient.get<Record<string, any>>(`/contracts/${encodeURIComponent(id)}`);
+      return mapData(res.data);
+    }
   }
 }
 export interface ContractFilterParams {
@@ -225,6 +231,9 @@ async function postPdf(path: string, request: unknown): Promise<Blob> {
 }
 export async function previewContract(request: CreateContractRequest): Promise<Blob> {
   return postPdf('/contracts/preview', request);
+}
+export async function previewContractWeb(request: CreateContractRequest): Promise<string> {
+  return (await apiClient.post<{ terms: string }>('/contracts/preview-web', request)).data.terms;
 }
 export async function previewContractWord(request: CreateContractRequest): Promise<Blob> {
   return postPdf('/contracts/preview?format=word', request);

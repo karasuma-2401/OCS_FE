@@ -97,6 +97,21 @@ export const formatContractDateOnly = (isoString?: string | null): string => {
   }
 };
 
+export const formatContractDateParts = (isoString?: string | null) => {
+  const d = isoString ? new Date(isoString) : new Date();
+  const valid = !Number.isNaN(d.getTime());
+  const dateObj = valid ? d : new Date();
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const year = String(dateObj.getFullYear());
+  return {
+    day,
+    month,
+    year,
+    full: `ngày ${day} tháng ${month} năm ${year}`,
+  };
+};
+
 export const UnifiedContractSheet: React.FC<UnifiedContractSheetProps> = ({
   title,
   organizationName,
@@ -141,6 +156,8 @@ export const UnifiedContractSheet: React.FC<UnifiedContractSheetProps> = ({
   const expiryText = expiryHandling === 'Donate'
     ? 'Quyên góp từ thiện theo chính sách cửa hàng'
     : 'Trả lại khách hàng khi hết hạn';
+
+  const dateInfo = formatContractDateParts(signedAt);
 
   return (
     <div className={`unified-contract-sheet-wrapper ${className}`}>
@@ -189,66 +206,69 @@ export const UnifiedContractSheet: React.FC<UnifiedContractSheetProps> = ({
         id={printableId}
         className="rounded-2xl border border-gray-300 bg-white p-6 sm:p-10 text-gray-900 shadow-md print:border-none print:p-0 print:shadow-none select-text text-xs leading-normal font-sans"
       >
-        {/* Header Quốc hiệu / Cửa hàng */}
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-gray-400 pb-5">
-          <div className="space-y-1 max-w-sm">
-            <h1 className="text-base sm:text-lg font-extrabold uppercase tracking-tight text-gray-900">
+        {/* Header Hành chính chuẩn Việt Nam (Nghị định 30/2020/NĐ-CP) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-b-2 border-gray-800 pb-4">
+          {/* Cột trái: Đơn vị ban hành & Số hiệu văn bản */}
+          <div className="text-center sm:text-left space-y-1">
+            <h1 className="text-xs sm:text-sm font-black uppercase tracking-tight text-gray-900">
               {organizationName || 'CỬA HÀNG OLD CLOTHES STORE (OCS)'}
             </h1>
             {headerText ? (
-              <p className="text-xs text-gray-600 whitespace-pre-line mt-1">
+              <p className="text-[10.5px] text-gray-600 whitespace-pre-line">
                 {headerText}
               </p>
             ) : (
-              <>
-                <p className="text-xs text-gray-600">
-                  Chuỗi Cửa Hàng & Ký Gửi Thời Trang Tuyển Chọn
-                </p>
-                {storeAddress && (
-                  <p className="text-xs text-gray-600">
-                    Địa chỉ: {storeAddress}
-                  </p>
-                )}
-                {(storeHotline || storeWebsite) && (
-                  <p className="text-xs text-gray-600">
-                    Hotline: {storeHotline} · Website: {storeWebsite}
-                  </p>
-                )}
-              </>
+              <p className="text-[11px] font-semibold text-gray-700">
+                Chuỗi Ký Gửi & Thời Trang Tuyển Chọn
+              </p>
             )}
-          </div>
-
-          <div className="sm:text-right text-xs space-y-1 shrink-0">
-            <p className="font-extrabold uppercase text-gray-700 tracking-wider text-[11px]">
-              CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+            <p className="text-xs font-bold text-gray-900 mt-1">
+              Số: <span className="font-mono text-rose-950 font-black">{contractNumber || (isDraftPreview ? '[TẠO MỚI KHI LƯU]' : 'HĐ-KÝ-GỬI')}</span>
             </p>
-            <p className="text-[11px] font-semibold text-gray-600 italic">
-              Độc lập - Tự do - Hạnh phúc
-            </p>
-            <div className="sm:ml-auto my-1.5 h-[1px] w-20 bg-gray-400" />
-            <p className="font-extrabold text-gray-900">
-              Số HĐ: <span className="font-mono text-xs font-bold text-rose-950">{contractNumber || (isDraftPreview ? '[TẠO MỚI KHI LƯU]' : 'HĐ-KÝ-GỬI')}</span>
-            </p>
-            <p className="text-gray-600">
-              Ngày lập: {formatContractDate(signedAt || new Date().toISOString())}
-            </p>
-            {endsAt && (
-              <p className="text-gray-600">
-                Thời hạn đến: {formatContractDate(endsAt)}
+            {storeAddress && (
+              <p className="text-[10.5px] text-gray-600">
+                Địa chỉ: {storeAddress}
+              </p>
+            )}
+            {storeHotline && (
+              <p className="text-[10.5px] text-gray-600">
+                Hotline: {storeHotline} {storeWebsite ? `· Web: ${storeWebsite}` : ''}
               </p>
             )}
           </div>
+
+          {/* Cột phải: Quốc hiệu, Tiêu ngữ và Địa danh ngày tháng (Trên cùng) */}
+          <div className="text-center sm:text-right space-y-0.5">
+            <p className="font-extrabold uppercase text-gray-950 tracking-wider text-xs sm:text-sm">
+              CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+            </p>
+            <p className="text-xs sm:text-sm font-bold text-gray-900">
+              Độc lập - Tự do - Hạnh phúc
+            </p>
+            <div className="mx-auto sm:ml-auto sm:mr-4 my-1 h-[1.5px] w-32 bg-gray-800" />
+            <p className="text-[11px] text-gray-600 italic pt-1">
+              TP. Hồ Chí Minh, {dateInfo.full}
+            </p>
+            <p className="text-[11px] text-gray-500">
+              Thời hạn đến: {formatContractDateOnly(endsAt || new Date(Date.now() + 60 * 86400000).toISOString())}
+            </p>
+          </div>
         </div>
 
-        {/* Tiêu đề chính */}
-        <div className="my-6 text-center">
-          <h2 className="text-lg sm:text-xl font-black uppercase tracking-wide text-gray-900">
+        {/* Tiêu đề chính của Hợp đồng */}
+        <div className="my-5 text-center space-y-1">
+          <h2 className="text-base sm:text-xl font-black uppercase tracking-wider text-gray-950">
             {title || 'HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG'}
           </h2>
-          <p className="mt-1 text-xs text-gray-500 italic">
-            (Căn cứ theo Bộ luật Dân sự và thỏa thuận tiếp nhận hàng hóa giữa hai bên)
+          <p className="text-xs text-gray-600 italic">
+            (Căn cứ theo Bộ luật Dân sự số 91/2015/QH13 và sự thỏa thuận tự nguyện giữa hai bên)
           </p>
         </div>
+
+        {/* Lời mở đầu thể thức hành chính */}
+        <p className="text-xs text-gray-800 leading-relaxed mb-3">
+          Hôm nay, {dateInfo.full}, tại Cửa hàng Old Clothes Store ({storeAddress || 'Chi nhánh tiếp nhận'}), chúng tôi gồm các bên dưới đây cùng thống nhất ký kết Hợp đồng dịch vụ ký gửi hàng hóa với các nội dung sau:
+        </p>
 
         {/* Thông tin Bên A & Bên B */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl border border-gray-300 bg-gray-50/70 p-4 text-xs">

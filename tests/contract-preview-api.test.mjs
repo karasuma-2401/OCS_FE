@@ -11,7 +11,17 @@ let handler;
 const apiClient = { get: (...args) => handler('get', ...args), put: (...args) => handler('put', ...args), post: (...args) => handler(...args) };
 const moduleObject = { exports: {} };
 new Function('require', 'module', 'exports', compiled)((name) => name === './client' ? { apiClient } : require(name), moduleObject, moduleObject.exports);
-const { previewContract, getIntakeTemplate, getManagedTemplate, saveManagedTemplate, previewManagedTemplate } = moduleObject.exports;
+const { previewContract, previewContractWeb, getIntakeTemplate, getManagedTemplate, saveManagedTemplate, previewManagedTemplate } = moduleObject.exports;
+
+test('web preview returns the terms validated for the current contract', async () => {
+  const request = { requestId: 'request-1', termsRequestId: 'approved-1' };
+  handler = async (path, body) => {
+    assert.equal(path, '/contracts/preview-web');
+    assert.deepEqual(body, request);
+    return { data: { terms: 'Điều khoản được duyệt' } };
+  };
+  assert.equal(await previewContractWeb(request), 'Điều khoản được duyệt');
+});
 
 test('preview sends the current contract to the PDF preview endpoint', async () => {
   const request = { requestId: 'request-1', terms: 'Điều khoản' };

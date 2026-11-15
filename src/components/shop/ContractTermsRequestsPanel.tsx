@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { parseProblemDetails } from '@/api/auth';
 import { contractTermsApi, type ContractTermsRequest } from '@/api/contractTerms';
-import { Button, Card, Input, SkeletonLoading } from '@/components/shared';
+import { Button, Card, SkeletonLoading } from '@/components/shared';
 
 export function ContractTermsRequestsPanel() {
   const [items, setItems] = useState<ContractTermsRequest[]>([]);
@@ -10,7 +10,7 @@ export function ContractTermsRequestsPanel() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState('');
-  const [files, setFiles] = useState<Record<string, File | undefined>>({});
+  const [terms, setTerms] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -19,12 +19,12 @@ export function ContractTermsRequestsPanel() {
   }, []);
   useEffect(() => { void load(); }, [load]);
   const decide = async (item: ContractTermsRequest, approve: boolean) => {
-    const note = (notes[item.id] || '').trim(); const file = files[item.id];
-    if (approve && (!file || !file.name.toLowerCase().endsWith('.docx') || file.size > 2 * 1024 * 1024)) { setError('Chọn tệp Word không quá 2 MB để duyệt.'); return; }
+    const note = (notes[item.id] || '').trim(); const text = (terms[item.id] || '').trim();
+    if (approve && !text) { setError('Nhập điều khoản được duyệt.'); return; }
     if (!approve && !note) { setError('Nhập lý do từ chối.'); return; }
     setBusy(item.id); setError(''); setNotice('');
     try {
-      if (approve && file) await contractTermsApi.approve(item.id, item.version, file, note);
+      if (approve) await contractTermsApi.approveWeb(item.id, item.version, text, note);
       else await contractTermsApi.reject(item.id, item.version, note);
       setNotice(approve ? 'Đã duyệt điều khoản riêng cho yêu cầu này.' : 'Đã từ chối yêu cầu.');
       await load();
@@ -39,10 +39,9 @@ export function ContractTermsRequestsPanel() {
     {error && <p role="alert" className="mb-3 text-sm text-state-danger">{error}</p>}{notice && <p role="status" className="mb-3 text-sm text-state-success">{notice}</p>}
     {loading ? <SkeletonLoading variant="list" count={2} /> : items.length === 0 ? <p className="text-sm text-muted">Không có yêu cầu đang chờ.</p> : <div className="space-y-4">{items.map(item => <section key={item.id} className="space-y-3 rounded-xl border border-border p-4">
       <div><p className="text-sm font-bold text-ink">{item.requestedByName || 'Nhân viên'} · {new Date(item.createdAt).toLocaleString('vi-VN')}</p><p className="mt-2 whitespace-pre-wrap text-sm text-ink">{item.reason}</p></div>
-      <p className="text-xs text-muted">Tải mẫu hiện hành, chỉnh điều khoản trong Word rồi chọn tệp riêng cho yêu cầu này. Mẫu chung không thay đổi.</p>
-      <Input label="Tệp Word điều khoản riêng" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event => setFiles(current => ({ ...current, [item.id]: event.target.files?.[0] }))} />
+      <label className="block text-sm font-semibold text-ink">Điều khoản riêng<textarea className="mt-1 w-full rounded-xl border border-border bg-paper px-3 py-2 text-sm text-ink" rows={6} value={terms[item.id] || ''} onChange={event => setTerms(current => ({ ...current, [item.id]: event.target.value }))} /></label>
       <label className="block text-sm font-semibold text-ink">Ghi chú duyệt hoặc lý do từ chối<textarea className="mt-1 w-full rounded-xl border border-border bg-paper px-3 py-2 text-sm text-ink" rows={2} maxLength={2000} value={notes[item.id] || ''} onChange={event => setNotes(current => ({ ...current, [item.id]: event.target.value }))} /></label>
-      <div className="flex flex-wrap gap-2"><Button size="sm" loading={busy === item.id} disabled={Boolean(busy)} onClick={() => void decide(item, true)}>Duyệt tệp Word</Button><Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => void decide(item, false)}>Từ chối</Button></div>
+      <div className="flex flex-wrap gap-2"><Button size="sm" loading={busy === item.id} disabled={Boolean(busy)} onClick={() => void decide(item, true)}>Duyệt điều khoản</Button><Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => void decide(item, false)}>Từ chối</Button></div>
     </section>)}</div>}
   </Card>;
 }

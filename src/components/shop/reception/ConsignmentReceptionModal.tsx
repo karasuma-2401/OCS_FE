@@ -4,7 +4,7 @@ import { parseProblemDetails } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
 import { Button, Card, Combobox, Input, Select } from '@/components/shared';
 import { ContractSignature } from '@/components/shop/ContractSignature';
-import { ContractMoneyInput } from '@/components/shop/ContractMoneyInput';
+import { ContractMoneyInput, validReceptionPrice } from '@/components/shop/ContractMoneyInput';
 import { UnifiedContractSheet } from '@/components/shop/UnifiedContractSheet';
 import {
   X,
@@ -546,7 +546,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
         if (!i.brandId || !brands.some((brand) => brand.id === i.brandId)) errors[`item_brand_${i.id}`] = 'Vui lòng chọn thương hiệu.';
         if (!i.categoryId || !categories.some((category) => category.id === i.categoryId)) errors[`item_category_${i.id}`] = 'Vui lòng chọn danh mục.';
         if (!i.size) errors[`item_size_${i.id}`] = 'Vui lòng chọn kích thước.';
-        if (!i.listedPrice || i.listedPrice <= 0) errors[`item_price_${i.id}`] = 'Giá niêm yết phải lớn hơn 0đ.';
+        if (!validReceptionPrice(i.listedPrice)) errors[`item_price_${i.id}`] = 'Giá niêm yết phải từ 1 đến 999.999.999.999 đồng.';
         if (intakeType === 'consignment' && (i.commissionRate == null || i.commissionRate < 0 || i.commissionRate > 100)) {
           errors[`item_commission_${i.id}`] = 'Hoa hồng shop từ 0% đến 100%.';
         }
@@ -622,7 +622,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
         if (!i.brandId || !brands.some((b) => b.id === i.brandId)) errors[`item_brand_${i.id}`] = 'Vui lòng chọn thương hiệu.';
         if (!i.categoryId || !categories.some((c) => c.id === i.categoryId)) errors[`item_category_${i.id}`] = 'Vui lòng chọn danh mục.';
         if (!i.size) errors[`item_size_${i.id}`] = 'Vui lòng chọn kích thước.';
-        if (!i.listedPrice || i.listedPrice <= 0) errors[`item_price_${i.id}`] = 'Giá niêm yết phải lớn hơn 0đ.';
+        if (!validReceptionPrice(i.listedPrice)) errors[`item_price_${i.id}`] = 'Giá niêm yết phải từ 1 đến 999.999.999.999 đồng.';
         if (intakeType === 'consignment' && (i.commissionRate == null || i.commissionRate < 0 || i.commissionRate > 100)) {
           errors[`item_commission_${i.id}`] = 'Hoa hồng shop từ 0% đến 100%.';
         }

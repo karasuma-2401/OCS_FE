@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { appointmentApi } from '@/api/appointmentApi';
 import { parseProblemDetails } from '@/api/auth';
 import { loadContractPart } from '@/api/contractErrors';
-import { createContract, previewContract, getIntakeTemplate, findContractCustomer, getContractCustomer, getContractEmployee, getContractOptions, updateContractCustomer, type ContractCustomer, type ContractEmployee, type ContractImage, type ContractOptions, type ContractProduct, type ContractResponse, type ContractTemplate, type GuestCustomer } from '@/api/contracts';
+import { createContract, previewContractWeb, getIntakeTemplate, findContractCustomer, getContractCustomer, getContractEmployee, getContractOptions, updateContractCustomer, type ContractCustomer, type ContractEmployee, type ContractImage, type ContractOptions, type ContractProduct, type ContractResponse, type ContractTemplate, type GuestCustomer } from '@/api/contracts';
 import { ContractSignature } from '@/components/shop/ContractSignature';
 import { ContractMoneyInput } from '@/components/shop/ContractMoneyInput';
 import { prepareCameraPhoto } from '@/components/shop/contractCamera';
@@ -15,7 +15,7 @@ import { ContractTermsSection } from '@/components/shop/ContractTermsSection';
 import type { ContractTermsRequest } from '@/api/contractTerms';
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
 import { useAuth } from '@/context/AuthContext';
-import { formatVndPrice } from '@/api/products';
+import { UnifiedContractSheet } from '@/components/shop/UnifiedContractSheet';
 import type { Appointment } from '@/types';
 
 const control = 'mt-1 w-full rounded-xl border border-border bg-paper px-3.5 py-2.5 text-sm text-ink focus:border-brand-pink-focus focus:outline-none focus:ring-2 focus:ring-brand-pink/25 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-muted';
@@ -81,13 +81,12 @@ export function ContractIntakePage() {
   const [lookingUp, setLookingUp] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState('');
+  const [previewTerms, setPreviewTerms] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [created, setCreated] = useState<ContractResponse | null>(null);
   const mounted = useRef(true);
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
   useEffect(() => {
     if (!agreementInitialized.current) { agreementInitialized.current = true; return; }
     if (signatureRef.current) { setSignature(null); setSignatureNotice('Thông tin hợp đồng đã thay đổi. Hãy xem lại và ký lại.'); }
@@ -206,8 +205,8 @@ export function ContractIntakePage() {
       const customerDetails = customer ? { email: customer.email || '', identityNumber: customer.identityNumber || '', address: customer.address || '', bankCode: customer.bankCode || '', bankAccountNumber: customer.bankAccountNumber || '', bankAccountHolderName: customer.bankAccountHolderName || '' } : undefined;
       const request = { ...(appointmentId ? { appointmentId } : customer ? { customerId: customer.id, requestId } : { guest: { ...guest, email: guest.email || '' }, saveCustomer, requestId }), customerDetails, signedAt: start.toISOString(), endsAt: end.toISOString(), expiryHandling, products, templateVersion: template?.version, termsRequestId: termsRequest?.status === 'Approved' ? termsRequest.id : undefined, signature: signature || undefined };
       if (isPreview) {
-        const word = await previewContract(request);
-        if (mounted.current) setPreviewUrl(URL.createObjectURL(word));
+        const terms = await previewContractWeb(request);
+        if (mounted.current) setPreviewTerms(terms);
         return;
       }
       const result = await createContract(request);
@@ -225,7 +224,7 @@ export function ContractIntakePage() {
     backLabel="Tiếp nhận ký gửi"
   >
     <div className="w-full">
-    {created ? <section role="status" className="mt-6 rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">Đã tạo hợp đồng</h2><p className="mt-2 break-all">Mã hợp đồng: {created.contractNumber}</p><p className="mt-2 text-sm text-gray-600">Thông tin khách, sản phẩm và tài liệu Word đã được lưu.</p><Link className="mt-4 inline-block text-pink-700 underline" to="/shop/consignment">Về danh sách tiếp nhận</Link></section> :
+    {created ? <section role="status" className="mt-6 rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">Đã tạo hợp đồng</h2><p className="mt-2 break-all">Mã hợp đồng: {created.contractNumber}</p><Link className="mt-4 inline-block text-pink-700 underline" to="/shop/consignment">Về danh sách tiếp nhận</Link></section> :
     <section className="rounded-2xl border border-brand-lavender/40 bg-paper p-5 shadow-sm sm:p-6">
       {loading ? <p role="status">Đang tải dữ liệu...</p> : !options || (!direct && !appointment) ? <div><p role="alert">{error || 'Vui lòng chọn lịch hẹn hoặc tiếp nhận khách trực tiếp.'}</p>{error && <button type="button" onClick={() => setLoadAttempt(value => value + 1)} className="mt-3 text-sm font-semibold text-pink-700 underline">Thử tải lại</button>}</div> : <>
         {employee && <section className="mb-6 rounded-xl bg-gray-50 p-4"><h2 className="font-bold">Nhân viên lập hợp đồng</h2><dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3"><div><dt className="text-gray-500">Họ và tên</dt><dd className="font-semibold">{employee.fullName || 'Chưa cập nhật'}</dd></div><div><dt className="text-gray-500">Chức vụ</dt><dd className="font-semibold">{employee.jobTitle || 'Chưa cập nhật'}</dd></div><div><dt className="text-gray-500">Số điện thoại</dt><dd>{employee.phoneNumber || 'Chưa cập nhật'}</dd></div></dl></section>}
@@ -267,121 +266,35 @@ export function ContractIntakePage() {
         </fieldset></form>}
       </>}
     </section>}
-    <Modal open={Boolean(previewUrl)} onClose={() => setPreviewUrl('')} title="Xem trước hợp đồng" description="Bản xem trước trực tiếp trên giao diện web chưa lưu vào hệ thống." className="max-w-4xl" footer={<div className="flex w-full items-center justify-between gap-2"><div className="flex items-center gap-2"><button type="button" onClick={() => window.print()} className="rounded-xl border border-brand-lavender bg-white px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">In bản xem trước</button></div><button type="button" onClick={() => setPreviewUrl('')} className={button}>Quay lại ký / chỉnh sửa</button></div>}>
-      {previewUrl && (
-        <div id="contract-preview-sheet" className="space-y-4 rounded-xl border border-gray-300 bg-white p-6 text-gray-900 text-xs select-text">
-          <div className="border-b border-gray-300 pb-3 text-center">
-            <h3 className="text-base font-extrabold uppercase text-gray-900">
-              {template?.organizationName || 'CỬA HÀNG OLD CLOTHES STORE (OCS)'}
-            </h3>
-            {template?.headerText && (
-              <p className="text-[11px] text-gray-600 whitespace-pre-line mt-1">
-                {template.headerText}
-              </p>
-            )}
-            <h4 className="mt-2 text-sm font-black uppercase text-gray-900">
-              {template?.title || 'HỢP ĐỒNG DỊCH VỤ KÝ GỬI THỜI TRANG'}
-            </h4>
-            <p className="text-[11px] text-gray-500 italic mt-0.5">
-              (Bản xem trước hợp đồng - Căn cứ theo thỏa thuận giữa hai bên)
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-gray-50/70 p-3 text-xs">
-            <div>
-              <p className="font-extrabold uppercase text-gray-800 border-b border-gray-200 pb-1 mb-1">Bên A (Nhận ký gửi):</p>
-              <p className="text-gray-700">Đơn vị: <strong>{template?.organizationName || 'Old Clothes Store (OCS)'}</strong></p>
-              <p className="text-gray-700">Nhân viên tiếp nhận: {employee?.fullName || 'Nhân viên cửa hàng'}</p>
-              {employee?.jobTitle && <p className="text-gray-600">Chức vụ: {employee.jobTitle}</p>}
-              {employee?.phoneNumber && <p className="text-gray-600">SĐT: {employee.phoneNumber}</p>}
-            </div>
-            <div>
-              <p className="font-extrabold uppercase text-gray-800 border-b border-gray-200 pb-1 mb-1">Bên B (Ký gửi):</p>
-              <p className="text-gray-700">Khách hàng: <strong className="text-gray-900">{customer?.fullName || guest?.fullName || 'Khách vãng lai'}</strong></p>
-              <p className="text-gray-700">SĐT: <span className="font-mono font-semibold">{customer?.phoneNumber || guest?.phoneNumber || '—'}</span></p>
-              {(customer?.identityNumber || guest?.identityNumber) && <p className="text-gray-600">CCCD: <span className="font-mono">{customer?.identityNumber || guest?.identityNumber}</span></p>}
-              {(customer?.address || guest?.address) && <p className="text-gray-600">Địa chỉ: {customer?.address || guest?.address}</p>}
-              {(customer?.bankAccountNumber || guest?.bankAccountNumber) && (
-                <p className="text-gray-600">Tài khoản: <span className="font-mono">{customer?.bankAccountNumber || guest?.bankAccountNumber}</span> ({customer?.bankCode || guest?.bankCode})</p>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-gray-200 bg-white p-2.5 text-xs flex justify-between gap-2">
-            <div>Thời hạn: <strong>{new Date(signedAt).toLocaleDateString('vi-VN')}</strong> đến <strong>{new Date(endsAt).toLocaleDateString('vi-VN')}</strong></div>
-            <div>Hình thức khi hết hạn: <strong>{expiryHandling === 'Return' ? 'Trả lại khách hàng' : 'Quyên góp'}</strong></div>
-          </div>
-
-          <div>
-            <p className="font-extrabold uppercase text-gray-900 mb-1">Danh sách sản phẩm ký gửi ({products.length} món):</p>
-            <table className="w-full border-collapse border border-gray-300 text-left text-[11px]">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="border border-gray-300 p-1.5 text-center">STT</th>
-                  <th className="border border-gray-300 p-1.5">Tên sản phẩm</th>
-                  <th className="border border-gray-300 p-1.5 text-center">Mã Barcode</th>
-                  <th className="border border-gray-300 p-1.5 text-center">Size</th>
-                  <th className="border border-gray-300 p-1.5 text-center">Độ mới</th>
-                  <th className="border border-gray-300 p-1.5 text-right">Giá niêm yết</th>
-                  <th className="border border-gray-300 p-1.5 text-center">Hoa hồng</th>
-                  <th className="border border-gray-300 p-1.5 text-right">Dự kiến nhận</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((p, i) => {
-                  const comm = p.agreedCommissionRate ?? 20;
-                  const payout = (p.listedPrice || 0) * (1 - comm / 100);
-                  return (
-                    <tr key={i}>
-                      <td className="border border-gray-300 p-1.5 text-center">{i + 1}</td>
-                      <td className="border border-gray-300 p-1.5 font-bold text-gray-900">{p.name}</td>
-                      <td className="border border-gray-300 p-1.5 font-mono text-center">{p.barcode}</td>
-                      <td className="border border-gray-300 p-1.5 text-center">{p.size}</td>
-                      <td className="border border-gray-300 p-1.5 text-center">{p.conditionPercentage}%</td>
-                      <td className="border border-gray-300 p-1.5 text-right font-medium">{formatVndPrice(p.listedPrice || 0)}</td>
-                      <td className="border border-gray-300 p-1.5 text-center">{comm}%</td>
-                      <td className="border border-gray-300 p-1.5 text-right font-bold text-gray-900">{formatVndPrice(payout)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {template?.defaultTerms && (
-            <div>
-              <p className="font-extrabold uppercase text-gray-900 mb-1">ĐIỀU KHOẢN VÀ THỎA THUẬN KÝ GỬI:</p>
-              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 text-[11px] leading-relaxed text-gray-800 whitespace-pre-wrap">
-                {template.defaultTerms}
-              </div>
-            </div>
-          )}
-
-          <p className="mt-3 text-[11px] text-gray-600 italic whitespace-pre-line">
-            {template?.footerText || '* Hợp đồng được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ 01 bản làm căn cứ đối soát và nhận tiền thanh toán khi sản phẩm được bán.'}
-          </p>
-
-          <div className="grid grid-cols-2 gap-4 text-center text-xs pt-4 border-t border-gray-200">
-            <div>
-              <p className="font-extrabold uppercase text-gray-900">ĐẠI DIỆN BÊN A (OCS)</p>
-              <div className="h-16 flex items-center justify-center">
-                <span className="font-serif italic text-gray-400 text-xs">[Đã xác nhận điện tử]</span>
-              </div>
-              <p className="font-bold text-gray-900">{employee?.fullName || 'Nhân viên tiếp nhận'}</p>
-            </div>
-            <div>
-              <p className="font-extrabold uppercase text-gray-900">ĐẠI DIỆN BÊN B (KHÁCH HÀNG)</p>
-              <div className="h-16 flex items-center justify-center">
-                {signature ? (
-                  <img src={`data:${signature.contentType};base64,${signature.data}`} alt="Chữ ký" className="max-h-14 object-contain" />
-                ) : (
-                  <span className="font-serif italic text-gray-400 text-xs">[Chưa ký xác nhận]</span>
-                )}
-              </div>
-              <p className="font-bold text-gray-900">{customer?.fullName || guest?.fullName || 'Khách ký gửi'}</p>
-            </div>
-          </div>
-        </div>
+    <Modal open={previewTerms !== null} onClose={() => setPreviewTerms(null)} title="Xem trước hợp đồng" description="Bản xem trước trực tiếp trên giao diện web chưa lưu vào hệ thống." className="max-w-4xl" footer={<div className="flex w-full items-center justify-between gap-2"><div className="flex items-center gap-2"><button type="button" onClick={() => window.print()} className="rounded-xl border border-brand-lavender bg-white px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-pink-light">In bản xem trước</button></div><button type="button" onClick={() => setPreviewTerms(null)} className={button}>Quay lại ký / chỉnh sửa</button></div>}>
+      {previewTerms !== null && (
+        <UnifiedContractSheet
+          printableId="contract-preview-sheet"
+          isDraftPreview
+          title={template?.title}
+          organizationName={template?.organizationName}
+          headerText={template?.headerText}
+          footerText={template?.footerText}
+          signedAt={signedAt}
+          endsAt={endsAt}
+          expiryHandling={expiryHandling}
+          employeeName={employee?.fullName}
+          employeeTitle={employee?.jobTitle}
+          employeePhone={employee?.phoneNumber}
+          customerName={(customer || guest).fullName}
+          customerPhone={(customer || guest).phoneNumber}
+          customerEmail={(customer || guest).email}
+          customerIdentity={(customer || guest).identityNumber}
+          customerAddress={(customer || guest).address}
+          bankCode={(customer || guest).bankCode}
+          bankAccountNumber={(customer || guest).bankAccountNumber}
+          bankAccountHolderName={(customer || guest).bankAccountHolderName}
+          products={products.map(p => ({ ...p, listedPrice: p.listedPrice ?? 0,
+            brandName: options?.brands.find(b => b.id === p.brandId)?.name,
+            categoryName: options?.categories.find(c => c.id === p.categoryId)?.name }))}
+          terms={previewTerms}
+          signatureDataUrl={signature ? `data:${signature.contentType};base64,${signature.data}` : null}
+        />
       )}
     </Modal>
   </div></ContractPageLayout>;

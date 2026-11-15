@@ -40,7 +40,7 @@ export function ContractTermsSection({ draftKey, customerPhone, onChange }: { dr
   };
   const active = item?.status === 'Pending' || item?.status === 'Approved';
   return <section className="space-y-3">
-    <div><h2 className="text-lg font-bold">Điều khoản hợp đồng</h2><p className="mt-1 text-sm text-muted">Điều khoản nằm trong mẫu Word của quản lý. Xem trước cùng khách trước khi xác nhận.</p></div>
+    <div><h2 className="text-lg font-bold">Điều khoản hợp đồng</h2><p className="mt-1 text-sm text-muted">Xem điều khoản cùng khách trước khi xác nhận.</p></div>
     {item?.status === 'Pending' && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Yêu cầu đang chờ quản lý xử lý. Tạm thời chưa thể tạo hoặc xem trước hợp đồng.</p>}
     {item?.status === 'Approved' && <p role="status" className="rounded-xl bg-state-success-soft p-3 text-sm text-state-success">Quản lý đã duyệt mẫu riêng. Hãy xem nội dung mới cùng khách và ký lại trước khi tạo.{item.decisionNote && ` Ghi chú: ${item.decisionNote}`}</p>}
     {item?.status === 'Rejected' && <p role="status" className="rounded-xl bg-state-danger-soft p-3 text-sm text-state-danger">Yêu cầu bị từ chối. {item.decisionNote}</p>}

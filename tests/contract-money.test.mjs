@@ -9,7 +9,15 @@ const source = readFileSync(new URL('../src/components/shop/ContractMoneyInput.t
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
 const module = { exports: {} };
 new Function('require', 'module', 'exports', compiled)(require, module, module.exports);
-const { ContractMoneyInput } = module.exports;
+const { ContractMoneyInput, validReceptionPrice } = module.exports;
+
+test('reception price respects the API limit before signing', () => {
+  assert.equal(validReceptionPrice(1), true);
+  assert.equal(validReceptionPrice(999999999999), true);
+  assert.equal(validReceptionPrice(1000000000000), false);
+  assert.equal(validReceptionPrice(0), false);
+  assert.equal(validReceptionPrice(NaN), false);
+});
 
 test('contract price groups digits and rejects letters without losing integer precision', () => {
   let changed;

@@ -31,6 +31,9 @@ export const contractTermsApi = {
     const data = new FormData(); data.append('file', file); data.append('version', version); data.append('note', note);
     return (await apiClient.put<ContractTermsRequest>(`/contract-terms-requests/${encodeURIComponent(id)}/approve`, data, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
   },
+  async approveWeb(id: string, version: string, terms: string, note: string): Promise<ContractTermsRequest> {
+    return (await apiClient.put<ContractTermsRequest>(`/contract-terms-requests/${encodeURIComponent(id)}/approve-web`, { version, terms, note })).data;
+  },
   async reject(id: string, version: string, note: string): Promise<ContractTermsRequest> {
     return (await apiClient.post<ContractTermsRequest>(`/contract-terms-requests/${encodeURIComponent(id)}/reject`, { version, note })).data;
   },

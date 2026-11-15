@@ -1,5 +1,10 @@
 import type { ChangeEvent, KeyboardEvent, ReactNode } from 'react';
 
+export const MAX_RECEPTION_PRICE = 999_999_999_999;
+export function validReceptionPrice(value: number): boolean {
+  return Number.isSafeInteger(value) && value > 0 && value <= MAX_RECEPTION_PRICE;
+}
+
 interface Props {
   value: number | null | undefined;
   onChange: (value: number | null) => void;
