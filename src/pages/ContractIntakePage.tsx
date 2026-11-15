@@ -105,7 +105,26 @@ export function ContractIntakePage() {
           loadContractPart('mẫu hợp đồng', getIntakeTemplate()),
         ]);
         const existing = selectedAppointment ? await loadContractPart('hồ sơ khách hàng', getContractCustomer(selectedAppointment.customerId)) : null;
-        if (alive) { setOptions(catalog); setAppointment(selectedAppointment); setCustomer(existing); setSavedCustomer(existing); setEmployee(currentEmployee); setTemplate(currentTemplate); }
+        if (alive) {
+          setOptions(catalog);
+          setAppointment(selectedAppointment);
+          setCustomer(existing);
+          setSavedCustomer(existing);
+          setEmployee(currentEmployee);
+          setTemplate(currentTemplate);
+          if (currentTemplate) {
+            const now = new Date();
+            const pad = (n: number) => String(n).padStart(2, '0');
+            const toLocal = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            const days = currentTemplate.defaultTermDays || 60;
+            const ends = new Date(now.getTime() + days * 86400000);
+            setSignedAt(cur => cur || toLocal(now));
+            setEndsAt(cur => cur || toLocal(ends));
+            if (currentTemplate.defaultExpiryHandling === 'Return' || currentTemplate.defaultExpiryHandling === 'Donate') {
+              setExpiryHandling(currentTemplate.defaultExpiryHandling as 'Return' | 'Donate');
+            }
+          }
+        }
       } catch (err) { if (alive) { setOptions(null); setAppointment(null); setError(err instanceof Error ? err.message : 'Không thể tải thông tin hợp đồng.'); } }
       finally { if (alive) setLoading(false); }
     };

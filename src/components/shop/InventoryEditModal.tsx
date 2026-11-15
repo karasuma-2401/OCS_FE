@@ -82,7 +82,7 @@ export function InventoryEditModal({ product, locations, canEditDetails, canEdit
         {current.status === 'PendingProcessing' && current.approvalStatus === 'Approved' && canOffer && <Button variant="outline" disabled={stale || !current.location} loading={busy} onClick={() => { if (window.confirm('Đưa sản phẩm này lên bán?')) void save(() => inventoryApi.offer(current.id, current.version), 'Sản phẩm đã được đưa lên bán.'); }}>Đưa lên bán</Button>}
         <p className="text-xs leading-5 text-text-secondary">Cần duyệt và xếp vị trí trước khi đưa lên bán. Trạng thái đã bán hoặc đã trả được cập nhật qua nghiệp vụ tương ứng.</p>
       </section>
-      {current.sourceType === 'Consignment' && <p className="text-xs leading-5 text-text-secondary">Giá ký gửi vẫn theo thỏa thuận. Bản PDF hợp đồng đã tạo không tự thay đổi khi sửa thông tin trong kho.</p>}
+      {current.sourceType === 'Consignment' && <p className="text-xs leading-5 text-text-secondary">Giá ký gửi vẫn theo thỏa thuận. Hợp đồng đã tạo không tự thay đổi khi sửa thông tin trong kho.</p>}
     </div>
   </Modal>;
 }
