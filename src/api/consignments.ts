@@ -19,7 +19,7 @@ export interface Consignment {
   products: ConsignmentProduct[]; estimatedPayout: number | null; settledAmount: number;
   contractDocument: {
     fileName: string;
-    contentType: 'application/pdf' | 'image/jpeg' | 'image/png' | 'image/webp';
+    contentType: 'application/pdf' | 'image/jpeg' | 'image/png' | 'image/webp' | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     uploadedAt: string | null;
   } | null;
 }
