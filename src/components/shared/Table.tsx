@@ -1,5 +1,6 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { Button } from "./Button";
+import { ChevronRight } from "lucide-react";
 import { EmptyState } from "./EmptyState";
 import { ErrorState } from "./ErrorState";
 import { SkeletonLoading } from "./Skeleton";
@@ -22,6 +23,10 @@ export function TableDetailButton({ onClick }: { onClick: () => void }) {
   return <Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); onClick(); }}>Chi tiết</Button>;
 }
 
+/** Detail action shared with the product inventory table. */
+export function DetailIconButton({ onClick, label, disabled = false }: { onClick: () => void; label: string; disabled?: boolean }) {
+  return <button type="button" disabled={disabled} onClick={event => { event.stopPropagation(); onClick(); }} aria-label={label} className="rounded-control p-2 text-text-muted hover:bg-brand-pink-light hover:text-brand-highlight focus-visible:outline-2 focus-visible:outline-brand-highlight disabled:cursor-wait"><ChevronRight size={18} aria-hidden="true" /></button>;
+}
 export interface TableProps<T> extends Omit<
   HTMLAttributes<HTMLDivElement>,
   "children"
@@ -82,7 +87,7 @@ export function Table<T>({
     content = (
       <div className="overflow-x-auto">
         <table className="w-full min-w-max text-left text-sm">
-          <thead className="bg-brand-pink-surface text-xs uppercase tracking-wide text-muted">
+          <thead className="bg-surface-dashboard/70 text-xs font-semibold text-text-secondary">
             <tr>
               {columns.map((column) => (
                 <th
@@ -121,7 +126,7 @@ export function Table<T>({
                       onRowClick(row);
                     }
                   } : undefined}
-                  className={joinClasses("transition-colors hover:bg-brand-pink-surface", onRowClick && "cursor-pointer focus-visible:outline-2 focus-visible:outline-brand-pink-focus", selected && "bg-brand-pink-surface")}
+                  className={joinClasses("transition-colors hover:bg-surface-active", onRowClick && "cursor-pointer focus-visible:outline-2 focus-visible:outline-brand-pink-focus", selected && "bg-brand-pink-surface")}
                 >
                   {columns.map((column, columnIndex) => {
                     const value = column.accessor
@@ -137,7 +142,7 @@ export function Table<T>({
                       <td
                         key={column.key}
                         className={joinClasses(
-                          "px-4 py-3 text-ink",
+                          "px-4 py-3 text-text-primary",
                           column.cellClassName,
                           selected && columnIndex === 0 && "relative",
                         )}

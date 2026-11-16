@@ -8,7 +8,19 @@ import type {
   AppointmentStatus,
 } from '@/types';
 
+export interface ManagedTimeSlot { id: string; startTime: string; endTime: string; maxCustomers: number; isActive: boolean; updatedAt: string | null; hasAppointments: boolean }
+export interface SaveManagedTimeSlot { startTime: string; endTime: string; maxCustomers: number; isActive: boolean; expectedUpdatedAt: string | null }
+
 export const appointmentApi = {
+  async getManagedTimeSlots(): Promise<ManagedTimeSlot[]> {
+    return (await apiClient.get<ManagedTimeSlot[]>('/appointment-slots')).data;
+  },
+  async createTimeSlot(request: SaveManagedTimeSlot): Promise<ManagedTimeSlot> {
+    return (await apiClient.post<ManagedTimeSlot>('/appointment-slots', request)).data;
+  },
+  async updateTimeSlot(id: string, request: SaveManagedTimeSlot): Promise<ManagedTimeSlot> {
+    return (await apiClient.put<ManagedTimeSlot>(`/appointment-slots/${encodeURIComponent(id)}`, request)).data;
+  },
   /**
    * Lấy danh sách khung giờ và số chỗ còn trống theo ngày
    */
@@ -58,6 +70,7 @@ export const appointmentApi = {
    */
   async getStaffAppointments(params: {
     date?: string;
+    fromDate?: string;
     timeSlotId?: string;
     status?: AppointmentStatus;
     search?: string;
@@ -65,6 +78,7 @@ export const appointmentApi = {
     const response = await apiClient.get<Appointment[]>('/appointments', {
       params: {
         date: params.date || undefined,
+        fromDate: params.fromDate || undefined,
         timeSlotId: params.timeSlotId || undefined,
         status: params.status || undefined,
         search: params.search?.trim() || undefined,

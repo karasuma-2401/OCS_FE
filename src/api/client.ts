@@ -11,6 +11,10 @@ try {
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+export function resolveApiAssetUrl(url: string | null): string | null {
+  return url?.startsWith('/api/product-images/') ? `${API_BASE_URL.replace(/\/$/, '')}${url.slice(4)}` : url;
+}
+
 export function resolveImageUrl(url?: string | null): string {
   if (!url) return '';
   if (

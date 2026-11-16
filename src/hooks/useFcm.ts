@@ -146,7 +146,7 @@ export function useFcm(options: UseFcmOptions = {}) {
       const messaging = await getFirebaseMessagingInstance();
       if (!messaging || !isMounted) return;
 
-      const unsub = onMessage(messaging, (payload) => {
+      const unsub = onMessage(messaging, (payload: any) => {
         if (onForegroundMessage) {
           onForegroundMessage(payload);
         } else if ('Notification' in window && Notification.permission === 'granted') {

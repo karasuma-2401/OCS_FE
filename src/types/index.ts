@@ -233,9 +233,12 @@ export interface ReceptionCustomerInfo {
   fullName: string;
   phoneNumber: string;
   email?: string;
+  identityNumber?: string; address?: string; bankCode?: string; bankAccountNumber?: string; bankAccountHolderName?: string;
 }
 
 export interface CreateReceptionRequest {
+  signature?: { contentType: string; data: string };
+  templateVersion?: string;
   appointmentId?: string;
   intakeType?: 'Consignment' | 'Buyout';
   customerInfo: ReceptionCustomerInfo;
