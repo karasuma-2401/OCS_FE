@@ -7,12 +7,16 @@ export interface BuyoutInspection {
   inspectedByEmployeeId: string; createdAt: string; available: boolean; customerName: string; brandName: string; categoryName: string;
 }
 export interface BuyoutCustomer { id: string; fullName: string; phoneNumber: string }
+export interface BuyoutApprovalConfig { enabled: boolean; threshold: number | null; version: string | null; updatedAt: string | null; updatedBy: string | null }
+export type BuyoutApprovalReason = 'Disabled' | 'BelowPurchasePrice' | 'WithinThreshold' | 'AboveThreshold';
 export interface Buyout {
   id: string; buyoutNumber: string; customerId: string; inspectionId: string; createdByEmployeeId: string;
   approvedByEmployeeId: string | null; status: 'Pending' | 'Approved' | 'Rejected' | 'Paid';
   purchasePrice: number; listedPrice: number; version: string; createdAt: string; paidAt: string | null;
   paidByEmployeeId: string | null; rejectionReason: string | null; productId: string | null;
   productBarcode: string | null; inspection: Omit<BuyoutInspection, 'available' | 'customerName'>; customerName: string;
+  isAutoApproved?: boolean | null; approvalDecisionReason?: BuyoutApprovalReason | null; appliedApprovalThreshold?: number | null;
+  approvalConfigurationVersion?: string | null; approvalDecidedAt?: string | null;
 }
 export interface InspectionRequest {
   customerId: string; name: string; size: string; description: string | null; conditionPercentage: number;
@@ -30,6 +34,8 @@ export interface BuyoutReceipt {
 }
 
 export const buyoutsApi = {
+  async approvalConfig() { return (await apiClient.get<BuyoutApprovalConfig>('/buyouts/approval-config')).data; },
+  async updateApprovalConfig(input: { enabled: boolean; threshold: number | null; expectedVersion: string | null; reason: string | null }) { return (await apiClient.put<BuyoutApprovalConfig>('/buyouts/approval-config', input)).data; },
   async customers(query: string) { return (await apiClient.get<BuyoutCustomer[]>('/buyouts/customers', { params: { query: query.trim() } })).data; },
   async list(signal?: AbortSignal) { return (await apiClient.get<Buyout[]>('/buyouts', { signal })).data; },
   async detail(id: string) { return (await apiClient.get<Buyout>(`/buyouts/${encodeURIComponent(id)}`)).data; },

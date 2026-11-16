@@ -2,10 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { findContractCustomer, getContractCustomer, updateContractCustomer, type ContractCustomer, type ContractImage } from '@/api/contracts';
 import { parseProblemDetails } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
-import { Button, Card, Combobox, Input, Select } from '@/components/shared';
+import { Badge, Button, Card, Combobox, Input, Select } from '@/components/shared';
 import { ContractSignature } from '@/components/shop/ContractSignature';
 import { ContractMoneyInput, validReceptionPrice } from '@/components/shop/ContractMoneyInput';
 import { UnifiedContractSheet } from '@/components/shop/UnifiedContractSheet';
+import { ReceptionIntakeTabs } from './ReceptionIntakeTabs';
 import {
   X,
   FileText,
@@ -14,8 +15,6 @@ import {
   Coins,
   Receipt,
   Save,
-  Heart,
-  ShoppingBag,
   CheckCircle2,
   Loader2,
   RotateCcw,
@@ -75,6 +74,8 @@ interface ConsignmentReceptionModalProps {
   initialAppointment?: Appointment | null;
   onSuccess: (result: ReceptionContractResult) => void;
   embedded?: boolean;
+  onBuyout?: () => void;
+  canBuyout?: boolean;
 }
 
 export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps> = ({
@@ -83,6 +84,8 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
   initialAppointment,
   onSuccess,
   embedded = false,
+  onBuyout,
+  canBuyout = true,
 }) => {
   const { user, hasPermission, hasRole } = useAuth();
   const canUpdateCustomer = hasRole('Admin') || hasPermission('customers.update');
@@ -328,6 +331,10 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
   const handleRestoreDraft = () => {
     if (!draftBanner) return;
     const d = draftBanner.data;
+    if (onBuyout && d.intakeType?.toLowerCase() === 'buyout') {
+      setApiError('Bản nháp mua đứt này thuộc luồng tiếp nhận cũ. Hãy chọn tab Mua đứt để kiểm định và gửi phiếu chờ quản lý duyệt.');
+      return;
+    }
     setActiveDraftId(d.draftId);
     if (!initialAppointment && d.customerName) setCustomerName(d.customerName);
     if (!initialAppointment && d.customerPhone) setCustomerPhone(d.customerPhone);
@@ -742,17 +749,17 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
               <FileText size={22} />
             </div>
             <div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-extrabold text-text-primary tracking-tight">
-                  Phiếu Tiếp Nhận Ký Gửi
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-xl font-bold text-brand-ink">
+                  Phiếu tiếp nhận ký gửi
                 </h2>
-                <span className="rounded-lg bg-brand-pink-light px-3 py-0.5 font-mono text-xs font-bold text-brand-highlight border border-brand-pink-light">
+                <Badge variant="info">
                   {initialAppointment?.trackingNumber
                     ? `#${initialAppointment.trackingNumber}`
                     : 'Tiếp nhận trực tiếp'}
-                </span>
+                </Badge>
               </div>
-              <p className="text-[11px] text-text-muted mt-0.5">
+              <p className="mt-1 text-sm text-muted">
                 Hồ sơ tiếp nhận hàng ký gửi và thỏa thuận tỷ lệ hoa hồng trực tiếp tại quầy
               </p>
             </div>
@@ -769,45 +776,16 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
         </div>
 
         
-        <div className="flex-1 overflow-y-auto px-8 py-7 space-y-6 text-xs">
+        <div className="flex-1 overflow-y-auto px-8 py-7 space-y-6 text-base">
 
           
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-text-secondary">
-              Hình thức nhập kho
-            </label>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setIntakeType('consignment')}
-                style={intakeType === 'consignment' ? { color: '#FFFFFF' } : undefined}
-                className={`flex h-12 items-center justify-center gap-2.5 rounded-2xl text-xs font-extrabold transition shadow-sm ${
-                  intakeType === 'consignment'
-                    ? 'bg-brand-pink !text-white ring-2 ring-brand-pink-focus shadow-md'
-                    : 'border border-border bg-surface-default text-text-secondary hover:bg-surface-dashboard'
-                }`}
-              >
-                <Heart size={16} className="fill-current" />
-                Hàng Ký Gửi (%)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIntakeType('buyout')}
-                style={intakeType === 'buyout' ? { color: '#FFFFFF' } : undefined}
-                className={`flex h-12 items-center justify-center gap-2.5 rounded-2xl text-xs font-extrabold transition shadow-sm ${
-                  intakeType === 'buyout'
-                    ? 'bg-brand-pink !text-white ring-2 ring-brand-pink-focus shadow-md'
-                    : 'border border-border bg-surface-default text-text-secondary hover:bg-surface-dashboard'
-                }`}
-              >
-                <ShoppingBag size={16} />
-                Mua Đứt (Vốn shop)
-              </button>
-            </div>
-          </div>
-
-          
+          <ReceptionIntakeTabs
+            value={intakeType}
+            onConsignment={() => setIntakeType('consignment')}
+            onBuyout={() => onBuyout ? onBuyout() : setIntakeType('buyout')}
+            canBuyout={canBuyout}
+            disabled={submitting || savingDraft}
+          />
           {draftBanner && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/90 p-4 text-xs text-blue-900 shadow-xs animate-in fade-in">
               <div className="flex items-center gap-2.5">
@@ -986,7 +964,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
               <p className="mt-2 text-lg font-extrabold text-text-primary">
                 {items.length} / {actualItemCount} món
               </p>
-              <p className="mt-0.5 text-[11px] font-medium text-text-muted">
+              <p className="mt-0.5 text-xs font-medium text-text-muted">
                 {initialAppointment
                   ? `Lịch hẹn: ${initialAppointment.estimatedItemCount} • Thực tế: ${actualItemCount} món`
                   : `Đã nhập ${items.length} • Thực tế mang đến: ${actualItemCount} món`}

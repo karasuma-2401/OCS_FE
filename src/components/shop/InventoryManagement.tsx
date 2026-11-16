@@ -604,7 +604,9 @@ export function InventoryManagement() {
                                 {item.name}
                               </span>
                               <span className="mt-1 block text-xs text-text-secondary">
-                                {item.barcode} · {item.brand}
+                                {item.sourceType === "Buyout" && item.sourceReference
+                                  ? `Phiếu ${item.sourceReference}`
+                                  : item.barcode} · {item.brand}
                               </span>
                               <span className="mt-1 block text-xs font-semibold tabular-nums text-text-primary">
                                 {formatVndPrice(item.listedPrice)}
@@ -666,7 +668,9 @@ export function InventoryManagement() {
                           {item.name}
                         </span>
                         <span className="mt-1 block text-xs text-text-secondary">
-                          {item.barcode} · {item.brand}
+                          {item.sourceType === "Buyout" && item.sourceReference
+                            ? `Phiếu ${item.sourceReference}`
+                            : item.barcode} · {item.brand}
                         </span>
                         <span className="mt-2 flex flex-wrap items-center gap-1.5">
                           <StatusBadge value={item.approvalStatus} />

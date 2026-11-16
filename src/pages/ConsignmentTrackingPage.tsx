@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Package, RotateCcw, Search } from 'lucide-react';
 import { searchMyConsignments, type Consignment, type ConsignmentSearchResponse } from '@/api/consignments';
 import { ConsignmentDetailsModal } from '@/components/customer/ConsignmentDetailsModal';
-import { Badge, Button, Combobox, DatePicker, EmptyState, ErrorState, Input, PageHeaderCard, Pagination, SkeletonLoading, Table, TableDetailButton, type BadgeVariant, type TableColumn } from '@/components/shared';
+import { Badge, Button, Combobox, DatePicker, EmptyState, ErrorState, Input, PageHeaderCard, Pagination, Skeleton, SkeletonLoading, Table, TableDetailButton, type BadgeVariant, type TableColumn } from '@/components/shared';
 import { nextThirtyDays } from '@/utils/consignmentDateFilters';
 
 const CONTRACTS_PER_PAGE = 5;
@@ -19,6 +19,25 @@ const date = (value: string) => {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 };
+function ConsignmentPageSkeleton() {
+  return <div role="status" aria-live="polite" aria-busy="true">
+    <span className="sr-only">Đang tải các đợt ký gửi...</span>
+    <div aria-hidden="true" className="mb-5 grid grid-cols-2 divide-y divide-border rounded-2xl border border-brand-lavender/40 bg-paper px-4 py-2 shadow-sm sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:px-2">
+      {Array.from({ length: 4 }, (_, index) => <div key={index} className="space-y-3 px-3 py-3"><Skeleton className="h-3 w-20" /><Skeleton className={`h-6 ${index === 3 ? 'w-28' : 'w-16'}`} /></div>)}
+    </div>
+    <div aria-hidden="true" className="min-w-0 overflow-hidden rounded-card bg-white">
+      <div className="space-y-4 border-b border-border px-4 py-5 sm:px-6">
+        <Skeleton className="h-5 w-48" />
+        <Skeleton className="h-10 w-full rounded-xl" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">{Array.from({ length: 5 }, (_, index) => <div key={index} className="space-y-2"><Skeleton className="h-3 w-24" /><Skeleton className="h-10 w-full rounded-xl" /></div>)}</div>
+        <div className="flex flex-wrap gap-2"><Skeleton className="h-10 w-36 rounded-xl" /><Skeleton className="h-10 w-52 rounded-xl" /></div>
+        <Skeleton className="h-3 w-64 max-w-full" />
+      </div>
+      <div className="overflow-hidden"><div className="min-w-[840px]"><div className="grid grid-cols-7 gap-4 bg-surface-dashboard/70 px-4 py-4">{Array.from({ length: 7 }, (_, index) => <Skeleton key={index} className="h-3 w-4/5" />)}</div>{Array.from({ length: 4 }, (_, row) => <div key={row} className="grid grid-cols-7 items-center gap-4 border-t border-border px-4 py-4">{Array.from({ length: 7 }, (_, column) => <div key={column} className="space-y-2"><Skeleton className={`h-4 ${column === 0 ? 'w-4/5' : column === 6 ? 'w-16' : 'w-3/4'}`} />{column === 0 && <Skeleton className="h-3 w-1/2" />}</div>)}</div>)}</div></div>
+    </div>
+  </div>;
+}
+
 export function ConsignmentTrackingPage() {
   const [data, setData] = useState<ConsignmentSearchResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,10 +102,10 @@ export function ConsignmentTrackingPage() {
         icon={<Package size={22} aria-hidden="true" />}
         title="Theo dõi ký gửi"
         description="Theo dõi hợp đồng và tình trạng sản phẩm ký gửi của bạn."
-        actions={<Button variant="outline" size="sm" onClick={() => setRefreshKey(key => key + 1)} disabled={loading} startIcon={<RotateCcw size={14} />}>Làm mới</Button>}
+        actions={<Button variant="outline" onClick={() => setRefreshKey(key => key + 1)} disabled={loading} startIcon={<RotateCcw size={18} />}>Làm mới</Button>}
       />
     </div>
-    {!data ? loading ? <SkeletonLoading variant="cards" count={3} label="Đang tải các đợt ký gửi..." /> : <ErrorState title={error === 403 ? 'Bạn không có quyền truy cập' : 'Không thể tải các đợt ký gửi'} description={error === 403 ? 'Tài khoản hoặc hồ sơ khách hàng của bạn không đủ điều kiện truy cập.' : 'Vui lòng kiểm tra kết nối và thử lại.'} onRetry={error === 403 ? undefined : () => setRefreshKey(key => key + 1)} /> : data.overview.totalContracts === 0 && !loading && error === null ? <EmptyState title="Chưa có đợt ký gửi nào" description="Các hợp đồng ký gửi của bạn sẽ xuất hiện tại đây khi được tạo." action={<Link to="/consign" className="inline-flex rounded-xl bg-brand-pink px-4 py-2 text-sm font-semibold text-brand-ink">Tìm hiểu ký gửi</Link>} /> : <>
+    {!data ? loading ? <ConsignmentPageSkeleton /> : <ErrorState title={error === 403 ? 'Bạn không có quyền truy cập' : 'Không thể tải các đợt ký gửi'} description={error === 403 ? 'Tài khoản hoặc hồ sơ khách hàng của bạn không đủ điều kiện truy cập.' : 'Vui lòng kiểm tra kết nối và thử lại.'} onRetry={error === 403 ? undefined : () => setRefreshKey(key => key + 1)} /> : data.overview.totalContracts === 0 && !loading && error === null ? <EmptyState title="Chưa có đợt ký gửi nào" description="Các hợp đồng ký gửi của bạn sẽ xuất hiện tại đây khi được tạo." action={<Link to="/consign" className="inline-flex rounded-xl bg-brand-pink px-4 py-2 text-sm font-semibold text-brand-ink">Tìm hiểu ký gửi</Link>} /> : <>
       <section aria-label="Tổng quan ký gửi" className="mb-5 grid grid-cols-2 divide-x-0 divide-y divide-border rounded-2xl border border-brand-lavender/40 bg-paper px-4 py-2 shadow-sm sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:px-2">
         <div className="px-3 py-3"><p className="text-xs font-semibold text-text-secondary">Đợt ký gửi</p><p className="mt-1 text-xl font-bold text-brand-ink">{data.overview.totalContracts} <span className="text-xs font-medium text-muted">· {data.overview.activeContracts} hiệu lực</span></p></div>
         <div className="px-3 py-3"><p className="text-xs font-semibold text-text-secondary">Đang bán</p><p className="mt-1 text-xl font-bold text-brand-ink">{data.overview.onSaleProducts} <span className="text-xs font-medium text-muted">sản phẩm</span></p></div>
