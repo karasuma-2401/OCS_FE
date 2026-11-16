@@ -22,6 +22,7 @@ function loadComponent(name) {
   cache.set(name, module);
   const localRequire = dependency => {
     if (dependency === 'lucide-react') return icons;
+    if (dependency === 'react-dom') return { createPortal: element => element };
     if (dependency.endsWith('.css')) return {};
     if (dependency.startsWith('./')) return loadComponent(dependency.slice(2));
     return require(dependency);
@@ -42,6 +43,20 @@ test('shared input preserves labels, validation descriptions and loading state',
   assert.match(html, /disabled=""/);
   assert.match(html, /Email không hợp lệ/);
   assert.doesNotMatch(html, /Nhập email/);
+});
+
+test('modal honors wider layouts and keeps its content scrollable within the viewport', () => {
+  const { Modal } = loadComponent('Modal');
+  const originalDocument = globalThis.document;
+  globalThis.document = { body: {} };
+  try {
+    const html = renderToStaticMarkup(React.createElement(Modal, { open: true, onClose() {}, title: 'Xem PDF', className: 'max-w-[96rem]', footer: 'Đóng' }, 'Nội dung dài'));
+    assert.match(html, /max-w-\[96rem\]/);
+    assert.doesNotMatch(html, /max-w-lg/);
+    assert.match(html, /max-h-\[calc\(100dvh-1rem\)\]/);
+    assert.match(html, /min-h-0 min-w-0 overflow-y-auto/);
+    assert.match(html, /<footer/);
+  } finally { globalThis.document = originalDocument; }
 });
 
 test('shared button preserves button type, loading and disabled behavior', () => {
@@ -65,4 +80,17 @@ test('table renders rows and empty state; legacy ui exports the same components'
   assert.match(table, /Áo khoác/);
   assert.match(table, /scope="col"/);
   assert.match(empty, /Không có sản phẩm/);
+});
+
+test('shop detail layout keeps the list in the page and exposes a closable detail region', () => {
+  const { DetailSplitLayout, DetailPanel } = loadComponent('DetailSplitLayout');
+  const tree = React.createElement(DetailSplitLayout, { open: true },
+    React.createElement('section', null, 'Danh sách lịch hẹn'),
+    React.createElement(DetailPanel, { panelRef: { current: null }, title: 'Chi tiết lịch hẹn', description: 'Thông tin lịch hẹn', onClose() {} }, 'Lịch đã chọn'));
+  const html = renderToStaticMarkup(tree);
+  assert.match(html, /Danh sách lịch hẹn/);
+  assert.match(html, /<aside[^>]*aria-label="Chi tiết lịch hẹn"/);
+  assert.match(html, /aria-label="Đóng chi tiết lịch hẹn"/);
+  assert.match(html, /Lịch đã chọn/);
+  assert.doesNotMatch(html, /aria-modal|role="dialog"/);
 });
