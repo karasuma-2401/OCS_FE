@@ -9,6 +9,7 @@ const requests = [];
 const apiClient = {
   get: async (path, config) => { requests.push({ method: 'GET', path, config }); return { data: { id: 'response' } }; },
   post: async (path, body) => { requests.push({ method: 'POST', path, body }); return { data: { id: 'response' } }; },
+  put: async (path, body) => { requests.push({ method: 'PUT', path, body }); return { data: { id: 'response' } }; },
 };
 const moduleObject = { exports: {} };
 new Function('require', 'module', 'exports', compiled)(name => {
@@ -16,6 +17,17 @@ new Function('require', 'module', 'exports', compiled)(name => {
   throw new Error(`Unexpected import ${name}`);
 }, moduleObject, moduleObject.exports);
 const { buyoutsApi } = moduleObject.exports;
+
+test('approval configuration reads and updates with the expected version', async () => {
+  requests.length = 0;
+  const config = { enabled: true, threshold: 500000, expectedVersion: 'v1', reason: 'Cập nhật chính sách' };
+  await buyoutsApi.approvalConfig();
+  await buyoutsApi.updateApprovalConfig(config);
+  assert.deepEqual(requests, [
+    { method: 'GET', path: '/buyouts/approval-config', config: undefined },
+    { method: 'PUT', path: '/buyouts/approval-config', body: config },
+  ]);
+});
 
 test('buyout creation and review use the documented inspection and version', async () => {
   requests.length = 0;
