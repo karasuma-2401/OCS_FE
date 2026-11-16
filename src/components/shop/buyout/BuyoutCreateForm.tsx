@@ -22,13 +22,14 @@ const displayMoney = (value: string) => {
 };
 const formatCurrency = (value: number) => `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(value)} ₫`;
 
-function MoneyInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function MoneyInput({ label, value, onChange, error }: { label: string; value: string; onChange: (value: string) => void; error?: string }) {
   const changeBy = (delta: number) => {
     const current = validMoney(value) ? moneyAmount(value) : 0;
     onChange(String(Math.round(Math.max(1000, current + delta) * 100) / 100).replace('.', ','));
   };
   return <Input
     label={label}
+    error={error}
     type="text"
     inputMode="decimal"
     autoComplete="off"
@@ -94,6 +95,8 @@ export function BuyoutCreateForm({ canInspect, initialInspection = false, onBusy
   const available = inspections.filter(item => item.available);
   const selected = available.find(item => item.id === inspectionId);
   const hasValidPrices = validMoney(purchasePrice) && validMoney(listedPrice);
+  const priceBelowCost = hasValidPrices && moneyAmount(listedPrice) < moneyAmount(purchasePrice);
+  const canSubmitPrices = hasValidPrices && !priceBelowCost;
   const expectedMargin = hasValidPrices ? moneyAmount(listedPrice) - moneyAmount(purchasePrice) : null;
   const progressStep = activeStep;
   const goToStep = (step: number) => {
@@ -109,7 +112,8 @@ export function BuyoutCreateForm({ canInspect, initialInspection = false, onBusy
       setActiveStep(1);
       return;
     }
-    if (!selected || !hasValidPrices) {
+    if (priceBelowCost) { setError('Giá bán dự kiến phải lớn hơn hoặc bằng giá mua.'); return; }
+    if (!selected || !canSubmitPrices) {
       setError('Hãy chọn sản phẩm đã kiểm định và nhập đủ giá mua, giá bán dự kiến trước khi xem lại phiếu.');
       return;
     }
@@ -154,6 +158,7 @@ export function BuyoutCreateForm({ canInspect, initialInspection = false, onBusy
   const create = async (event: FormEvent) => {
     event.preventDefault();
     if (busy) return;
+    if (priceBelowCost) { setError('Giá bán dự kiến phải lớn hơn hoặc bằng giá mua.'); return; }
     if (!selected || !validMoney(purchasePrice) || !validMoney(listedPrice)) { setError('Chọn bản kiểm định khả dụng và nhập giá lớn hơn 0, tối đa hai chữ số thập phân.'); return; }
     setWorking(true); setError('');
     try { onCreated(await buyoutsApi.create(selected.id, moneyAmount(purchasePrice), moneyAmount(listedPrice))); }
@@ -170,7 +175,7 @@ export function BuyoutCreateForm({ canInspect, initialInspection = false, onBusy
   return <div className="space-y-5">
     <ol className="grid gap-3 rounded-xl bg-brand-pink-surface p-4 sm:grid-cols-3" aria-label="Các bước thu mua">
       {['Khách hàng và kiểm định', 'Giá mua và đề nghị', 'Quản lý xét duyệt'].map((label, index) => {
-        const completed = index === 0 ? Boolean(selected) && activeStep > 0 : index === 1 ? activeStep > 1 && hasValidPrices : false;
+        const completed = index === 0 ? Boolean(selected) && activeStep > 0 : index === 1 ? activeStep > 1 && canSubmitPrices : false;
         const active = index === activeStep;
         return <li key={label} className="min-w-0">
           <button type="button" onClick={() => goToStep(index)} disabled={busy || (index === 0 && !canInspect)} aria-current={active ? 'step' : undefined} className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active ? 'font-bold text-brand-highlight' : completed ? 'font-semibold text-brand-ink' : 'text-muted'} hover:bg-white/70`}>
@@ -219,18 +224,18 @@ export function BuyoutCreateForm({ canInspect, initialInspection = false, onBusy
           {selected && <div className="mt-4 rounded-xl bg-brand-pink-surface p-4"><dl className="grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-muted">Khách hàng</dt><dd className="mt-1 font-semibold text-brand-ink">{selected.customerName}</dd></div><div><dt className="text-muted">Sản phẩm</dt><dd className="mt-1 font-semibold text-brand-ink">{selected.name}</dd></div><div><dt className="text-muted">Thương hiệu · danh mục</dt><dd className="mt-1">{selected.brandName} · {selected.categoryName}</dd></div><div><dt className="text-muted">Kích cỡ · tình trạng</dt><dd className="mt-1">{selected.size} · {selected.conditionPercentage}%</dd></div></dl><p className="mt-4 border-t border-border pt-3 text-sm text-muted">Kiểm định: {selected.inspectionNotes}</p></div>}
         </Card>
         <Card className="!bg-white" title="Giá mua và giá bán dự kiến" description="Nhập mức giá đề xuất cho món hàng. Giá mua được lưu riêng để theo dõi giá vốn.">
-          <p className="mb-4 rounded-xl bg-brand-pink-surface p-3 text-sm text-text-secondary">{configUnavailable ? 'Không thể tải cấu hình tự duyệt. Kết quả xét duyệt sẽ được xác định khi gửi phiếu.' : !approvalConfig ? 'Đang tải cấu hình tự duyệt…' : approvalConfig.enabled && approvalConfig.threshold !== null ? `Ngưỡng tự duyệt hiện tại: ${formatCurrency(approvalConfig.threshold)}. Giá bán dự kiến thấp hơn giá mua vẫn cần quản lý duyệt.` : 'Tự duyệt đang tắt hoặc chưa được cấu hình; phiếu cần quản lý duyệt.'} Cấu hình có thể thay đổi trước khi gửi phiếu.</p>
-          <div className="grid gap-4 sm:grid-cols-2"><MoneyInput label="Giá mua / giá vốn (₫)" value={purchasePrice} onChange={setPurchasePrice} /><MoneyInput label="Giá bán dự kiến (₫)" value={listedPrice} onChange={setListedPrice} /></div>
+          <p className="mb-4 rounded-xl bg-brand-pink-surface p-3 text-sm text-text-secondary">{configUnavailable ? 'Không thể tải cấu hình tự duyệt. Kết quả xét duyệt sẽ được xác định khi gửi phiếu.' : !approvalConfig ? 'Đang tải cấu hình tự duyệt…' : approvalConfig.enabled && approvalConfig.threshold !== null ? `Ngưỡng tự duyệt hiện tại: ${formatCurrency(approvalConfig.threshold)}. Cấu hình có thể thay đổi trước khi gửi phiếu.` : 'Tính năng tự duyệt đang tắt. Mọi phiếu mua đứt đều yêu cầu quản lý duyệt.'}</p>
+          <div className="grid gap-4 sm:grid-cols-2"><MoneyInput label="Giá mua / giá vốn (₫)" value={purchasePrice} onChange={setPurchasePrice} /><MoneyInput label="Giá bán dự kiến (₫)" value={listedPrice} onChange={setListedPrice} error={priceBelowCost ? 'Giá bán dự kiến phải lớn hơn hoặc bằng giá mua.' : undefined} /></div>
           {validMoney(purchasePrice) && <dl className="mt-4 divide-y divide-border rounded-xl border border-border bg-paper px-4"><div className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"><dt className="text-text-secondary">Số tiền đề nghị mua</dt><dd className="font-bold text-brand-highlight">{formatCurrency(moneyAmount(purchasePrice))}</dd></div>{hasValidPrices && <><div className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"><dt className="text-text-secondary">Chênh lệch dự kiến trước chi phí</dt><dd className={`font-bold ${expectedMargin !== null && expectedMargin < 0 ? 'text-state-danger' : 'text-state-success-strong'}`}>{formatCurrency(expectedMargin ?? 0)}</dd></div><div className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"><dt className="text-text-secondary">Tỷ lệ chênh lệch trên giá bán dự kiến</dt><dd className="font-semibold text-brand-ink">{expectedMargin !== null ? `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(expectedMargin / moneyAmount(listedPrice) * 100)}%` : '—'}</dd></div></>}</dl>}
           {hasValidPrices && <p className="mt-3 text-xs text-muted">Chênh lệch chỉ là ước tính theo giá bán dự kiến, chưa trừ chi phí vận hành và chưa phải lợi nhuận thực tế.</p>}
         </Card>
-        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4"><p className="max-w-xl text-sm text-muted">Sau khi gửi, hệ thống xét duyệt theo cấu hình. Sản phẩm được nhập kho và ghi giá vốn khi nhân viên xác nhận đã chi tiền.</p><Button type="button" onClick={() => goToStep(2)} disabled={!selected || !hasValidPrices}>Tiếp tục xem lại phiếu</Button></div>
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4"><p className="max-w-xl text-sm text-muted">Sau khi gửi, hệ thống xét duyệt theo cấu hình. Sản phẩm được nhập kho và ghi giá vốn khi nhân viên xác nhận đã chi tiền.</p><Button type="button" onClick={() => goToStep(2)} disabled={!selected || !canSubmitPrices}>Tiếp tục xem lại phiếu</Button></div>
         </> : <>
           <Card className="!bg-white" title="Xem lại phiếu mua đứt" description="Kiểm tra thông tin và giá trước khi gửi đến quản lý.">
             {selected && <dl className="grid gap-x-8 gap-y-4 rounded-xl bg-paper p-4 text-sm sm:grid-cols-2"><div><dt className="text-muted">Khách hàng</dt><dd className="mt-1 font-semibold text-brand-ink">{selected.customerName}</dd></div><div><dt className="text-muted">Sản phẩm</dt><dd className="mt-1 font-semibold text-brand-ink">{selected.name} · {selected.size}</dd></div><div><dt className="text-muted">Thương hiệu · danh mục</dt><dd className="mt-1">{selected.brandName} · {selected.categoryName}</dd></div><div><dt className="text-muted">Tình trạng</dt><dd className="mt-1">{selected.conditionPercentage}%</dd></div><div><dt className="text-muted">Giá mua đề nghị / giá vốn</dt><dd className="mt-1 font-bold text-brand-highlight">{hasValidPrices ? formatCurrency(moneyAmount(purchasePrice)) : '—'}</dd></div><div><dt className="text-muted">Giá bán dự kiến</dt><dd className="mt-1 font-semibold">{hasValidPrices ? formatCurrency(moneyAmount(listedPrice)) : '—'}</dd></div><div className="sm:col-span-2"><dt className="text-muted">Chênh lệch dự kiến trước chi phí</dt><dd className={`mt-1 font-bold ${expectedMargin !== null && expectedMargin < 0 ? 'text-state-danger' : 'text-state-success-strong'}`}>{expectedMargin !== null ? formatCurrency(expectedMargin) : '—'}</dd></div></dl>}
             <p className="mt-4 rounded-xl bg-brand-pink-surface p-4 text-sm text-text-secondary">Khi gửi phiếu, hệ thống xét tự duyệt theo cấu hình hiện hành. Phiếu cần duyệt thủ công sẽ chuyển cho quản lý; phiếu được duyệt vẫn cần nhân viên ghi nhận đã chi tiền.</p>
           </Card>
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4"><Button type="button" variant="outline" onClick={() => goToStep(1)}>Quay lại chỉnh giá</Button><Button type="submit" loading={busy} disabled={!selected || !hasValidPrices}>Gửi phiếu</Button></div>
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4"><Button type="button" variant="outline" onClick={() => goToStep(1)}>Quay lại chỉnh giá</Button><Button type="submit" loading={busy} disabled={!selected || !canSubmitPrices}>Gửi phiếu</Button></div>
         </>}
       </fieldset>
     </form>}

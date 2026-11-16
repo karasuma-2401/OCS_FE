@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Banknote, ClipboardCheck, FileText, Plus, Printer, RefreshCw, Search, Settings } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { buyoutsApi, type Buyout, type BuyoutReceipt } from '@/api/buyouts';
 import { inventoryApi, type InventoryLocation } from '@/api/inventory';
 import { parseProblemDetails } from '@/api/auth';
-import { Badge, Button, Card, Combobox, EmptyState, ErrorState, Input, Modal, PageHeaderCard, Pagination, Skeleton, SkeletonLoading, Table, TableDetailButton, type BadgeVariant, type TableColumn } from '@/components/shared';
+import { Badge, Button, Card, Combobox, EmptyState, ErrorState, Input, Modal, PageHeaderCard, Pagination, Skeleton, SkeletonLoading, Table, TableDetailButton, Toast, type BadgeVariant, type TableColumn } from '@/components/shared';
 import { useAuth } from '@/context/AuthContext';
 import { BuyoutApprovalConfigModal } from './buyout/BuyoutApprovalConfigModal';
 
@@ -145,11 +146,12 @@ export function BuyoutManagement() {
   ];
 
   return <div className="space-y-5">
-    <PageHeaderCard icon={<Banknote size={23} />} title="Thu mua đứt" description="Lập phiếu, xét duyệt và theo dõi việc chi tiền thu mua." actions={<div className="flex flex-wrap items-center gap-2">{canReview && <Button variant="outline" size="sm" onClick={() => setConfigOpen(true)} startIcon={<Settings size={15} />}>Cấu hình tự duyệt</Button>}<Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} startIcon={<RefreshCw size={15} />}>Làm mới</Button>{canCreate && <Button size="sm" onClick={() => navigate('/shop/reception/new?direct=1&type=buyout&from=buyouts')} startIcon={<Plus size={16} />}>Lập phiếu</Button>}</div>} />
+    <PageHeaderCard icon={<Banknote size={23} />} title="Thu mua đứt" description="Lập phiếu, xét duyệt và theo dõi việc chi tiền thu mua." actions={<div className="flex flex-wrap items-center gap-2">{canReview && <Button variant="outline" onClick={() => setConfigOpen(true)} startIcon={<Settings size={18} />}>Cấu hình tự duyệt</Button>}<Button variant="outline" onClick={() => void load()} disabled={loading} startIcon={<RefreshCw size={18} />}>Làm mới</Button>{canCreate && <Button onClick={() => navigate('/shop/reception/new?direct=1&type=buyout&from=buyouts')} startIcon={<Plus size={18} />}>Lập phiếu</Button>}</div>} />
     {canReview && <BuyoutApprovalConfigModal open={configOpen} onClose={() => setConfigOpen(false)} />}
-    {notice && <div role="status" className="rounded-xl border border-state-success-border bg-state-success-soft px-4 py-3 text-sm text-state-success-strong">{notice}</div>}
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy={loading && !items.length}>
-      {[['Tổng phiếu', items.length], ['Chờ duyệt', items.filter(item => item.status === 'Pending').length], ['Chờ chi tiền', items.filter(item => item.status === 'Approved').length], ['Đã chi tiền', items.filter(item => item.status === 'Paid').length]].map(([label, count]) => <Card key={label} className="!bg-white !p-4"><p className="text-xs font-semibold text-text-secondary">{label}</p><p className="mt-1 flex h-7 items-center text-xl font-bold text-brand-ink">{loading && !items.length ? <Skeleton className="h-5 w-14 rounded-md" /> : loadError ? '—' : count}</p></Card>)}
+    {notice && typeof document !== 'undefined' && createPortal(<div className="fixed right-4 top-4 z-[3000] w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-right-4 duration-300 motion-reduce:animate-none"><Toast variant="success" title="Thành công" message={notice} onClose={() => setNotice('')} /></div>, document.body)}
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy={loading}>
+      {loading && <span className="sr-only" role="status">Đang tải thống kê thu mua...</span>}
+      {[['Tổng phiếu', items.length], ['Chờ duyệt', items.filter(item => item.status === 'Pending').length], ['Chờ chi tiền', items.filter(item => item.status === 'Approved').length], ['Đã chi tiền', items.filter(item => item.status === 'Paid').length]].map(([label, count]) => <Card key={label} className="!bg-white !p-4">{loading ? <><Skeleton className="h-4 w-28 max-w-full" /><div className="mt-1 flex h-7 items-center"><Skeleton className="h-5 w-14 rounded-md" /></div></> : <><p className="text-xs font-semibold text-text-secondary">{label}</p><p className="mt-1 flex h-7 items-center text-xl font-bold text-brand-ink">{loadError ? '—' : count}</p></>}</Card>)}
     </div>
     <Card className="!bg-white">
       <div className="mb-5 flex flex-wrap gap-1 border-b border-border" role="group" aria-label="Chức năng thu mua đứt">
