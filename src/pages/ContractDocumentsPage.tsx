@@ -241,8 +241,118 @@ export function ContractPdfPage() {
 
   if (!permitted) return <Navigate to="/unauthorized" replace />;
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    const sheet = document.getElementById('contract-printable-sheet');
+    if (!sheet) {
+      window.print();
+      return;
+    }
+
+    try {
+      const images = Array.from(sheet.querySelectorAll<HTMLImageElement>('img'));
+      await Promise.race([
+        Promise.all(images.map(image => image.decode().catch(() => {}))),
+        new Promise(resolve => setTimeout(resolve, 800)),
+      ]);
+      await Promise.race([
+        document.fonts.ready.catch(() => {}),
+        new Promise(resolve => setTimeout(resolve, 500)),
+      ]);
+
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(iframe);
+
+      const frameDoc = iframe.contentWindow?.document;
+      if (!frameDoc) {
+        window.print();
+        return;
+      }
+
+      const styleSheets = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+        .map(el => el.outerHTML)
+        .join('\n');
+
+      frameDoc.open();
+      frameDoc.write(`
+        <!DOCTYPE html>
+        <html lang="vi">
+          <head>
+            <meta charset="utf-8" />
+            <title>Hợp đồng ký gửi - #${contract?.contractNumber || 'OCS'}</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+            ${styleSheets}
+            <style>
+              @page {
+                size: A4 portrait;
+                margin: 8mm 10mm;
+              }
+              *, *::before, *::after {
+                box-sizing: border-box;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-family: "Be Vietnam Pro", system-ui, -apple-system, sans-serif !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              #contract-printable-sheet {
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                position: static !important;
+              }
+              table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                page-break-inside: auto;
+              }
+              tr {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+              }
+              .signature-block {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+              }
+            </style>
+          </head>
+          <body>
+            ${sheet.outerHTML}
+          </body>
+        </html>
+      `);
+      frameDoc.close();
+
+      iframe.contentWindow?.focus();
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.print();
+        } finally {
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 1500);
+        }
+      }, 300);
+    } catch {
+      window.print();
+    }
   };
 
   const handleOpenLabels = () => {

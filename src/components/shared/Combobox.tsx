@@ -35,6 +35,7 @@ export function Combobox({ options, value, onChange, ariaLabel, label, placehold
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom');
   const selectedIndex = options.findIndex((option) => option.value === value);
   const selected = options[selectedIndex];
 
@@ -65,6 +66,16 @@ export function Combobox({ options, value, onChange, ariaLabel, label, placehold
   }
 
   function showMenu() {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (spaceBelow < 260 && spaceAbove > spaceBelow) {
+        setPlacement('top');
+      } else {
+        setPlacement('bottom');
+      }
+    }
     const initial = selectedIndex >= 0 && !options[selectedIndex].disabled ? selectedIndex : enabledFrom(0, 1);
     setActive(initial);
     setOpen(true);
@@ -131,7 +142,7 @@ export function Combobox({ options, value, onChange, ariaLabel, label, placehold
           <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         {name && <input type="hidden" name={name} value={value} disabled={disabled} />}
-        {open && <ul id={listId} role="listbox" aria-label={ariaLabel} aria-labelledby={ariaLabel ? undefined : inputId} className="absolute z-[80] mt-1.5 max-h-60 w-full min-w-44 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-border bg-paper p-1.5 shadow-lg">
+        {open && <ul id={listId} role="listbox" aria-label={ariaLabel} aria-labelledby={ariaLabel ? undefined : inputId} className={`absolute z-[80] max-h-60 w-full min-w-44 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-border bg-paper p-1.5 shadow-lg ${placement === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}>
           {options.length === 0 && <li className="px-3 py-2 text-sm text-muted">Không có lựa chọn</li>}
           {options.map((option, index) => <li
             id={`${listId}-option-${index}`}

@@ -110,6 +110,10 @@
 }
 
 @layer base {
+  html, body, button, input, select, textarea, optgroup {
+    font-family: var(--font-sans);
+  }
+
   body {
     @apply font-sans bg-surface text-ink;
   }
