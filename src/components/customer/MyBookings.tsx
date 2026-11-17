@@ -115,26 +115,15 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-ink">
-            Lịch hẹn ký gửi của bạn
-          </h2>
-          <p className="mt-1 text-xs text-muted">
-            Theo dõi trạng thái các cuộc hẹn tiếp nhận đồ và quản lý lịch hẹn trực tiếp.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchHistory} startIcon={<RotateCcw size={14} />}>
-            Làm mới
+      <div className="flex justify-end items-center gap-2">
+        <Button variant="outline" size="sm" onClick={fetchHistory} startIcon={<RotateCcw size={14} />}>
+          Làm mới
+        </Button>
+        {onNewBookingClick && (
+          <Button size="sm" onClick={onNewBookingClick} startIcon={<Sparkles size={14} />}>
+            Đặt lịch mới
           </Button>
-          {onNewBookingClick && (
-            <Button size="sm" onClick={onNewBookingClick} startIcon={<Sparkles size={14} />}>
-              Đặt lịch mới
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       {errorMsg && (
