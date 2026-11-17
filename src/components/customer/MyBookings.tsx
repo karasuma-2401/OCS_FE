@@ -29,24 +29,37 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
   const [cancelling, setCancelling] = useState<boolean>(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  const fetchHistory = async () => {
-    setLoading(true);
+  const fetchHistory = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setErrorMsg(null);
     try {
       const data = await appointmentApi.getMyHistory();
       setAppointments(data);
     } catch (err: any) {
-      const message =
-        err.response?.data?.message ||
-        'Không tải được lịch sử lịch hẹn. Vui lòng thử lại sau.';
-      setErrorMsg(message);
+      if (showLoading) {
+        const message =
+          err.response?.data?.message ||
+          'Không tải được lịch sử lịch hẹn. Vui lòng thử lại sau.';
+        setErrorMsg(message);
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchHistory();
+    fetchHistory(true);
+    const interval = setInterval(() => fetchHistory(false), 8000);
+    const handleFocus = () => fetchHistory(false);
+    const handleCustomRefresh = () => fetchHistory(false);
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('ocs:notification:refresh', handleCustomRefresh);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('ocs:notification:refresh', handleCustomRefresh);
+    };
   }, []);
 
   const handleConfirmCancel = async () => {
@@ -76,6 +89,9 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
 
       setCancellingAppointment(null);
       setCancelReason('');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ocs:notification:refresh'));
+      }
     } catch (err: any) {
       const message =
         err.response?.data?.message ||
@@ -116,7 +132,7 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
   return (
     <div className="space-y-6">
       <div className="flex justify-end items-center gap-2">
-        <Button variant="outline" size="sm" onClick={fetchHistory} startIcon={<RotateCcw size={14} />}>
+        <Button variant="outline" size="sm" onClick={() => void fetchHistory(true)} startIcon={<RotateCcw size={14} />}>
           Làm mới
         </Button>
         {onNewBookingClick && (
@@ -132,7 +148,7 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
             <AlertCircle size={16} />
             <span>{errorMsg}</span>
           </div>
-          <button onClick={fetchHistory} className="font-bold underline hover:no-underline">
+          <button onClick={() => void fetchHistory(true)} className="font-bold underline hover:no-underline">
             Thử lại
           </button>
         </div>

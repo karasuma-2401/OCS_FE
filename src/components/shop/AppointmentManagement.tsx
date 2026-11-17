@@ -62,6 +62,9 @@ export function AppointmentManagement({ onSwitchRole }: { onSwitchRole?: () => v
       const updated = await appointmentApi.updateStatus(selected.id, { status: action === 'cancel' ? 'Cancelled' : action === 'noshow' ? 'NoShow' : 'Scheduled', reason: reason.trim() || undefined });
       setItems(current => current.map(item => item.id === updated.id ? updated : item));
       setAction(null); setReason(''); setNotice(`Đã cập nhật lịch ${updated.trackingNumber}.`);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ocs:notification:refresh'));
+      }
     } catch { setError('Không thể cập nhật lịch hẹn. Vui lòng thử lại.'); }
     finally { setBusy(false); }
   };
