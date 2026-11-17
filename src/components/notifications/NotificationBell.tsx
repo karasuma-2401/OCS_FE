@@ -5,7 +5,17 @@ import type { Notification } from '@/types';
 import { SkeletonLoading } from '@/components/shared/Skeleton';
 import { useFcm } from '@/hooks/useFcm';
 
-export function NotificationBell({ align = 'right', placement = 'below' }: { align?: 'left' | 'right'; placement?: 'above' | 'below' } = {}) {
+export function NotificationBell({
+  align = 'right',
+  placement = 'below',
+  showLabel = false,
+  collapsed = false,
+}: {
+  align?: 'left' | 'right';
+  placement?: 'above' | 'below';
+  showLabel?: boolean;
+  collapsed?: boolean;
+} = {}) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -89,28 +99,48 @@ export function NotificationBell({ align = 'right', placement = 'below' }: { ali
   };
 
   return (
-    <div className="relative inline-block" ref={dropdownRef}>
+    <div className={`relative ${showLabel ? 'w-full' : 'inline-block'}`} ref={dropdownRef}>
       <button
         type="button"
         onClick={() => {
           setIsOpen(!isOpen);
           if (!isOpen) fetchNotifications();
         }}
-        className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-paper text-ink transition hover:border-accent hover:bg-surface-subtle"
+        className={
+          showLabel
+            ? `flex min-h-10 w-full shrink-0 cursor-pointer items-center justify-start gap-3 rounded-control px-3 text-left text-sm leading-5 font-medium text-text-secondary no-underline transition-colors duration-200 hover:bg-brand-pink-surface hover:text-brand-highlight ${
+                isOpen ? 'bg-brand-pink-light !font-semibold !text-brand-highlight' : ''
+              } ${collapsed ? 'lg:justify-center lg:px-0' : ''}`
+            : 'relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-paper text-ink transition hover:border-accent hover:bg-surface-subtle'
+        }
         title="Thông báo"
         aria-label="Thông báo"
         aria-expanded={isOpen}
       >
-        <Bell size={18} />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-state-danger px-1 text-[11px] font-bold text-white shadow">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
+        <div className="relative shrink-0 flex items-center justify-center">
+          <Bell size={18} aria-hidden="true" />
+          {unreadCount > 0 && !showLabel && (
+            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-state-danger px-1 text-[11px] font-bold text-white shadow">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </div>
+        {showLabel && (
+          <>
+            <span className={collapsed ? 'lg:hidden' : ''}>
+              Thông báo
+            </span>
+            {unreadCount > 0 && (
+              <span className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-state-danger px-1.5 text-xs font-bold text-white shadow-xs ${collapsed ? 'lg:hidden' : ''}`}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </>
         )}
       </button>
 
       {isOpen && (
-        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} ${placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'} w-[min(20rem,calc(100vw-2rem))] sm:w-96 rounded-2xl border border-border bg-paper p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150`}>
+        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} ${placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'} w-[min(20rem,calc(100vw-2rem))] sm:w-96 rounded-2xl border border-border bg-paper p-4 shadow-xl z-[120] animate-in fade-in zoom-in-95 duration-150`}>
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-ink">Thông báo hệ thống</h3>

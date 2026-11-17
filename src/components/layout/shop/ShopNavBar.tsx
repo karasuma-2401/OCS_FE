@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type MouseEvent, type ReactElement } from "react";
 import {
   Banknote,
   BarChart3,
@@ -271,7 +271,7 @@ export default function ShopNavBar({
         <div
           className={`mt-auto flex shrink-0 flex-col items-stretch gap-2.5 ${collapsed ? "lg:w-full" : ""}`}
         >
-          {actions}
+          {actions && (isValidElement(actions) ? cloneElement(actions as ReactElement<{ collapsed?: boolean }>, { collapsed }) : actions)}
           <div className="border-t border-brand-pink-light pt-3">
             <div
               className="relative"

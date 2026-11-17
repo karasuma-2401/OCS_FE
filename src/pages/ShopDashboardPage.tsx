@@ -97,7 +97,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         allowedItems={allowedItems}
         showContractManagement={hasRole('Admin') || hasRole('Manager')}
         onContracts={() => navigate('/shop/contracts')}
-        actions={<NotificationBell align="left" placement="above" />}
+        actions={<NotificationBell align="left" placement="above" showLabel />}
         profileName={user?.fullName || user?.email || 'Nhân viên'}
         onNavigate={handleNavigate}
         onProfileClick={() => navigate('/profile')}
