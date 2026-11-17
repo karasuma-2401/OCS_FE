@@ -37,7 +37,7 @@ export function ConsignBooking({
 
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
-  const [itemCount, setItemCount] = useState<string>('1');
+  const [itemCount, setItemCount] = useState<string>('');
   const [note, setNote] = useState<string>('');
 
   const [loadingSlots, setLoadingSlots] = useState<boolean>(false);
@@ -310,7 +310,7 @@ export function ConsignBooking({
               Thông tin mang đồ
             </h3>
 
-            {/* Field 1: Số món dự kiến (chỉ nhập và hiển thị số) */}
+            {/* Field 1: Số món dự kiến (chỉ nhập và hiển thị số, ban đầu để hint) */}
             <div>
               <label className="block text-xs font-bold text-brand-ink mb-1.5">
                 Số món dự kiến *
@@ -325,6 +325,7 @@ export function ConsignBooking({
                   setItemCount(val);
                 }}
                 onBlur={() => {
+                  if (!itemCount.trim()) return;
                   const num = parseInt(itemCount, 10);
                   if (Number.isNaN(num) || num < 1) {
                     setItemCount('1');
@@ -334,9 +335,8 @@ export function ConsignBooking({
                     setItemCount(String(num));
                   }
                 }}
-                placeholder="1"
+                placeholder="Ví dụ: 1"
                 className="w-full rounded-xl border border-border bg-paper px-3.5 py-2.5 text-sm font-bold text-brand-ink outline-none transition placeholder:text-muted/70 focus:border-brand-pink-focus focus:ring-2 focus:ring-brand-pink/25"
-                required
               />
             </div>
 
