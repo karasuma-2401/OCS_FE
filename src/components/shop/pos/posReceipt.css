@@ -1,0 +1,274 @@
+/* ==========================================================================
+   POS Thermal Receipt Styles
+   Inspired by Code Mode "Dose" paper receipt till
+   ========================================================================== */
+
+/* ------------------------------------------------------------ Paper Roll Container */
+.pos-roll-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+  min-height: 280px;
+}
+
+/* ------------------------------------------------------------ Thermal Paper */
+.pos-thermal-paper {
+  position: relative;
+  background: linear-gradient(90deg, #F4F2EA, #FAF8F2 9%, #FAF8F2 91%, #F1EFE6);
+  color: #18211D;
+  font-family: "Space Mono", "SF Mono", "Courier New", Courier, monospace, ui-monospace;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform-origin: 50% 100%;
+  border-radius: 2px 2px 0 0;
+  padding: 22px 18px 20px;
+}
+
+/* Jagged / serrated tear-off teeth on top of receipt paper */
+.pos-thermal-paper::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -6px;
+  height: 7px;
+  background:
+    linear-gradient(-45deg, #FAF8F2 5px, transparent 0) 0 0 / 10px 10px repeat-x,
+    linear-gradient(45deg, #FAF8F2 5px, transparent 0) 0 0 / 10px 10px repeat-x;
+  transform: scaleY(-1);
+  pointer-events: none;
+}
+
+/* Optional bottom tear-off teeth when bill is completely torn */
+.pos-thermal-paper.is-torn-bottom::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 7px;
+  background:
+    linear-gradient(-45deg, #FAF8F2 5px, transparent 0) 0 0 / 10px 10px repeat-x,
+    linear-gradient(45deg, #FAF8F2 5px, transparent 0) 0 0 / 10px 10px repeat-x;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------ Store Header */
+.pos-paper-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  padding-bottom: 12px;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed #B9B7AE;
+  color: #55625B;
+  font-size: 11.5px;
+}
+
+.pos-paper-header h3 {
+  font-family: "Be Vietnam Pro", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: #18211D;
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+}
+
+/* ------------------------------------------------------------ Receipt Line Items */
+.pos-receipt-line {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  column-gap: 6px;
+  align-items: baseline;
+  width: 100%;
+  padding: 5px 0;
+  text-align: left;
+  border-bottom: 1px dotted rgba(185, 183, 174, 0.4);
+}
+
+.pos-receipt-line:last-child {
+  border-bottom: none;
+}
+
+.pos-line-feed-in {
+  animation: pos-feed-in 0.22s steps(5, end) forwards;
+}
+
+@keyframes pos-feed-in {
+  from {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    max-height: 120px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ------------------------------------------------------------ Totals Section */
+.pos-paper-sum {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #B9B7AE;
+}
+
+.pos-paper-sum div {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: 12px;
+}
+
+.pos-paper-sum-total {
+  margin: 6px 0 !important;
+  padding: 6px 0 !important;
+  border-top: 1.5px solid #18211D;
+  border-bottom: 1.5px solid #18211D;
+  font-family: "Be Vietnam Pro", system-ui, sans-serif;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  color: #18211D;
+}
+
+/* ------------------------------------------------------------ Barcode Lines Graphic */
+.pos-barcode-graphic {
+  display: block;
+  height: 32px;
+  margin: 12px 14px 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    #18211D 0 2px,
+    transparent 2px 4px,
+    #18211D 4px 5px,
+    transparent 5px 8px,
+    #18211D 8px 11px,
+    transparent 11px 13px,
+    #18211D 13px 16px,
+    transparent 16px 17px,
+    #18211D 17px 20px,
+    transparent 20px 23px
+  );
+}
+
+/* ------------------------------------------------------------ Red Rubber Paid Stamp */
+.pos-paid-stamp {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  margin-left: -75px;
+  margin-top: -24px;
+  background: rgba(254, 242, 242, 0.92);
+  padding: 5px 16px 4px;
+  border: 3.5px solid #DC2626;
+  border-radius: 8px;
+  color: #DC2626;
+  font-family: "Be Vietnam Pro", system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: rotate(-11deg);
+  opacity: 0.92;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.18);
+  pointer-events: none;
+  user-select: none;
+  animation: pos-stampin 0.35s 0.2s cubic-bezier(0.3, 0, 0.2, 1) backwards;
+  z-index: 10;
+}
+
+@keyframes pos-stampin {
+  from {
+    transform: rotate(-11deg) scale(2.8);
+    opacity: 0;
+  }
+  70% {
+    transform: rotate(-11deg) scale(0.93);
+    opacity: 0.95;
+  }
+  to {
+    transform: rotate(-11deg) scale(1);
+    opacity: 0.92;
+  }
+}
+
+/* ------------------------------------------------------------ Tear-off Animation */
+@keyframes pos-paper-rip {
+  0% {
+    transform: translateY(0) rotate(0);
+    opacity: 1;
+  }
+  20% {
+    transform: translateY(-14px) rotate(-1.5deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-130%) rotate(-8deg);
+    opacity: 0;
+  }
+}
+
+.pos-paper-tearing {
+  animation: pos-paper-rip 0.65s cubic-bezier(0.5, 0, 0.8, 0.4) forwards;
+}
+
+/* ------------------------------------------------------------ Printer Chassis & Slot (Pink / White-Beige Theme) */
+.pos-printer-chassis {
+  position: relative;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FAF5F2 100%);
+  color: #18211D;
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid #EBDCD6;
+  box-shadow: 0 -6px 20px -6px rgba(141, 83, 108, 0.12);
+  padding: 20px 16px 16px;
+}
+
+.pos-printer-slot {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 0;
+  height: 8px;
+  border-radius: 0 0 6px 6px;
+  background: #E8DAD4;
+  box-shadow: inset 0 2px 4px rgba(56, 47, 62, 0.22);
+}
+
+/* ------------------------------------------------------------ Print Media Query */
+@media print {
+  /* Hide all screen elements except the printable thermal receipt */
+  body * {
+    visibility: hidden;
+  }
+
+  .pos-printable-receipt,
+  .pos-printable-receipt * {
+    visibility: visible;
+  }
+
+  .pos-printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 !important;
+    padding: 6mm 4mm !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .pos-printable-receipt::before,
+  .pos-printable-receipt::after {
+    display: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
