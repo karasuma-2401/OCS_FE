@@ -1,5 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getMessaging, isSupported, type Messaging } from 'firebase/messaging';
+import { deleteToken, getMessaging, isSupported, type Messaging } from 'firebase/messaging';
 
 export const firebaseWebConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
@@ -47,5 +47,16 @@ export async function getFirebaseMessagingInstance(): Promise<Messaging | null> 
 
   const app = getFirebaseAppInstance();
   return app ? getMessaging(app) : null;
+}
+
+export async function clearFirebaseRegistration(): Promise<void> {
+  try {
+    const messaging = await getFirebaseMessagingInstance();
+    if (messaging) await deleteToken(messaging);
+  } catch (error) {
+    console.warn('Không thể hủy Firebase push subscription:', error);
+  } finally {
+    localStorage.removeItem('ocs_active_fcm_token');
+  }
 }
 

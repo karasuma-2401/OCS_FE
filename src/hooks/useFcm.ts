@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { getToken, onMessage, type MessagePayload } from 'firebase/messaging';
+import { getToken, type MessagePayload } from 'firebase/messaging';
 import {
   getFirebaseMessagingInstance,
   isFirebaseClientConfigured,
   firebaseVapidKey,
+  clearFirebaseRegistration,
 } from '@/config/firebase';
 import { notificationApi, type FcmStatusResponse } from '@/api/notificationApi';
 
@@ -15,255 +16,149 @@ export interface UseFcmOptions {
 
 export function useFcm(options: UseFcmOptions = {}) {
   const { enabled = true, userId, onForegroundMessage } = options;
-  const [fcmToken, setFcmToken] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      const active = localStorage.getItem('ocs_active_fcm_token');
-      // Loại bỏ hoàn toàn token giả dev nếu từng lưu trước đây
-      if (active && active.startsWith('web-dev-')) {
-        localStorage.removeItem('ocs_active_fcm_token');
-        return null;
-      }
-      return active;
-    }
-    return null;
-  });
-
+  const [registration, setRegistration] = useState<{ userId: string; token: string } | null>(null);
   const [permission, setPermission] = useState<NotificationPermission>(() =>
-    typeof window !== 'undefined' && 'Notification' in window
-      ? Notification.permission
-      : 'default',
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default',
   );
   const [status, setStatus] = useState<FcmStatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const currentUserRef = useRef<string | undefined>(undefined);
+  currentUserRef.current = enabled ? userId : undefined;
+  const messageCallbackRef = useRef(onForegroundMessage);
+  messageCallbackRef.current = onForegroundMessage;
+  const pendingRef = useRef<{ userId: string; promise: Promise<string | null> } | null>(null);
 
-  // Xóa sạch các token giả dev cũ trong localStorage khi khởi tạo
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('ocs_dev_fcm_token');
-      const active = localStorage.getItem('ocs_active_fcm_token');
-      if (active && active.startsWith('web-dev-')) {
-        localStorage.removeItem('ocs_active_fcm_token');
-      }
-    }
-  }, []);
-
-  // Đăng ký Service Worker vào trình duyệt
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
-    navigator.serviceWorker
-      .register('/firebase-messaging-sw.js', { scope: '/' })
-      .then((reg) => {
-        reg.update().catch(() => {});
-      })
-      .catch((err) => {
-        console.warn('Không thể cài đặt Service Worker:', err);
-      });
-  }, []);
-
-  // Lấy trạng thái cấu hình và số thiết bị từ Backend
   const refreshStatus = useCallback(async () => {
+    if (!enabled || !userId) return null;
     try {
       const serverStatus = await notificationApi.getFcmStatus();
-      setStatus(serverStatus);
+      if (currentUserRef.current === userId) setStatus(serverStatus);
       return serverStatus;
     } catch {
       return null;
     }
-  }, []);
+  }, [enabled, userId]);
 
-  // Yêu cầu quyền thông báo và đăng ký token FCM THẬT với Backend
-  const requestPermissionAndRegister = useCallback(async (): Promise<string | null> => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setError('Trình duyệt không hỗ trợ thông báo đẩy.');
-      return null;
-    }
+  const requestPermissionAndRegister = useCallback((): Promise<string | null> => {
+    if (!enabled || !userId) return Promise.resolve(null);
+    if (pendingRef.current?.userId === userId) return pendingRef.current.promise;
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const perm = await Notification.requestPermission();
-      setPermission(perm);
-
-      if (perm !== 'granted') {
-        setError('Quyền thông báo chưa được cấp bởi người dùng.');
-        return null;
-      }
-
-      if (!isFirebaseClientConfigured) {
-        setError('Firebase Client chưa được cấu hình (thiếu biến môi trường VITE_FIREBASE_*).');
-        return null;
-      }
-
-      // Đảm bảo Service Worker đã sẵn sàng
-      let swRegistration: ServiceWorkerRegistration | undefined;
-      if ('serviceWorker' in navigator) {
-        try {
-          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
-          const readyReg = await navigator.serviceWorker.ready;
-          if (readyReg) {
-            swRegistration = readyReg;
-          }
-        } catch {
-          // SW registration failed
+    const promise = Promise.resolve().then(async () => {
+      try {
+        if (currentUserRef.current !== userId) return null;
+        setLoading(true);
+        setError(null);
+        if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
+          throw new Error('Trình duyệt không hỗ trợ thông báo đẩy.');
         }
-      }
+        const perm = Notification.permission === 'granted'
+          ? 'granted' : await Notification.requestPermission();
+        if (currentUserRef.current !== userId) return null;
+        setPermission(perm);
+        if (perm !== 'granted') throw new Error('Quyền thông báo chưa được cấp bởi người dùng.');
+        if (!isFirebaseClientConfigured) throw new Error('Firebase Client chưa được cấu hình.');
 
-      const messaging = await getFirebaseMessagingInstance();
-      if (!messaging) {
-        setError('Không thể khởi tạo Firebase Messaging trên trình duyệt.');
-        return null;
-      }
+        const swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+        await navigator.serviceWorker.ready;
+        const messaging = await getFirebaseMessagingInstance();
+        if (!messaging) throw new Error('Không thể khởi tạo Firebase Messaging trên trình duyệt.');
+        const token = await getToken(messaging, { vapidKey: firebaseVapidKey, serviceWorkerRegistration: swRegistration });
+        if (!token) throw new Error('Không nhận được mã thiết bị FCM từ Firebase.');
+        if (currentUserRef.current !== userId) return null;
 
-      // Lấy token FCM THẬT từ Google Firebase Push Service (không tạo token giả web-dev-)
-      const token = await getToken(messaging, {
-        vapidKey: firebaseVapidKey,
-        serviceWorkerRegistration: swRegistration,
-      });
-
-      if (!token) {
-        setError('Không nhận được mã thiết bị FCM từ Firebase.');
-        return null;
-      }
-
-      setFcmToken(token);
-      localStorage.setItem('ocs_active_fcm_token', token);
-      if (userId) {
-        localStorage.setItem(`ocs_fcm_synced_${userId}`, token);
-      }
-
-      // Đăng ký token thật lên Backend
-      await notificationApi.registerFcmToken(token, 'Web');
-      await refreshStatus();
-
-      return token;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Không thể đăng ký token thông báo.';
-      setError(msg);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [refreshStatus, userId]);
-
-  // Hủy đăng ký token của thiết bị hiện tại
-  const unregister = useCallback(async () => {
-    const targetToken = fcmToken || localStorage.getItem('ocs_active_fcm_token');
-    if (!targetToken) return;
-    try {
-      await notificationApi.unregisterFcmToken(targetToken);
-    } catch {
-      // Ignore network errors on unregister
-    } finally {
-      localStorage.removeItem('ocs_active_fcm_token');
-      if (userId) {
+        // Only acknowledge registration after the server has accepted ownership of this token.
+        await notificationApi.registerFcmToken(token, 'Web');
+        if (currentUserRef.current !== userId) return null;
+        localStorage.setItem('ocs_active_fcm_token', token);
         localStorage.removeItem(`ocs_fcm_synced_${userId}`);
+        setRegistration({ userId, token });
+        await refreshStatus();
+        return token;
+      } catch (err: unknown) {
+        if (currentUserRef.current === userId) {
+          setRegistration(null);
+          setError(err instanceof Error ? err.message : 'Không thể đăng ký thông báo đẩy.');
+        }
+        return null;
+      } finally {
+        if (currentUserRef.current === userId) setLoading(false);
+        if (pendingRef.current?.userId === userId) pendingRef.current = null;
       }
-      setFcmToken(null);
-      await refreshStatus();
-    }
-  }, [fcmToken, refreshStatus, userId]);
+    });
+    pendingRef.current = { userId, promise };
+    return promise;
+  }, [enabled, userId, refreshStatus]);
 
-  // Gửi thông báo thử nghiệm từ máy chủ
-  const sendTestNotification = useCallback(async () => {
+  const unregister = useCallback(async () => {
+    const token = registration?.token || localStorage.getItem('ocs_active_fcm_token');
     try {
-      const noti = await notificationApi.sendTestNotification();
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(noti.title, {
-          body: noti.content,
-          icon: '/mascot-logo.png',
-        });
-      }
+      if (token) await notificationApi.unregisterFcmToken(token);
+    } finally {
+      await clearFirebaseRegistration();
+      setRegistration(null);
       await refreshStatus();
-      return noti;
-    } catch {
-      throw new Error('Không thể gửi thông báo thử nghiệm.');
     }
+  }, [registration, refreshStatus]);
+
+  const sendTestNotification = useCallback(async () => {
+    const noti = await notificationApi.sendTestNotification();
+    await refreshStatus();
+    if (!noti.pushDelivery || noti.pushDelivery.successCount === 0) {
+      throw new Error('Đã lưu thông báo in-app nhưng FCM chưa gửi thành công tới thiết bị.');
+    }
+    return noti;
   }, [refreshStatus]);
 
-  // Lắng nghe thông báo khi ứng dụng đang mở (Foreground)
   useEffect(() => {
-    if (!enabled || !isFirebaseClientConfigured) return;
+    if (!enabled || !userId || !('serviceWorker' in navigator)) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type !== 'ocs:push') return;
+      const payload = event.data.payload as MessagePayload;
+      if (!payload || (payload.data?.recipientAccountId && payload.data.recipientAccountId !== userId)) return;
+      // The worker displays one system notification; pages only refresh their in-app state.
+      if (messageCallbackRef.current) messageCallbackRef.current(payload);
+      else window.dispatchEvent(new CustomEvent('ocs:notification:refresh'));
+    };
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, [enabled, userId]);
 
-    let isMounted = true;
-
-    async function setupListener() {
-      const messaging = await getFirebaseMessagingInstance();
-      if (!messaging || !isMounted) return;
-
-      const unsub = onMessage(messaging, (payload) => {
-        if (onForegroundMessage) {
-          onForegroundMessage(payload);
-        } else if ('Notification' in window && Notification.permission === 'granted') {
-          const title = payload.notification?.title || payload.data?.title || 'OCS - Thông báo mới';
-          const body = payload.notification?.body || payload.data?.body || '';
-          new Notification(title, {
-            body,
-            icon: '/mascot-logo.png',
-          });
-        }
-      });
-
-      unsubscribeRef.current = unsub;
-    }
-
-    setupListener();
-
-    return () => {
-      isMounted = false;
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
+  useEffect(() => {
+    currentUserRef.current = enabled ? userId : undefined;
+    setRegistration(null);
+    setStatus(null);
+    setLoading(false);
+    setError(null);
+    if (!enabled || !userId) return;
+    localStorage.removeItem('ocs_dev_fcm_token');
+    const synchronize = () => {
+      if (isFirebaseClientConfigured && 'Notification' in window && Notification.permission === 'granted') {
+        void requestPermissionAndRegister();
+      } else {
+        if ('Notification' in window) setPermission(Notification.permission);
+        void refreshStatus();
       }
     };
-  }, [enabled, onForegroundMessage]);
+    synchronize();
+    window.addEventListener('focus', synchronize);
+    window.addEventListener('online', synchronize);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') synchronize();
+    }, 5 * 60_000);
+    return () => {
+      currentUserRef.current = undefined;
+      window.removeEventListener('focus', synchronize);
+      window.removeEventListener('online', synchronize);
+      window.clearInterval(timer);
+    };
+  }, [enabled, userId, refreshStatus, requestPermissionAndRegister]);
 
-  // Tự động kiểm tra và đồng bộ token THẬT nếu quyền đã cấp và client đã cấu hình
-  useEffect(() => {
-    if (!enabled) return;
-
-    void refreshStatus();
-
-    if (
-      isFirebaseClientConfigured &&
-      typeof window !== 'undefined' &&
-      'Notification' in window &&
-      Notification.permission === 'granted'
-    ) {
-      const syncedTokenForUser = userId
-        ? localStorage.getItem(`ocs_fcm_synced_${userId}`)
-        : null;
-
-      // Chỉ tự động sync nếu chưa sync cho account hiện tại hoặc chưa có token trong state
-      if (!syncedTokenForUser || !fcmToken) {
-        void requestPermissionAndRegister();
-      }
-    }
-  }, [enabled, userId, fcmToken, refreshStatus, requestPermissionAndRegister]);
-
-  // Tính toán trạng thái thông báo đẩy thực tế
-  const isPushActive = Boolean(
-    permission === 'granted' &&
-      fcmToken &&
-      !fcmToken.startsWith('web-dev-') &&
-      status?.configured &&
-      (status.registeredDeviceCount ?? 0) > 0,
-  );
-
+  const fcmToken = registration && registration.userId === userId ? registration.token : null;
+  const isPushActive = Boolean(enabled && userId && permission === 'granted' && fcmToken && status?.configured && status.registeredDeviceCount > 0);
   return {
-    fcmToken,
-    permission,
-    status,
-    isPushActive,
-    isFirebaseClientConfigured,
-    isServerConfigured: Boolean(status?.configured),
-    loading,
-    error,
-    requestPermissionAndRegister,
-    unregister,
-    sendTestNotification,
-    refreshStatus,
+    fcmToken, permission, status, isPushActive, isFirebaseClientConfigured,
+    isServerConfigured: Boolean(status?.configured), loading, error,
+    requestPermissionAndRegister, unregister, sendTestNotification, refreshStatus,
   };
 }
