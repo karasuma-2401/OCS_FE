@@ -4,7 +4,7 @@ import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { parseProblemDetails, extractFieldError } from '@/api/auth';
 import { validateEmail } from '@/utils/validation';
-import { Form, Input, PasswordInput, Button, Toast } from '@/components/shared';
+import { Form, Input, PasswordInput, Button, AlertBanner } from '@/components/shared';
 import { ArrowRight } from 'lucide-react';
 import { firstAllowedScreen } from '@/auth/permissions';
 import type { User } from '@/types';
@@ -170,10 +170,10 @@ export const LoginPage: React.FC = () => {
 
         {formError && (
           <div className="mb-4">
-            <Toast
+            <AlertBanner
               variant="error"
               title="Lỗi đăng nhập"
-              message={formError}
+              description={formError}
               onClose={() => setFormError(null)}
             />
           </div>

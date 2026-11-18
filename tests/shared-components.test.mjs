@@ -94,3 +94,37 @@ test('shop detail layout keeps the list in the page and exposes a closable detai
   assert.match(html, /Lịch đã chọn/);
   assert.doesNotMatch(html, /aria-modal|role="dialog"/);
 });
+
+test('AlertBanner and Toast support semantic variants, actions, and accessibility roles', () => {
+  const { AlertBanner } = loadComponent('AlertBanner');
+  const { Toast } = loadComponent('Toast');
+
+  const errorBannerHtml = renderToStaticMarkup(
+    React.createElement(AlertBanner, {
+      variant: 'error',
+      title: 'Lỗi kết nối',
+      description: 'Vui lòng thử lại sau.',
+      action: { label: 'Thử lại', onClick() {} },
+    }),
+  );
+  assert.match(errorBannerHtml, /role="alert"/);
+  assert.match(errorBannerHtml, /aria-live="assertive"/);
+  assert.match(errorBannerHtml, /Lỗi kết nối/);
+  assert.match(errorBannerHtml, /Thử lại/);
+
+  const brandToastHtml = renderToStaticMarkup(
+    React.createElement(Toast, {
+      variant: 'brand',
+      title: 'Ưu đãi mới',
+      message: 'Giảm 5% phí ký gửi',
+      showProgress: true,
+      durationMs: 4000,
+      action: { label: 'Xem ngay', onClick() {} },
+    }),
+  );
+  assert.match(brandToastHtml, /role="status"/);
+  assert.match(brandToastHtml, /aria-live="polite"/);
+  assert.match(brandToastHtml, /Ưu đãi mới/);
+  assert.match(brandToastHtml, /Xem ngay/);
+  assert.match(brandToastHtml, /toast-progress 4000ms linear/);
+});

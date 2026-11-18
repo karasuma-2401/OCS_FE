@@ -21,10 +21,23 @@ export interface TestNotificationResponse extends Notification {
   } | null;
 }
 
+export interface GetNotificationsQuery {
+  limit?: number;
+  unreadOnly?: boolean;
+  category?: string;
+}
+
 export const notificationApi = {
-  async getMyNotifications(limit = 50): Promise<NotificationResponse> {
+  async getMyNotifications(
+    limitOrQuery: number | GetNotificationsQuery = 50,
+  ): Promise<NotificationResponse> {
+    const params: GetNotificationsQuery =
+      typeof limitOrQuery === 'number'
+        ? { limit: limitOrQuery }
+        : { limit: 50, ...limitOrQuery };
+
     const response = await apiClient.get<NotificationResponse>('/notifications', {
-      params: { limit },
+      params,
     });
     return response.data;
   },
@@ -69,8 +82,14 @@ export const notificationApi = {
     return response.data;
   },
 
-  async sendTestNotification(): Promise<TestNotificationResponse> {
-    const response = await apiClient.post<TestNotificationResponse>('/notifications/fcm/test');
+  async sendTestNotification(category?: string): Promise<TestNotificationResponse> {
+    const response = await apiClient.post<TestNotificationResponse>(
+      '/notifications/fcm/test',
+      null,
+      {
+        params: category ? { category } : undefined,
+      },
+    );
     return response.data;
   },
 };

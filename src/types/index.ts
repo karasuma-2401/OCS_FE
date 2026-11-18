@@ -166,11 +166,21 @@ export interface StartReceptionResponse {
   message: string;
 }
 
+export type NotificationCategory =
+  | 'System'
+  | 'Appointment'
+  | 'Consignment'
+  | 'Buyout'
+  | 'Payment'
+  | 'Promotion';
+
 export interface Notification {
   id: string;
   title: string;
   content: string;
-  type: number;
+  type: number | string;
+  category?: NotificationCategory | string;
+  link?: string | null;
   sentAt: string;
   isRead: boolean;
 }

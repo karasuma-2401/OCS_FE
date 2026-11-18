@@ -19,6 +19,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { ConsignmentTrackingPage } from './pages/ConsignmentTrackingPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { ReceptionPage } from './pages/ReceptionPage';
 import { ContractIntakePage } from './pages/ContractIntakePage';
 import { ContractListPage, ContractPdfPage } from './pages/ContractDocumentsPage';
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="/consign" element={<ConsignPage />} />
         <Route path="/appointments" element={<ProtectedRoute allowedRoles={['Customer']}><AppointmentsPage /></ProtectedRoute>} />
         <Route path="/my-consignments" element={<ProtectedRoute allowedRoles={['Customer']}><ConsignmentTrackingPage /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
       </Route>
@@ -75,6 +77,8 @@ export default function App() {
       <Route path="/ui-components/product-rail-gallery" element={<React.Suspense fallback={<SkeletonLoading variant="page" label="Đang tải thư viện sản phẩm..." className="p-6" />}><ProductRailPreviewPage /></React.Suspense>} />
 
       {/* Protected Shop / Admin routes */}
+      <Route path="/shop/notifications" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><NotificationsPage /></ProtectedRoute>} />
+      <Route path="/admin/notifications" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><NotificationsPage /></ProtectedRoute>} />
       <Route path="/shop/reception/new" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><ReceptionPage /></ProtectedRoute>} />
       <Route path="/shop/contracts/new" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><ContractIntakePage /></ProtectedRoute>} />
       <Route path="/shop/appointment-slots" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><AppointmentSlotsPage /></ProtectedRoute>} />

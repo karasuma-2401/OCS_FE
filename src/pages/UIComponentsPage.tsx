@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Bell, Sparkles } from 'lucide-react';
 import {
+  AlertBanner,
   Badge,
   Button,
   Card,
@@ -18,6 +19,11 @@ import {
   Table,
   Toast,
 } from '@/components/shared';
+import { useToast } from '@/context/ToastContext';
+import {
+  NOTIFICATION_CATEGORIES,
+  type NotificationCategoryMeta,
+} from '@/components/notifications/notificationMeta';
 
 export const UIComponentsPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
@@ -26,29 +32,184 @@ export const UIComponentsPage: React.FC = () => {
   const [selectedSize, setSelectedSize] = useState('');
   const [productStatus, setProductStatus] = useState('active');
   const [exampleDate, setExampleDate] = useState('');
+  const toast = useToast();
+
+  const categoryList: NotificationCategoryMeta[] = Object.values(
+    NOTIFICATION_CATEGORIES,
+  );
 
   return (
     <main className="min-h-screen bg-surface-dashboard px-4 py-8 text-text-primary sm:px-6">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-text-secondary">OCS / UI Kit</p>
+            <p className="text-sm font-semibold text-text-secondary">OCS / UI Kit & Notification Design System</p>
             <h1 className="mt-2 text-3xl font-extrabold text-ink">
-              Component dùng chung
+              Component & Hệ Thống Thông Báo Dùng Chung
             </h1>
             <p className="mt-2 text-sm text-muted">
-              Demo các trạng thái thường dùng trong những phân hệ của OCS.
+              Chuẩn hóa Design Tokens, 4 tầng thông báo (Inline Error, Alert Banner, Floating Toast, Notification Center) và các component cơ bản của OCS.
             </p>
           </div>
-          <Link to="/">
-            <Button variant="outline" className="flex items-center gap-2">
-              <ArrowLeft size={16} />
-              Quay lại trang chủ
-            </Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/notifications">
+              <Button variant="secondary" className="flex items-center gap-2">
+                <Bell size={16} />
+                Mở Trung tâm thông báo
+              </Button>
+            </Link>
+            <Link to="/">
+              <Button variant="outline" className="flex items-center gap-2">
+                <ArrowLeft size={16} />
+                Quay lại trang chủ
+              </Button>
+            </Link>
+          </div>
         </div>
 
+        {/* Notification Design System Section */}
         <div className="mt-8 grid gap-5 md:grid-cols-2">
+          <Card
+            title="Tầng 2: Alert Banner (Inline Contextual Alerts)"
+            description="5 biến thể ngữ nghĩa hiển thị tĩnh trong Form, Card hoặc đầu trang"
+            className="md:col-span-2"
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <AlertBanner
+                variant="success"
+                title="Tiếp nhận ký gửi hoàn tất"
+                description="Hợp đồng #CN-2026-089 đã được lưu và khởi tạo 6 mã vạch sản phẩm."
+              />
+              <AlertBanner
+                variant="info"
+                title="Đồng bộ thông báo thời gian thực"
+                description="Hệ thống tự động cập nhật trạng thái lịch hẹn và thanh toán VietQR."
+              />
+              <AlertBanner
+                variant="warning"
+                title="Hợp đồng sắp đến hạn tất toán"
+                description="Có 3 hợp đồng ký gửi sẽ hết kỳ hạn 30 ngày vào ngày mai."
+              />
+              <AlertBanner
+                variant="error"
+                title="Không thể kết nối máy in tem"
+                description="Vui lòng kiểm tra lại kết nối máy in mã vạch hoặc tải file PDF để in."
+              />
+              <AlertBanner
+                variant="brand"
+                className="md:col-span-2"
+                title="Chiến dịch Ký Gửi Mùa Lễ Hội OCS"
+                description="Ưu đãi giảm 5% phí hoa hồng cho các mặt hàng Local Brand & Luxury được tiếp nhận trong tuần này."
+                action={{
+                  label: 'Kích hoạt thông báo nổi',
+                  onClick: () =>
+                    toast.brand('Đã kích hoạt thông báo chiến dịch!', {
+                      description: 'Thông báo ưu đãi đã được gửi thử nghiệm lên góc màn hình.',
+                    }),
+                }}
+              />
+            </div>
+          </Card>
+
+          <Card
+            title="Tầng 3: Global Floating Toast Engine (useToast)"
+            description="Thông báo nổi góc trên màn hình, tự động ẩn sau 4.5s, tạm dừng khi rê chuột vào"
+          >
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={() =>
+                  toast.success('Đã lưu hợp đồng ký gửi', {
+                    description: 'Mã hợp đồng #CN-2026-102 đã sẵn sàng in.',
+                  })
+                }
+              >
+                Toast Success
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() =>
+                  toast.info('Khách hàng vừa đặt lịch hẹn mới', {
+                    description: 'Khung giờ 14:00 - 15:00 hôm nay (5 sản phẩm).',
+                    action: {
+                      label: 'Xem lịch',
+                      onClick: () => toast.success('Đã chuyển tới chi tiết lịch hẹn!'),
+                    },
+                  })
+                }
+              >
+                Toast Info + Action
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  toast.warning('Tồn kho sắp chạm ngưỡng tối đa', {
+                    description: 'Kệ A2 (Áo khoác Denim) đã đạt 92% sức chứa.',
+                  })
+                }
+              >
+                Toast Warning
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() =>
+                  toast.error('Giao dịch VietQR đã hết hạn', {
+                    description: 'Vui lòng tạo mã QR thanh toán mới cho hóa đơn POS.',
+                  })
+                }
+              >
+                Toast Error
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  toast.brand('Chào mừng đến với OCS Design System', {
+                    description: 'Giao diện pastel đồng bộ cho cả Khách hàng & Cửa hàng.',
+                  })
+                }
+              >
+                <Sparkles size={14} className="mr-1" />
+                Toast Brand
+              </Button>
+            </div>
+          </Card>
+
+          <Card
+            title="Tầng 4: Phân Loại Nghiệp Vụ (Notification Taxonomy)"
+            description="6 nhóm nghiệp vụ chuẩn hiển thị trong Chuông thông báo & Trang Lịch sử"
+          >
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+              {categoryList.map((cat) => (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() =>
+                    toast.show({
+                      variant: cat.toastVariant,
+                      title: `[${cat.label}] Thông báo mẫu`,
+                      description: `Ví dụ thông báo thuộc phân nhóm nghiệp vụ ${cat.label}.`,
+                    })
+                  }
+                  className="flex items-center gap-2.5 rounded-xl border border-border bg-white p-2.5 text-left transition hover:border-brand-pink hover:shadow-xs"
+                >
+                  <span
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${cat.iconBgClass}`}
+                  >
+                    {cat.renderIcon(16)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-ink">{cat.label}</p>
+                    <p className="text-[10px] text-muted">{cat.key}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </Card>
+
           <Card title="Product Rail Gallery" description="Preview tương tác toàn màn hình với dữ liệu mẫu">
             <Link to="/ui-components/product-rail-gallery" className="inline-flex rounded-control bg-ink px-4 py-2 text-sm font-semibold text-paper hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
               Xem Product Rail Gallery
@@ -75,7 +236,7 @@ export const UIComponentsPage: React.FC = () => {
             <DatePicker label="Ngày vào làm" value={exampleDate} onChange={setExampleDate} helperText="Định dạng ngày/tháng/năm." />
           </Card>
 
-          <Card title="Input & Combobox" description="Nhãn, trợ giúp và validation lỗi">
+          <Card title="Input & Combobox" description="Nhãn, trợ giúp và validation lỗi (Tầng 1: Inline Error)">
             <div className="space-y-4">
               <Input
                 label="Tên sản phẩm"
@@ -97,6 +258,7 @@ export const UIComponentsPage: React.FC = () => {
               onSubmit={(event) => {
                 event.preventDefault();
                 setShowToast(true);
+                toast.success('Gửi biểu mẫu thành công!');
               }}
             >
               <Input label="Email" type="email" placeholder="ban@example.com" required />
@@ -104,7 +266,7 @@ export const UIComponentsPage: React.FC = () => {
             </Form>
           </Card>
 
-          <Card title="Badge & Toast" description="Trạng thái phản hồi">
+          <Card title="Badge & Toast Card" description="Trạng thái phản hồi">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="success">Đã hoàn tất</Badge>
               <Badge variant="warning">Đang xử lý</Badge>
@@ -117,7 +279,7 @@ export const UIComponentsPage: React.FC = () => {
               variant="outline"
               onClick={() => setShowToast(true)}
             >
-              Hiện toast
+              Hiện toast tĩnh
             </Button>
             {showToast && (
               <Toast
@@ -149,7 +311,10 @@ export const UIComponentsPage: React.FC = () => {
             <ErrorState
               title="Không tải được dữ liệu"
               description="Vui lòng kiểm tra kết nối và thử lại."
-              onRetry={() => setShowToast(true)}
+              onRetry={() => {
+                setShowToast(true);
+                toast.info('Đang thử tải lại dữ liệu...');
+              }}
             />
           </Card>
 
@@ -201,6 +366,7 @@ export const UIComponentsPage: React.FC = () => {
               onClick={() => {
                 setShowModal(false);
                 setShowToast(true);
+                toast.success('Đã xác nhận thao tác trên Modal!');
               }}
             >
               Xác nhận
@@ -215,4 +381,3 @@ export const UIComponentsPage: React.FC = () => {
     </main>
   );
 };
-
