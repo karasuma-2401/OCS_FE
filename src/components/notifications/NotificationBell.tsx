@@ -51,16 +51,10 @@ export function NotificationBell({
     error: fcmError,
     requestPermissionAndRegister,
   } = useFcm({
-    enabled: true,
+    enabled: Boolean(user?.id),
     userId: user?.id,
-    onForegroundMessage: (payload) => {
+    onForegroundMessage: () => {
       fetchNotifications();
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(payload.notification?.title || 'OCS - Thông báo mới', {
-          body: payload.notification?.body || '',
-          icon: '/mascot-logo.png',
-        });
-      }
     },
   });
 
@@ -105,7 +99,7 @@ export function NotificationBell({
     try {
       await notificationApi.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
+      await fetchNotifications();
     } catch {
       setError('Không thể cập nhật thông báo. Vui lòng thử lại.');
     }

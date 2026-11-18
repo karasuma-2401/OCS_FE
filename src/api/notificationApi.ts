@@ -12,6 +12,15 @@ export interface FcmStatusResponse {
   devices: Array<{ deviceType: string; lastUsedAt: string }>;
 }
 
+export interface TestNotificationResponse extends Notification {
+  pushDelivery: {
+    targetedDeviceCount: number;
+    successCount: number;
+    failureCount: number;
+    firebaseConfigured: boolean;
+  } | null;
+}
+
 export const notificationApi = {
   async getMyNotifications(limit = 50): Promise<NotificationResponse> {
     const response = await apiClient.get<NotificationResponse>('/notifications', {
@@ -60,8 +69,8 @@ export const notificationApi = {
     return response.data;
   },
 
-  async sendTestNotification(): Promise<Notification> {
-    const response = await apiClient.post<Notification>('/notifications/fcm/test');
+  async sendTestNotification(): Promise<TestNotificationResponse> {
+    const response = await apiClient.post<TestNotificationResponse>('/notifications/fcm/test');
     return response.data;
   },
 };

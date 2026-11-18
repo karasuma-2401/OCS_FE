@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { User, RoleCode, LoginResponse } from '@/types';
 import { getMe, logout as apiLogout, login as apiLogin, type LoginRequest } from '@/api/auth';
 import { notificationApi } from '@/api/notificationApi';
+import { clearFirebaseRegistration } from '@/config/firebase';
 import { setUnauthorizedHandler, clearCsrfToken } from '@/api/client';
 
 export type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
@@ -178,11 +179,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (activeFcmToken) {
       try {
         await notificationApi.unregisterFcmToken(activeFcmToken);
-        localStorage.removeItem('ocs_active_fcm_token');
       } catch {
         // Ignore if session already expired
       }
     }
+    await clearFirebaseRegistration();
     await apiLogout();
     setUser(null);
     setExpiresAt(null);

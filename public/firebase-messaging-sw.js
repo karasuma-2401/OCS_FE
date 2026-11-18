@@ -88,7 +88,13 @@ self.addEventListener('push', (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil((async () => {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clients) {
+      client.postMessage({ type: 'ocs:push', payload });
+    }
+    await self.registration.showNotification(title, options);
+  })());
 });
 
 // Xử lý khi người dùng click vào thông báo đẩy trên thiết bị (Windows/macOS/Android)
