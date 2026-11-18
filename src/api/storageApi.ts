@@ -47,9 +47,8 @@ export const storageApi = {
     };
   },
 
-  async deleteImage(urlOrKey: string): Promise<void> {
-    const key = storageApi.extractKey(urlOrKey);
-    if (!key) return;
-    await apiClient.delete(`/storage/${encodeURI(key)}`);
+  async deleteImage(_urlOrKey: string): Promise<void> {
+    // Chính sách bảo toàn dữ liệu R2: Cho phép upload ảnh nhưng bảo lưu vĩnh viễn trên R2 (không xóa tệp vật lý)
+    return Promise.resolve();
   },
 };

@@ -263,12 +263,8 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
     }
   };
 
-  const handleRemoveFormImage = async (url: string) => {
-    try {
-      await consignmentApi.deleteProductImage(url);
-    } catch {
-      // ignore
-    }
+  const handleRemoveFormImage = (url: string) => {
+    // Chỉ gỡ ảnh khỏi form tiếp nhận, bảo lưu ảnh trên R2
     setItemForm((prev) => ({
       ...prev,
       images: prev.images.filter((img) => img !== url),
@@ -629,33 +625,11 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
     setItemFormErrors({});
   };
 
-  const handleRemoveItem = async (id: string) => {
+  const handleRemoveItem = (id: string) => {
     if (editingItemId === id) {
       handleCancelEdit();
     }
-    const itemToRemove = items.find((i) => i.id === id);
-    if (itemToRemove?.images && itemToRemove.images.length > 0) {
-      const remainingImages: string[] = [];
-      const failedErrors: string[] = [];
-
-      for (const url of itemToRemove.images) {
-        try {
-          await consignmentApi.deleteProductImage(url);
-        } catch (err: unknown) {
-          remainingImages.push(url);
-          const axiosErr = err as { response?: { data?: { detail?: string } } };
-          failedErrors.push(axiosErr?.response?.data?.detail || 'Không thể xóa ảnh');
-        }
-      }
-
-      if (remainingImages.length > 0) {
-        setItems((prev) =>
-          prev.map((it) => (it.id === id ? { ...it, images: remainingImages } : it)),
-        );
-        setApiError(`Không thể xóa ${remainingImages.length} ảnh trên R2: ${failedErrors.join('; ')}.`);
-        return;
-      }
-    }
+    // Gỡ sản phẩm khỏi danh sách tiếp nhận mà không xóa tệp tin trên R2
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 

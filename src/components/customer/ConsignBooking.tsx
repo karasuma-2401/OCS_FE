@@ -122,6 +122,9 @@ export function ConsignBooking({
       });
 
       setSuccessAppointment(created);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ocs:notification:refresh'));
+      }
       if (onBookingSuccess) onBookingSuccess(created);
     } catch {
       setErrorMsg('Không thể đặt lịch. Vui lòng kiểm tra thông tin và thử lại.');
@@ -217,13 +220,12 @@ export function ConsignBooking({
                         type="button"
                         disabled={isPast}
                         onClick={() => setSelectedDay(day)}
-                        className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-all ${
-                          isSelected
+                        className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-all ${isSelected
                             ? 'bg-brand-pink text-brand-ink font-extrabold shadow-sm ring-4 ring-brand-pink-light scale-105'
                             : isPast
                               ? 'text-text-muted/40 cursor-not-allowed'
                               : 'text-brand-ink hover:bg-brand-pink-surface font-semibold'
-                        }`}
+                          }`}
                       >
                         {day}
                       </button>
@@ -268,25 +270,23 @@ export function ConsignBooking({
                         type="button"
                         disabled={!isAvailable}
                         onClick={() => setSelectedSlotId(slot.id)}
-                        className={`flex flex-col items-center justify-center py-3.5 px-4 rounded-2xl border text-center transition-all ${
-                          !isAvailable
+                        className={`flex flex-col items-center justify-center py-3.5 px-4 rounded-2xl border text-center transition-all ${!isAvailable
                             ? 'border-border/60 bg-surface text-text-muted/60 cursor-not-allowed opacity-80'
                             : isSelected
                               ? 'border-brand-pink bg-brand-pink-light text-brand-highlight shadow-2xs ring-2 ring-brand-pink-focus/30 font-bold'
                               : 'border-border/80 bg-white hover:border-brand-pink hover:bg-brand-pink-surface/60 text-brand-ink'
-                        }`}
+                          }`}
                       >
                         <span className="text-xs font-bold">
                           {slot.startTime} - {slot.endTime}
                         </span>
                         <span
-                          className={`mt-1 text-[11px] font-semibold ${
-                            !isAvailable
+                          className={`mt-1 text-[11px] font-semibold ${!isAvailable
                               ? 'text-text-muted/60'
                               : isSelected
                                 ? 'text-brand-highlight font-bold'
                                 : 'text-text-muted'
-                          }`}
+                            }`}
                         >
                           {!isAvailable
                             ? 'Hết chỗ'

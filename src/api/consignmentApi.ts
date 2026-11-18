@@ -295,21 +295,8 @@ export const consignmentApi = {
     };
   },
 
-  async deleteProductImage(urlOrKey: string): Promise<void> {
-    if (!urlOrKey) return;
-    let key = urlOrKey;
-    if (key.includes('/api/storage/')) {
-      key = key.split('/api/storage/')[1] || '';
-    } else if (key.startsWith('http://') || key.startsWith('https://')) {
-      try {
-        const u = new URL(key);
-        key = u.pathname.replace(/^\/api\/storage\//, '').replace(/^\//, '');
-      } catch {
-        key = key.replace(/^\//, '');
-      }
-    }
-    key = key.replace(/^\//, '');
-    if (!key) return;
-    await apiClient.delete(`/storage/${encodeURI(key)}`);
+  async deleteProductImage(_urlOrKey: string): Promise<void> {
+    // Chính sách bảo toàn dữ liệu R2: Cho phép upload ảnh nhưng bảo lưu vĩnh viễn trên R2 (không xóa tệp vật lý)
+    return Promise.resolve();
   },
 };

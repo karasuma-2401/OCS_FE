@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Check, Clock, Info, Smartphone } from 'lucide-react';
 import { notificationApi } from '@/api/notificationApi';
 import type { Notification } from '@/types';
 import { SkeletonLoading } from '@/components/shared/Skeleton';
 import { useFcm } from '@/hooks/useFcm';
+import { useAuth } from '@/context/AuthContext';
 
 export function NotificationBell({
   align = 'right',
@@ -21,6 +23,8 @@ export function NotificationBell({
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { user, isStaffOrAdmin } = useAuth();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = async () => {
@@ -40,10 +44,15 @@ export function NotificationBell({
   const {
     permission,
     status: fcmStatus,
+    isPushActive,
+    isFirebaseClientConfigured,
+    isServerConfigured,
     loading: fcmLoading,
+    error: fcmError,
     requestPermissionAndRegister,
   } = useFcm({
     enabled: true,
+    userId: user?.id,
     onForegroundMessage: (payload) => {
       fetchNotifications();
       if ('Notification' in window && Notification.permission === 'granted') {
@@ -57,12 +66,16 @@ export function NotificationBell({
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000);
+    const interval = setInterval(fetchNotifications, 6000);
     const handleFocus = () => fetchNotifications();
+    const handleCustomRefresh = () => fetchNotifications();
+
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('ocs:notification:refresh', handleCustomRefresh);
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('ocs:notification:refresh', handleCustomRefresh);
     };
   }, []);
 
@@ -108,7 +121,7 @@ export function NotificationBell({
         }}
         className={
           showLabel
-            ? `flex min-h-10 w-full shrink-0 cursor-pointer items-center justify-start gap-3 rounded-control px-3 text-left text-sm leading-5 font-medium text-text-secondary no-underline transition-colors duration-200 hover:bg-brand-pink-surface hover:text-brand-highlight ${
+            ? `relative flex min-h-10 w-full shrink-0 cursor-pointer items-center justify-start gap-3 rounded-control px-3 text-left text-sm leading-5 font-medium text-text-secondary no-underline transition-colors duration-200 hover:bg-brand-pink-surface hover:text-brand-highlight ${
                 isOpen ? 'bg-brand-pink-light !font-semibold !text-brand-highlight' : ''
               } ${collapsed ? 'lg:justify-center lg:px-0' : ''}`
             : 'relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-paper text-ink transition hover:border-accent hover:bg-surface-subtle'
@@ -117,21 +130,28 @@ export function NotificationBell({
         aria-label="Thông báo"
         aria-expanded={isOpen}
       >
-        <div className="relative shrink-0 flex items-center justify-center">
-          <Bell size={18} aria-hidden="true" />
-          {unreadCount > 0 && !showLabel && (
-            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-state-danger px-1 text-[11px] font-bold text-white shadow">
+        <div className="relative flex items-center justify-center shrink-0">
+          <Bell size={19} aria-hidden="true" />
+          {unreadCount > 0 && showLabel && collapsed && (
+            <span className="absolute -top-2 -right-3 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-state-danger px-1 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </div>
+
+        {unreadCount > 0 && !showLabel && (
+          <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-state-danger px-1.5 text-[11px] font-bold text-white shadow-sm ring-2 ring-white">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+
         {showLabel && (
           <>
             <span className={collapsed ? 'lg:hidden' : ''}>
               Thông báo
             </span>
-            {unreadCount > 0 && (
-              <span className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-state-danger px-1.5 text-xs font-bold text-white shadow-xs ${collapsed ? 'lg:hidden' : ''}`}>
+            {unreadCount > 0 && !collapsed && (
+              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-state-danger px-1.5 text-xs font-bold text-white shadow-xs">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
@@ -162,7 +182,26 @@ export function NotificationBell({
           </div>
 
           <div className="mt-2.5 rounded-xl border border-border/80 bg-surface-dashboard/70 p-2.5 text-xs">
-            {permission !== 'granted' ? (
+            {!isFirebaseClientConfigured || (fcmStatus && !isServerConfigured) ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-text-secondary">
+                  <Smartphone size={14} className="text-amber-500 shrink-0" />
+                  <span className="text-[11px] font-medium text-amber-700">
+                    FCM chưa cấu hình ({!isFirebaseClientConfigured ? 'thiếu .env web' : 'máy chủ chưa cấu hình'})
+                  </span>
+                </div>
+              </div>
+            ) : isPushActive ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-text-secondary">
+                  <Smartphone size={14} className="text-green-600 shrink-0" />
+                  <span className="text-[11px] font-semibold text-text-primary">
+                    Đã bật thông báo đẩy
+                    {fcmStatus?.registeredDeviceCount ? ` (${fcmStatus.registeredDeviceCount} thiết bị)` : ''}
+                  </span>
+                </div>
+              </div>
+            ) : permission !== 'granted' ? (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 text-text-secondary">
                   <Smartphone size={14} className="text-brand-highlight shrink-0" />
@@ -183,13 +222,25 @@ export function NotificationBell({
             ) : (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 text-text-secondary">
-                  <Smartphone size={14} className="text-green-600 shrink-0" />
-                  <span className="text-[11px] font-semibold text-text-primary">
-                    Đã bật thông báo đẩy
-                    {fcmStatus?.registeredDeviceCount ? ` (${fcmStatus.registeredDeviceCount} thiết bị)` : ''}
+                  <Smartphone size={14} className="text-amber-600 shrink-0" />
+                  <span className="text-[11px] font-medium text-text-secondary">
+                    Chưa kết nối thiết bị FCM
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await requestPermissionAndRegister();
+                  }}
+                  disabled={fcmLoading}
+                  className="rounded-lg border border-border px-2 py-0.5 text-[11px] font-medium text-text-primary hover:bg-surface-subtle"
+                >
+                  {fcmLoading ? 'Đang kết nối...' : 'Thử lại'}
+                </button>
               </div>
+            )}
+            {fcmError && (
+              <p className="mt-1 text-[10px] text-state-danger">{fcmError}</p>
             )}
           </div>
 
@@ -206,7 +257,15 @@ export function NotificationBell({
               notifications.map((n) => (
                 <div
                   key={n.id}
-                  onClick={() => !n.isRead && handleMarkAsRead(n.id)}
+                  onClick={() => {
+                    if (!n.isRead) handleMarkAsRead(n.id);
+                    setIsOpen(false);
+                    if (isStaffOrAdmin) {
+                      navigate('/shop/consignment');
+                    } else {
+                      navigate('/appointments');
+                    }
+                  }}
                   className={`pt-2.5 first:pt-0 cursor-pointer rounded-lg p-2 transition ${
                     n.isRead ? 'opacity-70 hover:opacity-100 hover:bg-surface/50' : 'bg-brand-pink-surface/80 hover:bg-brand-pink-light/50'
                   }`}

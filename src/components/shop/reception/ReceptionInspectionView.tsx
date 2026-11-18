@@ -158,40 +158,13 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
     setActiveItemId(duplicated.id);
   };
 
-  const handleRemoveItem = async (id: string) => {
+  const handleRemoveItem = (id: string) => {
     if (uploadingItemId === id) return;
     if (items.length <= 1) {
       alert('Phiếu tiếp nhận phải có ít nhất 1 sản phẩm.');
       return;
     }
-    const itemToRemove = items.find((i) => i.id === id);
-    if (itemToRemove && itemToRemove.images.length > 0) {
-      const remainingImages: typeof itemToRemove.images = [];
-      const failedErrors: string[] = [];
-
-      for (const img of itemToRemove.images) {
-        if (!img.uploadedUrl) continue;
-        try {
-          await consignmentApi.deleteProductImage(img.uploadedUrl);
-        } catch (err: unknown) {
-          remainingImages.push(img);
-          const axiosErr = err as { response?: { data?: { detail?: string; title?: string } } };
-          const reason = axiosErr?.response?.data?.detail || axiosErr?.response?.data?.title || 'Không thể xóa ảnh của sản phẩm khỏi R2.';
-          failedErrors.push(reason);
-        }
-      }
-
-      if (remainingImages.length > 0) {
-        if (!remainingImages.some((img) => img.isCover)) {
-          remainingImages[0].isCover = true;
-        }
-        setItems((prev) =>
-          prev.map((it) => (it.id === id ? { ...it, images: remainingImages } : it)),
-        );
-        setUploadError(`Lỗi khi xóa ảnh của sản phẩm (${failedErrors.length} ảnh thất bại): ${failedErrors.join('; ')}.`);
-        return;
-      }
-    }
+    // Gỡ sản phẩm khỏi danh sách tiếp nhận mà không xóa tệp tin trên R2
     setItems((prev) => prev.filter((i) => i.id !== id));
     if (activeItemId === id) {
       const remaining = items.filter((i) => i.id !== id);
@@ -258,19 +231,8 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
     }
   };
 
-  const handleRemoveImage = async (itemId: string, imgId: string) => {
-    const item = items.find((i) => i.id === itemId);
-    const imgToDelete = item?.images.find((img) => img.id === imgId);
-    if (imgToDelete?.uploadedUrl) {
-      try {
-        await consignmentApi.deleteProductImage(imgToDelete.uploadedUrl);
-      } catch (err: unknown) {
-        const axiosErr = err as { response?: { data?: { detail?: string; title?: string } } };
-        const reason = axiosErr?.response?.data?.detail || axiosErr?.response?.data?.title || 'Không thể xóa ảnh khỏi máy chủ lưu trữ R2.';
-        setUploadError(`Lỗi khi xóa ảnh: ${reason}`);
-        return;
-      }
-    }
+  const handleRemoveImage = (itemId: string, imgId: string) => {
+    // Chỉ gỡ ảnh khỏi sản phẩm, không xóa file vật lý trên R2
     setItems((prev) =>
       prev.map((it) => {
         if (it.id !== itemId) return it;
@@ -376,7 +338,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
 
   return (
     <div className="w-full space-y-5 pb-16">
-      
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button
@@ -427,7 +389,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
         </div>
       )}
 
-      
+
       <div className="rounded-3xl border border-white/80 bg-white/95 backdrop-blur-sm p-6 shadow-sm space-y-4">
         <h3 className="font-extrabold text-gray-900 text-sm flex items-center gap-2">
           <ShoppingBag size={16} className="text-[#E53E8A]" />
@@ -535,9 +497,9 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
         </div>
       </div>
 
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        
+
         <div className="lg:col-span-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-extrabold text-gray-900 text-sm">
@@ -561,11 +523,10 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
                 <div
                   key={item.id}
                   onClick={() => setActiveItemId(item.id)}
-                  className={`cursor-pointer rounded-2xl border p-3.5 transition-all shadow-sm ${
-                    isSelected
+                  className={`cursor-pointer rounded-2xl border p-3.5 transition-all shadow-sm ${isSelected
                       ? 'border-[#FA9BBF] bg-[#FFF5F8] ring-2 ring-pink-200'
                       : 'border-white/80 bg-white/95 hover:bg-gray-50/80'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -611,7 +572,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
           </div>
         </div>
 
-        
+
         <div className="lg:col-span-8">
           {items.map((item, index) => {
             if (item.id !== activeItemId) return null;
@@ -623,7 +584,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
                 key={item.id}
                 className="rounded-3xl border border-white/80 bg-white/95 backdrop-blur-sm p-6 shadow-sm space-y-5"
               >
-                
+
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-3">
                   <div>
                     <span className="text-[11px] font-bold text-[#E53E8A] uppercase tracking-wider">
@@ -655,7 +616,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
                   </div>
                 </div>
 
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="sm:col-span-2">
                     <label className="block text-[11px] font-bold text-gray-700 mb-1">
@@ -747,16 +708,15 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
                   </div>
                 </div>
 
-                
+
                 <div className="rounded-2xl border border-gray-100 bg-[#FAFAFC] p-4 space-y-3">
                   <h4 className="text-xs font-bold text-gray-800 flex items-center justify-between">
                     <span>Đánh giá kiểm định chất lượng:</span>
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
-                        item.conditionPercentage >= 80
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${item.conditionPercentage >= 80
                           ? 'bg-green-100 text-green-700'
                           : 'bg-amber-100 text-amber-700'
-                      }`}
+                        }`}
                     >
                       {item.conditionPercentage >= 80
                         ? `✓ Đạt chuẩn tiếp nhận (${item.conditionPercentage}%)`
@@ -764,7 +724,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
                     </span>
                   </h4>
 
-                  
+
                   <div>
                     <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
                       <span>Độ mới sản phẩm:</span>
@@ -833,7 +793,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
                   </div>
                 </div>
 
-                
+
                 <div className="space-y-3">
                   <label className="block text-xs font-bold text-gray-800">
                     Quyết định thẩm định:
@@ -843,11 +803,10 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
                     <button
                       type="button"
                       onClick={() => updateItem(item.id, { approvalStatus: 'Approved' })}
-                      className={`flex items-center justify-center gap-2 rounded-2xl py-3 px-4 text-xs font-bold transition shadow-sm ${
-                        isApproved
+                      className={`flex items-center justify-center gap-2 rounded-2xl py-3 px-4 text-xs font-bold transition shadow-sm ${isApproved
                           ? 'bg-green-600 text-white ring-2 ring-green-300'
                           : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <CheckCircle2 size={16} /> Chấp nhận ký gửi (Nhận)
                     </button>
@@ -855,17 +814,16 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
                     <button
                       type="button"
                       onClick={() => updateItem(item.id, { approvalStatus: 'Rejected' })}
-                      className={`flex items-center justify-center gap-2 rounded-2xl py-3 px-4 text-xs font-bold transition shadow-sm ${
-                        !isApproved
+                      className={`flex items-center justify-center gap-2 rounded-2xl py-3 px-4 text-xs font-bold transition shadow-sm ${!isApproved
                           ? 'bg-red-600 text-white ring-2 ring-red-300'
                           : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <XCircle size={16} /> Từ chối nhận
                     </button>
                   </div>
 
-                  
+
                   {isApproved ? (
                     <div className="rounded-2xl border border-green-100 bg-green-50/50 p-4 space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -950,7 +908,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
                   )}
                 </div>
 
-                
+
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
                     <div>
@@ -964,9 +922,8 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
                     </div>
 
                     <label
-                      className={`inline-flex items-center gap-1.5 rounded-2xl bg-white border border-gray-200 px-3.5 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition ${
-                        uploadingItemId === item.id ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'
-                      }`}
+                      className={`inline-flex items-center gap-1.5 rounded-2xl bg-white border border-gray-200 px-3.5 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition ${uploadingItemId === item.id ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'
+                        }`}
                     >
                       {uploadingItemId === item.id ? (
                         <>
@@ -1054,7 +1011,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
         </div>
       </div>
 
-      
+
       <div className="sticky bottom-4 z-20 rounded-3xl border border-white/90 bg-white/95 backdrop-blur-md p-4 sm:p-5 shadow-lg flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-6">
           <div>
@@ -1113,7 +1070,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
         </div>
       </div>
 
-      
+
       {previewModalOpen && (
         <Modal
           open={previewModalOpen}
@@ -1148,7 +1105,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
           }
         >
           <div className="space-y-4 py-2 text-xs text-gray-700 max-h-[70vh] overflow-y-auto">
-            
+
             <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 grid grid-cols-2 gap-4">
               <div>
                 <span className="text-gray-400 block text-[11px]">Bên ký gửi (Khách hàng):</span>
@@ -1167,7 +1124,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
               </div>
             </div>
 
-            
+
             <div>
               <h4 className="font-extrabold text-green-700 text-xs mb-2">
                 1. Danh sách sản phẩm ĐẠT YÊU CẦU ({summary.approvedCount} món)
@@ -1208,7 +1165,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
               )}
             </div>
 
-            
+
             {summary.rejectedList.length > 0 && (
               <div>
                 <h4 className="font-extrabold text-red-600 text-xs mb-2">
@@ -1239,7 +1196,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
               </div>
             )}
 
-            
+
             <div className="rounded-xl border border-gray-200 p-3 bg-white flex justify-between items-center">
               <span className="font-bold text-gray-700">Tổng tiền khách dự kiến nhận khi bán hết:</span>
               <span className="text-base font-extrabold text-[#E53E8A]">
@@ -1250,7 +1207,7 @@ export const ReceptionInspectionView: React.FC<ReceptionInspectionViewProps> = (
         </Modal>
       )}
 
-      
+
       {createdResult && (
         <Modal
           open={Boolean(createdResult)}

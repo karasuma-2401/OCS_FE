@@ -170,21 +170,9 @@ export const ItemPhotoModal: React.FC<ItemPhotoModalProps> = ({
     }
   };
 
-  const handleRemoveImage = async (indexToRemove: number) => {
-    const urlToRemove = images[indexToRemove];
-    if (!urlToRemove) return;
+  const handleRemoveImage = (indexToRemove: number) => {
     setErrorMsg(null);
-    try {
-      await storageApi.deleteImage(urlToRemove);
-      onImagesChange(images.filter((_, idx) => idx !== indexToRemove));
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string; title?: string } } };
-      const reason =
-        axiosErr?.response?.data?.detail ||
-        axiosErr?.response?.data?.title ||
-        'Không thể xóa ảnh khỏi hệ thống lưu trữ R2.';
-      setErrorMsg(`Lỗi khi xóa ảnh: ${reason}`);
-    }
+    onImagesChange(images.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleSetCoverImage = (indexToCover: number) => {
