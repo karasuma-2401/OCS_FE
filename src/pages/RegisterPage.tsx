@@ -11,7 +11,7 @@ import {
   getPasswordRequirements,
   validateConfirmPassword,
 } from '@/utils/validation';
-import { Form, Input, PasswordInput, Button, Toast } from '@/components/shared';
+import { Form, Input, PasswordInput, Button, AlertBanner } from '@/components/shared';
 import { ArrowRight, Check } from 'lucide-react';
 
 interface RegisterFieldErrors {
@@ -167,10 +167,10 @@ export const RegisterPage: React.FC = () => {
 
         {formError && (
           <div className="mb-4">
-            <Toast
+            <AlertBanner
               variant="error"
               title="Lỗi đăng ký"
-              message={formError}
+              description={formError}
               onClose={() => setFormError(null)}
             />
           </div>

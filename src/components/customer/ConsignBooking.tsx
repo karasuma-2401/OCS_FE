@@ -5,13 +5,13 @@ import {
   ChevronRight,
   Check,
   CheckCircle2,
-  AlertCircle,
   ArrowRight,
   Store,
 } from 'lucide-react';
 import { appointmentApi } from '@/api/appointmentApi';
 import type { TimeSlot, Appointment } from '@/types';
-import { Button, Modal, SkeletonLoading } from '@/components/shared';
+import { AlertBanner, Button, Modal, SkeletonLoading } from '@/components/shared';
+import { useToast } from '@/context/ToastContext';
 
 interface ConsignBookingProps {
   onBookingSuccess?: (appointment: Appointment) => void;
@@ -22,6 +22,7 @@ export function ConsignBooking({
   onBookingSuccess,
   onViewHistory,
 }: ConsignBookingProps) {
+  const toast = useToast();
   const [today] = useState(() => new Date());
   const [currentYear, setCurrentYear] = useState<number>(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(today.getMonth() + 1);
@@ -122,12 +123,18 @@ export function ConsignBooking({
       });
 
       setSuccessAppointment(created);
+      toast.success('Đặt lịch hẹn ký gửi thành công!', {
+        description: `Mã lịch hẹn: ${created.trackingNumber} (${created.timeSlotDisplay})`,
+      });
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('ocs:notification:refresh'));
       }
       if (onBookingSuccess) onBookingSuccess(created);
     } catch {
       setErrorMsg('Không thể đặt lịch. Vui lòng kiểm tra thông tin và thử lại.');
+      toast.error('Không thể đặt lịch hẹn', {
+        description: 'Vui lòng kiểm tra lại khung giờ và thử lại.',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -138,10 +145,12 @@ export function ConsignBooking({
   return (
     <div className="space-y-6">
       {errorMsg && (
-        <div className="rounded-2xl border border-danger/20 bg-state-danger-soft p-4 text-xs text-state-danger flex items-center gap-2">
-          <AlertCircle size={16} />
-          <span>{errorMsg}</span>
-        </div>
+        <AlertBanner
+          variant="error"
+          title="Không thể hoàn tất đặt lịch"
+          description={errorMsg}
+          onClose={() => setErrorMsg(null)}
+        />
       )}
 
       {/* Main 2-Column Grid */}

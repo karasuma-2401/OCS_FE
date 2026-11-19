@@ -3,14 +3,14 @@ import {
   Calendar,
   Clock,
   Package,
-  AlertCircle,
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
 import { appointmentApi } from '@/api/appointmentApi';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import type { Appointment, AppointmentStatus } from '@/types';
-import { Badge, Button, Modal, SkeletonLoading, EmptyState } from '@/components/shared';
+import { AlertBanner, Badge, Button, Modal, SkeletonLoading, EmptyState } from '@/components/shared';
 
 interface MyBookingsProps {
   onNewBookingClick?: () => void;
@@ -18,6 +18,7 @@ interface MyBookingsProps {
 
 export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
   const { hasPermission } = useAuth();
+  const toast = useToast();
   const canCancel = hasPermission('appointments.own.cancel');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -89,6 +90,9 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
 
       setCancellingAppointment(null);
       setCancelReason('');
+      toast.info('Đã hủy lịch hẹn ký gửi', {
+        description: `Mã lịch hẹn ${cancellingAppointment.trackingNumber} đã được hủy.`,
+      });
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('ocs:notification:refresh'));
       }
@@ -97,6 +101,7 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
         err.response?.data?.message ||
         'Không thể hủy lịch hẹn này. Có thể đã quá giờ quy định.';
       setCancelError(message);
+      toast.error('Không thể hủy lịch hẹn', { description: message });
     } finally {
       setCancelling(false);
     }
@@ -143,15 +148,15 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
       </div>
 
       {errorMsg && (
-        <div className="rounded-2xl border border-state-danger/30 bg-state-danger-soft p-4 text-xs text-state-danger flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={16} />
-            <span>{errorMsg}</span>
-          </div>
-          <button onClick={() => void fetchHistory(true)} className="font-bold underline hover:no-underline">
-            Thử lại
-          </button>
-        </div>
+        <AlertBanner
+          variant="error"
+          title="Không thể tải danh sách lịch hẹn"
+          description={errorMsg}
+          action={{
+            label: 'Thử lại',
+            onClick: () => void fetchHistory(true),
+          }}
+        />
       )}
 
       {appointments.length === 0 ? (

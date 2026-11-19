@@ -1,4 +1,10 @@
 // Compatibility exports for existing direct imports.
+export { AlertBanner } from "./AlertBanner";
+export type {
+  AlertBannerAction,
+  AlertBannerProps,
+  AlertBannerVariant,
+} from "./AlertBanner";
 export { Badge } from "./Badge";
 export type { BadgeProps, BadgeVariant } from "./Badge";
 export { Card } from "./Card";
@@ -9,6 +15,7 @@ export { ErrorState } from "./ErrorState";
 export type { ErrorStateProps } from "./ErrorState";
 export { Form } from "./Form";
 export type { FormProps } from "./Form";
+export { InlineError } from "./InlineError";
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
 export { Loading } from "./Loading";
@@ -22,4 +29,4 @@ export type { SelectProps } from "./Select";
 export { Table } from "./Table";
 export type { TableColumn, TableProps } from "./Table";
 export { Toast } from "./Toast";
-export type { ToastProps, ToastVariant } from "./Toast";
+export type { ToastAction, ToastProps, ToastVariant } from "./Toast";
