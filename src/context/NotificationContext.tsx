@@ -54,6 +54,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const notificationsRef = React.useRef<Notification[]>(notifications);
+  notificationsRef.current = notifications;
 
   const fetchNotifications = useCallback(
     async (limit = 50) => {
@@ -172,19 +174,18 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const markAsRead = useCallback(
     async (id: string) => {
+      const wasUnread = notificationsRef.current.some(
+        (n) => n.id === id && !n.isRead,
+      );
       try {
         await notificationApi.markAsRead(id);
         setNotifications((prev) =>
-          prev.map((n) => {
-            if (n.id === id && !n.isRead) {
-              setUnreadCount((count) => Math.max(0, count - 1));
-              return { ...n, isRead: true };
-            }
-            return n;
-          }),
+          prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
         );
+        if (wasUnread) {
+          setUnreadCount((count) => Math.max(0, count - 1));
+        }
       } catch {
-        setError('Không thể cập nhật trạng thái thông báo.');
         toast.error('Không thể cập nhật thông báo. Vui lòng thử lại.');
       }
     },
@@ -198,7 +199,6 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       setUnreadCount(0);
       toast.success('Đã đánh dấu đọc tất cả thông báo.');
     } catch {
-      setError('Không thể cập nhật thông báo. Vui lòng thử lại.');
       toast.error('Không thể cập nhật thông báo. Vui lòng thử lại.');
     }
   }, [toast]);

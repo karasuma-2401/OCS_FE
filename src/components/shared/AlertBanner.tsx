@@ -31,6 +31,7 @@ export interface AlertBannerProps
   action?: AlertBannerAction | ReactNode;
   onClose?: () => void;
   compact?: boolean;
+  live?: boolean;
 }
 
 const bannerVariants: Record<
@@ -39,54 +40,55 @@ const bannerVariants: Record<
     containerClass: string;
     iconClass: string;
     titleClass: string;
+    bodyClass: string;
     actionClass: string;
     icon: ReactNode;
   }
 > = {
   success: {
-    containerClass:
-      "border-state-success-border bg-state-success-soft text-state-success-strong",
-    iconClass: "text-state-success-icon",
-    titleClass: "text-state-success-deep",
+    containerClass: "border-[#D4E9D8] bg-[#F7FCF8]",
+    iconClass: "text-state-success",
+    titleClass: "text-[#14472B]",
+    bodyClass: "text-[#29523B]",
     actionClass:
-      "border-state-success-border bg-white/80 text-state-success-strong hover:bg-state-success-muted",
-    icon: <CheckCircle2 size={18} aria-hidden="true" />,
+      "border-[#BBDDC2] bg-white text-[#14472B] hover:bg-[#EDF7EF]",
+    icon: <CheckCircle2 size={17} strokeWidth={2} aria-hidden="true" />,
   },
   info: {
-    containerClass:
-      "border-state-info-border bg-state-info-soft text-state-info",
-    iconClass: "text-state-info-icon",
-    titleClass: "text-state-info-strong",
+    containerClass: "border-[#D2E0F9] bg-[#F6F9FE]",
+    iconClass: "text-state-info",
+    titleClass: "text-[#1A356B]",
+    bodyClass: "text-[#324B75]",
     actionClass:
-      "border-state-info-border bg-white/80 text-state-info-strong hover:bg-state-info-muted",
-    icon: <Info size={18} aria-hidden="true" />,
+      "border-[#BDD2F6] bg-white text-[#1A356B] hover:bg-[#EBF2FD]",
+    icon: <Info size={17} strokeWidth={2} aria-hidden="true" />,
   },
   warning: {
-    containerClass:
-      "border-state-warning-border bg-state-warning-soft text-state-warning-strong",
-    iconClass: "text-state-warning-icon",
-    titleClass: "text-state-warning-strong",
+    containerClass: "border-[#F1DDB3] bg-[#FEFBF3]",
+    iconClass: "text-state-warning",
+    titleClass: "text-[#78350F]",
+    bodyClass: "text-[#6D471F]",
     actionClass:
-      "border-state-warning-border bg-white/80 text-state-warning-strong hover:bg-state-warning-muted",
-    icon: <TriangleAlert size={18} aria-hidden="true" />,
+      "border-[#E5C789] bg-white text-[#78350F] hover:bg-[#FBF3DE]",
+    icon: <TriangleAlert size={17} strokeWidth={2} aria-hidden="true" />,
   },
   error: {
-    containerClass:
-      "border-state-danger-border bg-state-danger-soft text-state-danger",
-    iconClass: "text-state-danger-icon",
-    titleClass: "text-state-danger",
+    containerClass: "border-[#F4D0D0] bg-[#FEF7F7]",
+    iconClass: "text-state-danger",
+    titleClass: "text-[#8F1D1D]",
+    bodyClass: "text-[#7A2E2E]",
     actionClass:
-      "border-state-danger-border bg-white/80 text-state-danger hover:bg-state-danger-border/40",
-    icon: <AlertCircle size={18} aria-hidden="true" />,
+      "border-[#EABABA] bg-white text-[#8F1D1D] hover:bg-[#FCECEC]",
+    icon: <AlertCircle size={17} strokeWidth={2} aria-hidden="true" />,
   },
   brand: {
-    containerClass:
-      "border-brand-pink/40 bg-brand-pink-surface text-brand-ink",
+    containerClass: "border-[#EDD4DF] bg-[#FDF8FA]",
     iconClass: "text-brand-highlight",
-    titleClass: "text-brand-highlight",
+    titleClass: "text-brand-ink",
+    bodyClass: "text-text-secondary",
     actionClass:
-      "border-brand-pink/50 bg-white/90 text-brand-highlight hover:bg-brand-pink-light",
-    icon: <Sparkles size={18} aria-hidden="true" />,
+      "border-[#DFBCCB] bg-white text-brand-highlight hover:bg-brand-pink-surface",
+    icon: <Sparkles size={17} strokeWidth={2} aria-hidden="true" />,
   },
 };
 
@@ -110,6 +112,7 @@ export function AlertBanner({
   action,
   onClose,
   compact = false,
+  live = true,
   children,
   className,
   ...props
@@ -121,11 +124,11 @@ export function AlertBanner({
   return (
     <div
       {...props}
-      role={isError ? "alert" : "status"}
-      aria-live={isError ? "assertive" : "polite"}
+      role={live ? (isError ? "alert" : "status") : undefined}
+      aria-live={live ? (isError ? "assertive" : "polite") : undefined}
       className={joinClasses(
-        "flex w-full items-start gap-3 rounded-xl border transition-all",
-        compact ? "px-3.5 py-2.5 text-xs" : "p-4 text-sm",
+        "flex w-full items-start gap-3 rounded-xl border transition-colors",
+        compact ? "px-3.5 py-2.5 text-xs" : "px-4 py-3.5 text-sm",
         selected.containerClass,
         className,
       )}
@@ -134,12 +137,12 @@ export function AlertBanner({
         {icon ?? selected.icon}
       </span>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 break-words">
         {title && (
           <p
             className={joinClasses(
-              "font-bold leading-snug",
-              compact ? "text-xs" : "text-sm",
+              "font-semibold leading-snug tracking-[-0.01em]",
+              compact ? "text-xs" : "text-[13.5px]",
               selected.titleClass,
             )}
           >
@@ -151,7 +154,8 @@ export function AlertBanner({
             className={joinClasses(
               "leading-relaxed",
               title ? "mt-0.5" : "",
-              compact ? "text-xs" : "text-sm",
+              compact ? "text-xs" : "text-[13px]",
+              selected.bodyClass,
             )}
           >
             {bodyContent}
@@ -164,7 +168,7 @@ export function AlertBanner({
                 type="button"
                 onClick={action.onClick}
                 className={joinClasses(
-                  "inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold transition",
+                  "inline-flex min-h-8 items-center rounded-lg border px-3 py-1 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current",
                   selected.actionClass,
                 )}
               >
@@ -182,9 +186,9 @@ export function AlertBanner({
           type="button"
           onClick={onClose}
           aria-label="Đóng thông báo"
-          className="shrink-0 rounded-md p-1 opacity-70 transition hover:bg-black/5 hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+          className="-mr-1 -mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-black/[0.04] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
         >
-          <X size={15} aria-hidden="true" />
+          <X size={15} strokeWidth={1.9} aria-hidden="true" />
         </button>
       )}
     </div>

@@ -6,6 +6,7 @@ import {
   Check,
   Clock,
   Info,
+  Lock,
   Smartphone,
 } from 'lucide-react';
 import { notificationApi } from '@/api/notificationApi';
@@ -17,8 +18,10 @@ import { useFcm } from '@/hooks/useFcm';
 import { useAuth } from '@/context/AuthContext';
 import { useNotificationCenter } from '@/context/NotificationContext';
 import {
+  extractNotificationHighlights,
   formatNotificationRelativeTime,
   getNotificationCategoryMeta,
+  groupNotificationsByTime,
   resolveNotificationTargetLink,
 } from './notificationMeta';
 
@@ -37,9 +40,12 @@ export function NotificationBell({
   const { user, isStaffOrAdmin } = useAuth();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const [isOpen, setIsOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'unread'>('all');
+  const [isBellRinging, setIsBellRinging] = useState(false);
+  const prevUnreadRef = useRef<number>(0);
 
   // Local fallback state when rendered outside NotificationProvider
   const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
@@ -70,7 +76,7 @@ export function NotificationBell({
   });
 
   useEffect(() => {
-    if (center) return;
+    if (center || !user?.id) return;
     void fetchLocalNotifications();
     const interval = setInterval(fetchLocalNotifications, 8000);
     const handleFocus = () => void fetchLocalNotifications();
@@ -83,7 +89,7 @@ export function NotificationBell({
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('ocs:notification:refresh', handleCustomRefresh);
     };
-  }, [center]);
+  }, [center, user?.id]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -92,8 +98,9 @@ export function NotificationBell({
       }
     }
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && isOpen) {
         setIsOpen(false);
+        triggerRef.current?.focus();
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -102,7 +109,7 @@ export function NotificationBell({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [isOpen]);
 
   const notifications = center ? center.notifications : localNotifications;
   const unreadCount = center ? center.unreadCount : localUnreadCount;
@@ -110,10 +117,21 @@ export function NotificationBell({
   const error = center ? center.error : localError;
   const fcm = center ? center.fcm : fallbackFcm;
 
+  // Gentle bell swing micro-interaction whenever unread count increases
+  useEffect(() => {
+    if (unreadCount > prevUnreadRef.current) {
+      setIsBellRinging(true);
+      const timer = window.setTimeout(() => setIsBellRinging(false), 700);
+      prevUnreadRef.current = unreadCount;
+      return () => window.clearTimeout(timer);
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount]);
+
   const refreshNotifications = () => {
     if (center) {
       void center.fetchNotifications();
-    } else {
+    } else if (user?.id) {
       void fetchLocalNotifications();
     }
   };
@@ -148,19 +166,22 @@ export function NotificationBell({
     }
   };
 
-  const filteredNotifications = useMemo(() => {
+  const groupedNotifications = useMemo(() => {
     const list =
       activeFilter === 'unread'
         ? notifications.filter((n) => !n.isRead)
         : notifications;
-    return list.slice(0, 15);
+    return groupNotificationsByTime(list.slice(0, 15));
   }, [notifications, activeFilter]);
 
   const inboxRoute = isStaffOrAdmin ? '/shop/notifications' : '/notifications';
+  const triggerAriaLabel =
+    unreadCount > 0 ? `Thông báo (${unreadCount} chưa đọc)` : 'Thông báo';
 
   return (
     <div className={`relative ${showLabel ? 'w-full' : 'inline-block'}`} ref={dropdownRef}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => {
           const nextOpen = !isOpen;
@@ -169,17 +190,24 @@ export function NotificationBell({
         }}
         className={
           showLabel
-            ? `relative flex min-h-10 w-full shrink-0 cursor-pointer items-center justify-start gap-3 rounded-control px-3 text-left text-sm leading-5 font-medium text-text-secondary no-underline transition-colors duration-200 hover:bg-brand-pink-surface hover:text-brand-highlight ${
-                isOpen ? 'bg-brand-pink-light !font-semibold !text-brand-highlight' : ''
+            ? `relative flex min-h-10 w-full shrink-0 cursor-pointer items-center justify-start gap-3 rounded-control px-3 text-left text-sm leading-5 no-underline transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight ${
+                isOpen
+                  ? 'bg-brand-pink-light font-semibold text-brand-highlight'
+                  : 'font-medium text-text-secondary hover:bg-brand-pink-surface hover:text-brand-highlight'
               } ${collapsed ? 'lg:justify-center lg:px-0' : ''}`
-            : 'relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-paper text-ink transition hover:border-accent hover:bg-surface-subtle'
+            : 'relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-paper text-ink transition hover:border-accent hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight'
         }
         title="Thông báo"
-        aria-label="Thông báo"
+        aria-label={triggerAriaLabel}
+        aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
         <div className="relative flex items-center justify-center shrink-0">
-          <Bell size={19} aria-hidden="true" />
+          <Bell
+            size={19}
+            aria-hidden="true"
+            className={isBellRinging ? 'origin-top animate-bell-swing motion-reduce:animate-none' : ''}
+          />
           {unreadCount > 0 && showLabel && collapsed && (
             <span className="absolute -top-2 -right-3 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-state-danger px-1 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
               {unreadCount > 99 ? '99+' : unreadCount}
@@ -207,26 +235,32 @@ export function NotificationBell({
 
       {isOpen && (
         <div
-          className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} ${
-            placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
-          } w-[min(22rem,calc(100vw-1.5rem))] sm:w-[25rem] rounded-2xl border border-border bg-paper shadow-2xl z-[140] overflow-hidden`}
+          role="dialog"
+          aria-label="Trung tâm thông báo"
+          className={`fixed inset-x-3 top-16 flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden rounded-2xl border border-border bg-paper shadow-2xl z-[140] sm:absolute sm:inset-x-auto sm:w-[25.5rem] sm:max-h-[calc(100dvh-6rem)] ${
+            align === 'left' ? 'sm:left-0' : 'sm:right-0'
+          } ${
+            placement === 'above'
+              ? 'sm:top-auto sm:bottom-full sm:mb-2'
+              : 'sm:top-full sm:mt-2'
+          }`}
         >
           {/* Header */}
-          <div className="border-b border-border bg-white px-4 pt-3.5 pb-3">
+          <div className="shrink-0 border-b border-border bg-white px-4 pt-3.5 pb-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-ink">Trung tâm thông báo</h3>
                 {unreadCount > 0 && (
-                  <Badge variant="danger">{unreadCount} mới</Badge>
+                  <Badge variant="brand">{unreadCount} mới</Badge>
                 )}
               </div>
               {unreadCount > 0 && (
                 <button
                   type="button"
                   onClick={handleMarkAllAsRead}
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-brand-highlight transition hover:bg-brand-pink-surface"
+                  className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-brand-highlight transition hover:bg-brand-pink-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight"
                 >
-                  <Check size={13} /> Đọc tất cả
+                  <Check size={13} aria-hidden="true" /> Đọc tất cả
                 </button>
               )}
             </div>
@@ -235,8 +269,9 @@ export function NotificationBell({
             <div className="mt-2.5 flex items-center gap-1.5">
               <button
                 type="button"
+                aria-pressed={activeFilter === 'all'}
                 onClick={() => setActiveFilter('all')}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                className={`min-h-8 rounded-lg px-3 py-1 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight ${
                   activeFilter === 'all'
                     ? 'bg-ink text-paper'
                     : 'bg-surface text-text-secondary hover:bg-surface-subtle'
@@ -246,8 +281,9 @@ export function NotificationBell({
               </button>
               <button
                 type="button"
+                aria-pressed={activeFilter === 'unread'}
                 onClick={() => setActiveFilter('unread')}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                className={`min-h-8 rounded-lg px-3 py-1 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight ${
                   activeFilter === 'unread'
                     ? 'bg-brand-highlight text-white'
                     : 'bg-surface text-text-secondary hover:bg-surface-subtle'
@@ -258,34 +294,37 @@ export function NotificationBell({
             </div>
           </div>
 
-          {/* FCM Push Status Strip */}
-          <div className="border-b border-border/70 bg-surface-dashboard/80 px-4 py-2 text-xs">
+          {/* Push Status Strip */}
+          <div className="shrink-0 border-b border-border/70 bg-surface-dashboard/80 px-4 py-2 text-xs">
             {!fcm.isFirebaseClientConfigured || (fcm.status && !fcm.isServerConfigured) ? (
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-state-warning-strong">
-                  <Smartphone size={14} className="text-state-warning-icon shrink-0" />
-                  <span className="text-[11px] font-medium">
-                    FCM chưa cấu hình ({!fcm.isFirebaseClientConfigured ? 'thiếu .env web' : 'máy chủ chưa cấu hình'})
-                  </span>
-                </div>
+              <div className="flex items-center gap-1.5 text-state-warning-strong">
+                <Smartphone size={14} className="text-state-warning shrink-0" aria-hidden="true" />
+                <span className="text-xs font-medium">
+                  Thông báo đẩy trên thiết bị tạm thời chưa khả dụng
+                </span>
               </div>
             ) : fcm.isPushActive ? (
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-state-success-strong">
-                  <Smartphone size={14} className="text-state-success-icon shrink-0" />
-                  <span className="text-[11px] font-semibold">
-                    Đã bật thông báo đẩy
-                    {fcm.status?.registeredDeviceCount
-                      ? ` (${fcm.status.registeredDeviceCount} thiết bị)`
-                      : ''}
-                  </span>
-                </div>
+              <div className="flex items-center gap-1.5 text-state-success-strong">
+                <Smartphone size={14} className="text-state-success shrink-0" aria-hidden="true" />
+                <span className="text-xs font-semibold">
+                  Đã bật thông báo đẩy
+                  {fcm.status?.registeredDeviceCount
+                    ? ` (${fcm.status.registeredDeviceCount} thiết bị)`
+                    : ''}
+                </span>
+              </div>
+            ) : fcm.permission === 'denied' ? (
+              <div className="flex items-start gap-2 text-state-warning-strong">
+                <Lock size={14} className="mt-0.5 shrink-0 text-state-warning" aria-hidden="true" />
+                <span className="text-xs leading-relaxed">
+                  Trình duyệt đang chặn thông báo. Bấm biểu tượng ổ khóa trên thanh địa chỉ → Thông báo → <strong>Cho phép</strong> để mở lại.
+                </span>
               </div>
             ) : fcm.permission !== 'granted' ? (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 text-text-secondary">
-                  <Smartphone size={14} className="text-brand-highlight shrink-0" />
-                  <span className="text-[11px] font-semibold">Nhận thông báo đẩy (FCM)</span>
+                  <Smartphone size={14} className="text-brand-highlight shrink-0" aria-hidden="true" />
+                  <span className="text-xs font-semibold">Nhận thông báo đẩy</span>
                 </div>
                 <button
                   type="button"
@@ -293,8 +332,7 @@ export function NotificationBell({
                     await fcm.requestPermissionAndRegister();
                   }}
                   disabled={fcm.loading}
-                  className="rounded-lg bg-brand-pink hover:bg-brand-pink-hover !text-white px-2.5 py-1 text-[11px] font-bold shadow-2xs transition active:scale-95 disabled:opacity-50"
-                  style={{ color: '#FFFFFF' }}
+                  className="min-h-8 rounded-lg bg-brand-highlight hover:bg-brand-ink text-white px-3 py-1 text-xs font-bold shadow-2xs transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight disabled:opacity-50"
                 >
                   {fcm.loading ? 'Đang bật...' : 'Bật ngay'}
                 </button>
@@ -302,8 +340,8 @@ export function NotificationBell({
             ) : (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 text-state-warning-strong">
-                  <Smartphone size={14} className="text-state-warning-icon shrink-0" />
-                  <span className="text-[11px] font-medium">Chưa kết nối thiết bị FCM</span>
+                  <Smartphone size={14} className="text-state-warning shrink-0" aria-hidden="true" />
+                  <span className="text-xs font-medium">Chưa kết nối thiết bị nhận tin</span>
                 </div>
                 <button
                   type="button"
@@ -311,110 +349,149 @@ export function NotificationBell({
                     await fcm.requestPermissionAndRegister();
                   }}
                   disabled={fcm.loading}
-                  className="rounded-lg border border-border bg-white px-2 py-0.5 text-[11px] font-semibold text-text-primary hover:bg-surface-subtle"
+                  className="min-h-8 rounded-lg border border-border bg-white px-2.5 py-1 text-xs font-semibold text-text-primary hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight"
                 >
                   {fcm.loading ? 'Đang kết nối...' : 'Thử lại'}
                 </button>
               </div>
             )}
             {fcm.error && (
-              <p className="mt-1 text-[11px] text-state-danger">{fcm.error}</p>
+              <p className="mt-1 text-xs text-state-danger">{fcm.error}</p>
             )}
           </div>
 
           {/* Error banner */}
           {error && (
-            <div className="px-3 pt-2.5">
-              <AlertBanner variant="error" compact description={error} />
+            <div className="shrink-0 px-3 pt-2.5">
+              <AlertBanner
+                variant="error"
+                compact
+                description={error}
+                action={{
+                  label: 'Thử lại',
+                  onClick: refreshNotifications,
+                }}
+              />
             </div>
           )}
 
-          {/* Notification list */}
-          <div className="max-h-80 overflow-y-auto divide-y divide-border/50 px-2.5 py-2">
+          {/* Editorial Timeline Grouped List */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
             {loading && notifications.length === 0 ? (
               <div className="p-2">
                 <SkeletonLoading variant="list" count={3} label="Đang tải thông báo..." />
               </div>
-            ) : filteredNotifications.length === 0 && !error ? (
+            ) : groupedNotifications.length === 0 && !error ? (
               <div className="py-10 text-center text-xs text-muted">
-                <Info size={28} className="mx-auto mb-2 text-muted/60" />
+                <Info size={28} className="mx-auto mb-2 text-muted" aria-hidden="true" />
                 {activeFilter === 'unread'
                   ? 'Bạn đã đọc hết tất cả thông báo.'
                   : 'Chưa có thông báo nào.'}
               </div>
             ) : (
-              filteredNotifications.map((n) => {
-                const meta = getNotificationCategoryMeta(n);
-                const targetLink = resolveNotificationTargetLink(n, isStaffOrAdmin);
-
-                return (
-                  <div
-                    key={n.id}
-                    onClick={() => {
-                      if (!n.isRead) void handleMarkAsRead(n.id);
-                      setIsOpen(false);
-                      navigate(targetLink);
-                    }}
-                    className={`group relative flex items-start gap-3 rounded-xl p-2.5 cursor-pointer transition ${
-                      n.isRead
-                        ? 'opacity-80 hover:opacity-100 hover:bg-surface/60'
-                        : 'bg-brand-pink-surface/75 hover:bg-brand-pink-light/60'
-                    }`}
-                  >
-                    <div
-                      className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${meta.iconBgClass}`}
-                    >
-                      {meta.renderIcon(16)}
+              <div className="space-y-3">
+                {groupedNotifications.map((group) => (
+                  <div key={group.key}>
+                    <div className="mb-1 flex items-center gap-2 px-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                        {group.label}
+                      </span>
+                      <span className="h-px flex-1 bg-border/60" aria-hidden="true" />
                     </div>
+                    <div className="space-y-1">
+                      {group.items.map((n) => {
+                        const meta = getNotificationCategoryMeta(n);
+                        const targetLink = resolveNotificationTargetLink(n, isStaffOrAdmin);
+                        const highlights = extractNotificationHighlights(`${n.title} ${n.content}`);
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider ${meta.iconTextClass}`}>
-                            {meta.label}
-                          </span>
-                          {!n.isRead && (
-                            <span
-                              className="h-2 w-2 rounded-full bg-state-danger"
-                              title="Chưa đọc"
-                            />
-                          )}
-                        </span>
-                        <span className="shrink-0 flex items-center gap-1 text-[10px] text-muted">
-                          <Clock size={10} />
-                          {formatNotificationRelativeTime(n.sentAt)}
-                        </span>
-                      </div>
+                        return (
+                          <button
+                            key={n.id}
+                            type="button"
+                            onClick={() => {
+                              if (!n.isRead) void handleMarkAsRead(n.id);
+                              setIsOpen(false);
+                              navigate(targetLink);
+                            }}
+                            className={`group relative flex w-full items-start gap-3 rounded-xl p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight ${
+                              n.isRead
+                                ? 'hover:bg-surface/70'
+                                : 'bg-brand-pink-surface/75 hover:bg-brand-pink-light/60'
+                            }`}
+                          >
+                            <div
+                              className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${meta.iconBgClass}`}
+                            >
+                              {meta.renderIcon(16)}
+                            </div>
 
-                      <p
-                        className={`mt-0.5 text-xs leading-snug ${
-                          n.isRead
-                            ? 'font-semibold text-ink'
-                            : 'font-bold text-brand-ink'
-                        }`}
-                      >
-                        {n.title}
-                      </p>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span className={`text-xs font-bold ${meta.iconTextClass}`}>
+                                    {meta.label}
+                                  </span>
+                                  {!n.isRead && (
+                                    <span
+                                      className="inline-flex h-2 w-2 rounded-full bg-brand-highlight"
+                                      title="Chưa đọc"
+                                    >
+                                      <span className="sr-only">Chưa đọc</span>
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="shrink-0 flex items-center gap-1 text-xs text-muted">
+                                  <Clock size={11} aria-hidden="true" />
+                                  {formatNotificationRelativeTime(n.sentAt)}
+                                </span>
+                              </div>
 
-                      <p className="mt-1 line-clamp-2 text-xs text-text-secondary leading-relaxed">
-                        {n.content}
-                      </p>
+                              <p
+                                className={`mt-0.5 line-clamp-2 break-words text-xs leading-snug ${
+                                  n.isRead
+                                    ? 'font-semibold text-ink'
+                                    : 'font-bold text-brand-ink'
+                                }`}
+                              >
+                                {n.title}
+                              </p>
+
+                              <p className="mt-1 line-clamp-2 break-words text-xs text-text-secondary leading-relaxed">
+                                {n.content}
+                              </p>
+
+                              {highlights.length > 0 && (
+                                <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                  {highlights.map((chip) => (
+                                    <span
+                                      key={chip}
+                                      className="inline-flex items-center rounded-md border border-border/80 bg-white/90 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-ink"
+                                    >
+                                      {chip}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                );
-              })
+                ))}
+              </div>
             )}
           </div>
 
           {/* Footer: View all notifications */}
-          <div className="border-t border-border bg-white px-4 py-2.5">
+          <div className="shrink-0 border-t border-border bg-white px-4 py-2.5">
             <button
               type="button"
               onClick={() => {
                 setIsOpen(false);
                 navigate(inboxRoute);
               }}
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-surface/80 hover:bg-brand-pink-surface py-2 text-xs font-bold text-ink hover:text-brand-highlight transition"
+              className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-surface/80 hover:bg-brand-pink-surface py-2 text-xs font-bold text-ink hover:text-brand-highlight transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight"
             >
               <span>Xem tất cả thông báo</span>
               <ArrowRight size={13} aria-hidden="true" />

@@ -18,7 +18,6 @@ export interface NotificationCategoryMeta {
   toastVariant: ToastVariant;
   iconBgClass: string;
   iconTextClass: string;
-  borderAccentClass: string;
   renderIcon: (size?: number) => ReactNode;
 }
 
@@ -31,9 +30,8 @@ export const NOTIFICATION_CATEGORIES: Record<
     label: 'Lịch hẹn',
     badgeVariant: 'info',
     toastVariant: 'info',
-    iconBgClass: 'bg-state-info-muted text-state-info-icon',
-    iconTextClass: 'text-state-info-icon',
-    borderAccentClass: 'border-l-state-info-icon',
+    iconBgClass: 'bg-state-info-muted text-state-info',
+    iconTextClass: 'text-state-info',
     renderIcon: (size = 16) => <CalendarClock size={size} aria-hidden="true" />,
   },
   Consignment: {
@@ -41,9 +39,8 @@ export const NOTIFICATION_CATEGORIES: Record<
     label: 'Ký gửi',
     badgeVariant: 'success',
     toastVariant: 'success',
-    iconBgClass: 'bg-state-success-muted text-state-success-icon',
-    iconTextClass: 'text-state-success-icon',
-    borderAccentClass: 'border-l-state-success-icon',
+    iconBgClass: 'bg-state-success-muted text-state-success',
+    iconTextClass: 'text-state-success',
     renderIcon: (size = 16) => <FileText size={size} aria-hidden="true" />,
   },
   Buyout: {
@@ -51,29 +48,26 @@ export const NOTIFICATION_CATEGORIES: Record<
     label: 'Thu mua',
     badgeVariant: 'warning',
     toastVariant: 'warning',
-    iconBgClass: 'bg-state-warning-muted text-state-warning-icon',
-    iconTextClass: 'text-state-warning-icon',
-    borderAccentClass: 'border-l-state-warning-icon',
+    iconBgClass: 'bg-state-warning-muted text-state-warning',
+    iconTextClass: 'text-state-warning',
     renderIcon: (size = 16) => <ShoppingBag size={size} aria-hidden="true" />,
   },
   Payment: {
     key: 'Payment',
     label: 'Thanh toán',
-    badgeVariant: 'success',
+    badgeVariant: 'payment',
     toastVariant: 'success',
-    iconBgClass: 'bg-emerald-100 text-emerald-700',
-    iconTextClass: 'text-emerald-700',
-    borderAccentClass: 'border-l-emerald-600',
+    iconBgClass: 'bg-state-payment-muted text-state-payment',
+    iconTextClass: 'text-state-payment',
     renderIcon: (size = 16) => <CreditCard size={size} aria-hidden="true" />,
   },
   Promotion: {
     key: 'Promotion',
     label: 'Ưu đãi',
-    badgeVariant: 'info',
+    badgeVariant: 'brand',
     toastVariant: 'brand',
     iconBgClass: 'bg-brand-pink-light text-brand-highlight',
     iconTextClass: 'text-brand-highlight',
-    borderAccentClass: 'border-l-brand-pink',
     renderIcon: (size = 16) => <Sparkles size={size} aria-hidden="true" />,
   },
   System: {
@@ -82,8 +76,7 @@ export const NOTIFICATION_CATEGORIES: Record<
     badgeVariant: 'neutral',
     toastVariant: 'info',
     iconBgClass: 'bg-state-neutral-soft text-state-neutral',
-    iconTextClass: 'text-state-neutral-icon',
-    borderAccentClass: 'border-l-border-dark',
+    iconTextClass: 'text-state-neutral',
     renderIcon: (size = 16) => <ShieldCheck size={size} aria-hidden="true" />,
   },
 };
@@ -231,3 +224,73 @@ export function formatNotificationRelativeTime(isoDate: string): string {
   });
   return `${dateStr}, ${timeStr}`;
 }
+
+export interface NotificationTimeGroup<T extends Pick<Notification, 'sentAt'> = Notification> {
+  key: 'today' | 'yesterday' | 'this_week' | 'earlier';
+  label: string;
+  items: T[];
+}
+
+export function groupNotificationsByTime<T extends Pick<Notification, 'sentAt'>>(
+  items: T[],
+): NotificationTimeGroup<T>[] {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
+  const startOfWeek = startOfToday - 6 * 24 * 60 * 60 * 1000;
+
+  const buckets: Record<NotificationTimeGroup<T>['key'], T[]> = {
+    today: [],
+    yesterday: [],
+    this_week: [],
+    earlier: [],
+  };
+
+  for (const item of items) {
+    const time = new Date(item.sentAt).getTime();
+    if (Number.isNaN(time) || time >= startOfToday) {
+      buckets.today.push(item);
+    } else if (time >= startOfYesterday) {
+      buckets.yesterday.push(item);
+    } else if (time >= startOfWeek) {
+      buckets.this_week.push(item);
+    } else {
+      buckets.earlier.push(item);
+    }
+  }
+
+  const ordered: Array<{ key: NotificationTimeGroup<T>['key']; label: string }> = [
+    { key: 'today', label: 'Hôm nay' },
+    { key: 'yesterday', label: 'Hôm qua' },
+    { key: 'this_week', label: 'Tuần này' },
+    { key: 'earlier', label: 'Trước đó' },
+  ];
+
+  return ordered
+    .filter(({ key }) => buckets[key].length > 0)
+    .map(({ key, label }) => ({ key, label, items: buckets[key] }));
+}
+
+export function extractNotificationHighlights(text: string): string[] {
+  if (!text) return [];
+  const matches = new Set<string>();
+
+  // Extract contract / appointment / buyout reference codes (e.g. #CN-2026-089, APT-20260101-001)
+  const codeRegex = /#?[A-Z]{2,5}-\d{2,8}(?:-[A-Z0-9]{1,6})?/g;
+  for (const m of text.matchAll(codeRegex)) {
+    matches.add(m[0].startsWith('#') ? m[0] : `#${m[0]}`);
+    if (matches.size >= 3) break;
+  }
+
+  // Extract VND amounts (e.g. 1.250.000đ, 850,000 VND)
+  if (matches.size < 3) {
+    const moneyRegex = /\d{1,3}(?:[.,]\d{3})+(?:\s?(?:đ|₫|VND))(?![\p{L}\p{N}])/giu;
+    for (const m of text.matchAll(moneyRegex)) {
+      matches.add(m[0].trim());
+      if (matches.size >= 3) break;
+    }
+  }
+
+  return Array.from(matches);
+}
+

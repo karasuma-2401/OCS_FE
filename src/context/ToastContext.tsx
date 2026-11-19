@@ -8,6 +8,7 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { Toast, type ToastAction, type ToastVariant } from "@/components/shared/Toast";
 
 export interface ToastOptions {
@@ -16,6 +17,7 @@ export interface ToastOptions {
   title?: ReactNode;
   description?: ReactNode;
   message?: ReactNode;
+  tag?: ReactNode;
   action?: ToastAction;
   duration?: number;
   loading?: boolean;
@@ -26,6 +28,7 @@ export interface ActiveToastItem {
   variant: ToastVariant;
   title?: ReactNode;
   message: ReactNode;
+  tag?: ReactNode;
   action?: ToastAction;
   duration: number;
   loading?: boolean;
@@ -63,7 +66,8 @@ export function dispatchGlobalToast(options: ToastOptions): void {
 
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ActiveToastItem[]>([]);
-  const [pausedIds, setPausedIds] = useState<Record<string, boolean>>({});
+  const [isDeckExpanded, setIsDeckExpanded] = useState(false);
+  const [isDeckPaused, setIsDeckPaused] = useState(false);
   const timersRef = useRef<Map<string, { timerId: number; remaining: number; startedAt: number }>>(
     new Map(),
   );
@@ -79,11 +83,11 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const dismiss = useCallback(
     (id: string) => {
       clearTimer(id);
-      setToasts((prev) => prev.filter((item) => item.id !== id));
-      setPausedIds((prev) => {
-        if (!(id in prev)) return prev;
-        const next = { ...prev };
-        delete next[id];
+      setToasts((prev) => {
+        const next = prev.filter((item) => item.id !== id);
+        if (next.length <= 1) {
+          setIsDeckExpanded(false);
+        }
         return next;
       });
     },
@@ -103,30 +107,25 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     [clearTimer, dismiss],
   );
 
-  const pauseToast = useCallback((id: string) => {
-    const entry = timersRef.current.get(id);
-    if (!entry) return;
-    window.clearTimeout(entry.timerId);
-    const elapsed = Date.now() - entry.startedAt;
-    const remaining = Math.max(600, entry.remaining - elapsed);
-    timersRef.current.set(id, { ...entry, remaining });
-    setPausedIds((prev) => ({ ...prev, [id]: true }));
+  const pauseAllTimers = useCallback(() => {
+    setIsDeckPaused(true);
+    const now = Date.now();
+    timersRef.current.forEach((entry, id) => {
+      window.clearTimeout(entry.timerId);
+      const elapsed = now - entry.startedAt;
+      const remaining = Math.max(800, entry.remaining - elapsed);
+      timersRef.current.set(id, { ...entry, remaining });
+    });
   }, []);
 
-  const resumeToast = useCallback(
-    (id: string) => {
-      const entry = timersRef.current.get(id);
-      setPausedIds((prev) => {
-        if (!(id in prev)) return prev;
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      if (!entry || entry.remaining <= 0) return;
-      scheduleAutoDismiss(id, entry.remaining);
-    },
-    [scheduleAutoDismiss],
-  );
+  const resumeAllTimers = useCallback(() => {
+    setIsDeckPaused(false);
+    timersRef.current.forEach((entry, id) => {
+      if (entry.remaining > 0) {
+        scheduleAutoDismiss(id, entry.remaining);
+      }
+    });
+  }, [scheduleAutoDismiss]);
 
   const show = useCallback(
     (options: ToastOptions): string => {
@@ -142,9 +141,10 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               : DEFAULT_DURATION_MS;
 
       const hasBothTitleAndDescription =
-        options.title !== undefined && (options.description !== undefined || options.message !== undefined);
+        options.title !== undefined &&
+        (options.description !== undefined || options.message !== undefined);
 
-      const resolvedTitle = hasBothTitleAndDescription ? options.title : options.description ? options.title : undefined;
+      const resolvedTitle = hasBothTitleAndDescription ? options.title : undefined;
       const resolvedMessage =
         options.description ?? options.message ?? options.title ?? "Thông báo hệ thống";
 
@@ -153,6 +153,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         variant,
         title: resolvedTitle,
         message: resolvedMessage,
+        tag: options.tag,
         action: options.action,
         duration,
         loading: options.loading,
@@ -204,7 +205,8 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     timersRef.current.forEach((entry) => window.clearTimeout(entry.timerId));
     timersRef.current.clear();
     setToasts([]);
-    setPausedIds({});
+    setIsDeckExpanded(false);
+    setIsDeckPaused(false);
   }, []);
 
   useEffect(() => {
@@ -242,35 +244,103 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     [toasts, show, createVariantHelper, dismiss, clear],
   );
 
+  const isStacked = toasts.length > 1 && !isDeckExpanded;
+
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
-      {/* Floating Toast Viewport: Top-Center on mobile, Top-Right on desktop */}
-      <div
-        aria-label="Thông báo nhanh"
-        className="pointer-events-none fixed inset-x-3 top-3 z-[200] flex flex-col items-center gap-2.5 sm:inset-x-auto sm:top-4 sm:right-4 sm:w-full sm:max-w-sm sm:items-end print:hidden"
-      >
-        {toasts.map((item) => (
-          <div
-            key={item.id}
-            onMouseEnter={() => pauseToast(item.id)}
-            onMouseLeave={() => resumeToast(item.id)}
-            className="pointer-events-auto w-full animate-toast-enter"
-          >
-            <Toast
-              variant={item.variant}
-              title={item.title}
-              message={item.message}
-              action={item.action}
-              loading={item.loading}
-              showProgress={item.duration > 0}
-              durationMs={item.duration}
-              paused={Boolean(pausedIds[item.id])}
-              onClose={() => dismiss(item.id)}
-            />
+      {/* Stacked Tag Deck Floating Toast Viewport */}
+      {toasts.length > 0 && (
+        <div
+          role="region"
+          aria-label="Thông báo nhanh"
+          onMouseEnter={() => {
+            if (toasts.length > 1) setIsDeckExpanded(true);
+            pauseAllTimers();
+          }}
+          onMouseLeave={() => {
+            setIsDeckExpanded(false);
+            resumeAllTimers();
+          }}
+          onFocus={() => {
+            if (toasts.length > 1) setIsDeckExpanded(true);
+            pauseAllTimers();
+          }}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+              setIsDeckExpanded(false);
+              resumeAllTimers();
+            }
+          }}
+          className="pointer-events-auto fixed inset-x-3 top-3 z-[200] flex flex-col items-center pt-[env(safe-area-inset-top)] sm:inset-x-auto sm:top-18 sm:right-4 sm:w-full sm:max-w-[23.5rem] sm:items-end print:hidden"
+        >
+          {/* Compact Deck Toolbar when 2+ toasts are active */}
+          {toasts.length > 1 && (
+            <div className="mb-2 flex w-full items-center justify-between gap-2 rounded-full border border-black/[0.08] bg-white/95 px-3 py-1 text-xs shadow-xs backdrop-blur-xs">
+              <button
+                type="button"
+                onClick={() => setIsDeckExpanded((prev) => !prev)}
+                className="inline-flex items-center gap-1 font-medium text-ink hover:text-brand-highlight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight"
+              >
+                {isDeckExpanded ? (
+                  <ChevronUp size={14} aria-hidden="true" />
+                ) : (
+                  <ChevronDown size={14} aria-hidden="true" />
+                )}
+                <span>
+                  {toasts.length} thông báo
+                  {!isDeckExpanded ? " · Mở rộng" : ""}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={clear}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-muted transition hover:bg-black/[0.04] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight"
+              >
+                <X size={12} aria-hidden="true" />
+                <span>Đóng hết</span>
+              </button>
+            </div>
+          )}
+
+          {/* Stacked / Expanded Toast Cards */}
+          <div className="flex w-full flex-col">
+            {toasts.map((item, index) => {
+              const stackStyle = isStacked
+                ? index === 0
+                  ? "relative z-40 mt-0 scale-100 opacity-100"
+                  : index === 1
+                    ? "relative z-30 -mt-11 h-13 scale-[0.96] overflow-hidden opacity-100 [&>div]:h-13 [&>div]:bg-white [&>div]:border-black/[0.08] [&>div>*]:invisible"
+                    : index === 2
+                      ? "relative z-20 -mt-11 h-13 scale-[0.92] overflow-hidden opacity-90 [&>div]:h-13 [&>div]:bg-neutral-50 [&>div]:border-black/[0.08] [&>div>*]:invisible"
+                      : "relative z-10 -mt-11 h-13 scale-[0.88] overflow-hidden opacity-75 [&>div]:h-13 [&>div]:bg-neutral-100 [&>div]:border-black/[0.08] [&>div>*]:invisible"
+                : index === 0
+                  ? "relative z-40 mt-0 scale-100 opacity-100"
+                  : "relative z-30 mt-2.5 scale-100 opacity-100";
+
+              return (
+                <div
+                  key={item.id}
+                  className={`w-full origin-top transition-all duration-300 ease-[cubic-bezier(.16,1,.3,1)] animate-toast-enter motion-reduce:animate-none motion-reduce:transition-none ${stackStyle}`}
+                >
+                  <Toast
+                    variant={item.variant}
+                    title={item.title}
+                    message={item.message}
+                    tag={item.tag}
+                    action={item.action}
+                    loading={item.loading}
+                    showProgress={item.duration > 0 && (!isStacked || index === 0)}
+                    durationMs={item.duration}
+                    paused={isDeckPaused}
+                    onClose={() => dismiss(item.id)}
+                  />
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </ToastContext.Provider>
   );
 };
