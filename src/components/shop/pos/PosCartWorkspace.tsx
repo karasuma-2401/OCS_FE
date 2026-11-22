@@ -1,9 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Barcode,
-  Search,
   AlertTriangle,
-  CheckCircle2,
   Banknote,
   QrCode,
   Package,
@@ -14,15 +12,17 @@ import {
   Check,
   WifiOff,
   Printer,
-  Receipt,
   Trash2,
   Camera,
+  ShoppingCart,
+  Eye,
 } from 'lucide-react';
 import {
   Badge,
   Button,
   Card,
   EmptyState,
+  Modal,
   SkeletonLoading,
 } from '@/components/shared';
 import {
@@ -40,9 +40,10 @@ import { formatVndCurrency, playPaymentSuccessChime } from './VietQrPaymentModal
 import { PosInvoiceSuccessModal } from './PosInvoiceSuccessModal';
 import { PosCashConfirmModal } from './PosCashConfirmModal';
 import { PosBarcodeScannerModal } from './PosBarcodeScannerModal';
-import { PosThermalReceipt } from './PosThermalReceipt';
+import { PosProductDetailModal } from './PosProductDetailModal';
 import { formatVndInWords } from '@/utils/currencyWords';
 import { parseProblemDetails } from '@/api/auth';
+import { animateFlyToCart } from './flyToCart';
 import './posReceipt.css';
 
 export interface PosCartWorkspaceProps {
@@ -80,7 +81,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
   const [productsError, setProductsError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
   const [catalogSearch, setCatalogSearch] = useState('');
-  const [addingProductId, setAddingProductId] = useState<string | null>(null);
+  const [flyingProductIds, setFlyingProductIds] = useState<Set<string>>(() => new Set());
 
   // Payment state
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'vietqr'>('cash');
@@ -94,11 +95,41 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
   const [completedInvoice, setCompletedInvoice] = useState<PosCashPaymentResponse | null>(null);
   const [isPreviewInvoiceOpen, setIsPreviewInvoiceOpen] = useState(false);
   const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
-  const [isTearing, setIsTearing] = useState(false);
+  const [isClearCartModalOpen, setIsClearCartModalOpen] = useState(false);
+
+  // Product detail card modal on double-click
+  const [detailModalProduct, setDetailModalProduct] = useState<PublicProduct | PosProductLookupDto | null>(null);
+  const [isProductDetailOpen, setIsProductDetailOpen] = useState(false);
+  const clickTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Input ref for quick autofocus & receipt roll ref
   const inputRef = useRef<HTMLInputElement>(null);
   const rollContainerRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const [workspaceHeight, setWorkspaceHeight] = useState<number | null>(null);
+
+  // Dynamic viewport fit calculation for every computer screen
+  useEffect(() => {
+    const calculateHeight = () => {
+      if (!workspaceRef.current) return;
+      const rect = workspaceRef.current.getBoundingClientRect();
+      const available = window.innerHeight - rect.top - 24;
+      if (available > 420) {
+        setWorkspaceHeight(Math.floor(available));
+      }
+    };
+
+    calculateHeight();
+    const rafId = requestAnimationFrame(calculateHeight);
+    const timer = setTimeout(calculateHeight, 150);
+
+    window.addEventListener('resize', calculateHeight);
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timer);
+      window.removeEventListener('resize', calculateHeight);
+    };
+  }, []);
 
   // Auto scroll to bottom of receipt roll when a new item is added to the end
   useEffect(() => {
@@ -116,9 +147,12 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
     }
   }, [cart]);
 
-  // Focus input on mount
+  // Focus input on mount & clear click timers on unmount
   useEffect(() => {
     inputRef.current?.focus({ preventScroll: true });
+    return () => {
+      Object.values(clickTimerRef.current).forEach((t) => clearTimeout(t));
+    };
   }, []);
 
   // Fetch real products from API
@@ -162,6 +196,27 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
   const changeAmount = Math.max(0, cashGiven - totalAmount);
   const isCashSufficient = cashGiven >= totalAmount && totalAmount > 0;
 
+  // Quick cash suggestion chips matching design (e.g. 2.100k, 2.500k)
+  const quickCashSuggestions = React.useMemo(() => {
+    if (totalAmount <= 0) return [];
+    const list: number[] = [];
+
+    const round50k = Math.ceil(totalAmount / 50000) * 50000;
+    if (round50k > totalAmount) list.push(round50k);
+
+    const round100k = Math.ceil(totalAmount / 100000) * 100000;
+    if (round100k > totalAmount && !list.includes(round100k)) list.push(round100k);
+
+    const round500k = Math.ceil(totalAmount / 500000) * 500000;
+    if (round500k > totalAmount && !list.includes(round500k)) list.push(round500k);
+
+    if (list.length === 0) {
+      list.push(totalAmount + 50000, totalAmount + 100000);
+    }
+
+    return list.slice(0, 2);
+  }, [totalAmount]);
+
   // Cash adjustment handlers
   const handleSetExactCash = () => {
     setCashGiven(totalAmount);
@@ -191,25 +246,30 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
       return false;
     }
 
-    // Rule 2: Single-item consignment unique check
-    const alreadyInCart = cart.some(
-      (item) => item.id === product.id || (product.barcode && item.barcode === product.barcode)
-    );
-    if (alreadyInCart) {
-      setScanAlert({
-        type: 'warning',
-        title: 'Sản phẩm đã có trong giỏ hàng',
-        message: `Mỗi sản phẩm ký gửi là độc bản duy nhất (x1 món). Sản phẩm "${product.name}" đã tồn tại trong giỏ hàng.`,
-        product,
-      });
-      return false;
-    }
+    // Rule 2: Single-item consignment unique check with functional state updater
+    let added = false;
+    setCart((prev) => {
+      const alreadyInCart = prev.some(
+        (item) => item.id === product.id || (product.barcode && item.barcode === product.barcode)
+      );
+      if (alreadyInCart) {
+        setScanAlert({
+          type: 'warning',
+          title: 'Sản phẩm đã có trong giỏ hàng',
+          message: `Mỗi sản phẩm ký gửi là duy nhất (x1 món). Sản phẩm "${product.name}" đã tồn tại trong giỏ hàng.`,
+          product,
+        });
+        return prev;
+      }
+      added = true;
+      return [...prev, product];
+    });
 
-    // Success: Add unique product to cart (appended to end of receipt)
-    setCart((prev) => [...prev, product]);
-    // Clear any previous error/warning alert so it doesn't shift layout
-    setScanAlert(null);
-    return true;
+    if (added) {
+      // Clear any previous error/warning alert so it doesn't shift layout
+      setScanAlert(null);
+    }
+    return added;
   };
 
   // Lookup product via real API by barcode or UUID
@@ -233,6 +293,35 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
 
       try {
         const product = await posApi.lookupProduct(query);
+
+        // Check if item is valid to add
+        const alreadyInCart = cart.some(
+          (item) => item.id === product.id || (product.barcode && item.barcode === product.barcode)
+        );
+
+        if (product.canAddToCart && !alreadyInCart) {
+          const sourceEl =
+            document.getElementById(`pos-product-thumb-${product.id}`) ||
+            document.getElementById(`pos-product-${product.id}`) ||
+            inputRef.current;
+          const targetEl =
+            document.getElementById('pos-cart-icon-target') ||
+            document.getElementById('pos-cart-target') ||
+            document.getElementById('pos-cart-till') ||
+            rollContainerRef.current;
+
+          if (sourceEl && targetEl) {
+            // Animate flying into cart first, then update cart when flight lands
+            await animateFlyToCart({
+              sourceElement: sourceEl,
+              targetElement: targetEl,
+              imageUrl: product.imageUrl,
+              name: product.name,
+            }).catch(() => {});
+          }
+        }
+
+        // Only after fly animation is complete: add to cart!
         addLookupProductToCart(product);
         setBarcodeInput('');
         inputRef.current?.focus({ preventScroll: true });
@@ -267,6 +356,34 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
 
       try {
         const product = await posApi.lookupProduct(code);
+
+        const alreadyInCart = cart.some(
+          (item) => item.id === product.id || (product.barcode && item.barcode === product.barcode)
+        );
+
+        if (product.canAddToCart && !alreadyInCart) {
+          const sourceEl =
+            document.getElementById(`pos-product-thumb-${product.id}`) ||
+            document.getElementById('pos-camera-btn') ||
+            inputRef.current;
+          const targetEl =
+            document.getElementById('pos-cart-icon-target') ||
+            document.getElementById('pos-cart-target') ||
+            document.getElementById('pos-cart-till') ||
+            rollContainerRef.current;
+
+          if (sourceEl && targetEl) {
+            // Animate flying into cart first, then update cart when flight lands
+            await animateFlyToCart({
+              sourceElement: sourceEl,
+              targetElement: targetEl,
+              imageUrl: product.imageUrl,
+              name: product.name,
+            }).catch(() => {});
+          }
+        }
+
+        // Only after fly animation is complete: add to cart!
         addLookupProductToCart(product);
         setBarcodeInput('');
         setCatalogSearch('');
@@ -290,27 +407,56 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
   );
 
   // Click on a product from the real API catalog to add to cart
-  const handleSelectProductFromCatalog = async (item: PublicProduct) => {
-    // Quick check if already in cart
-    if (cart.some((c) => c.id === item.id)) {
+  // Optimistic UI on button: flips to "Đã trong giỏ" immediately (0ms).
+  // Landing-synced cart: Cart updates ONLY when the flying effect completes and lands in the cart.
+  const handleSelectProductFromCatalog = async (item: PublicProduct, sourceElementId?: string) => {
+    // 1. Quick check if already in cart or currently flying
+    if (cart.some((c) => c.id === item.id) || flyingProductIds.has(item.id)) {
       setScanAlert({
         type: 'warning',
         title: 'Sản phẩm đã có trong giỏ hàng',
-        message: `Mỗi sản phẩm ký gửi là độc bản duy nhất (x1 món). Sản phẩm "${item.name}" đã có trong giỏ.`,
+        message: `Mỗi sản phẩm ký gửi là duy nhất (x1 món). Sản phẩm "${item.name}" đã có trong giỏ.`,
       });
       return;
     }
 
-    setAddingProductId(item.id);
     setScanAlert(null);
     setCheckoutError(null);
 
-    try {
-      // Validate via real POS lookup API to check eligibility & rejectionReason
-      const product = await posApi.lookupProduct(item.id);
-      addLookupProductToCart(product);
-    } catch {
-      // Fallback: If direct POS lookup fails (e.g. auth check in dev), add with public details
+    // 2. OPTIMISTIC BUTTON: Immediately mark as flying so button flips to "Đã trong giỏ" with 0ms latency
+    setFlyingProductIds((prev) => new Set(prev).add(item.id));
+
+    // 3. Prepare source & target elements for flying animation
+    const sourceEl =
+      (sourceElementId && document.getElementById(sourceElementId)) ||
+      document.getElementById(`pos-product-thumb-${item.id}`) ||
+      document.getElementById(`pos-product-${item.id}`);
+
+    const targetEl =
+      document.getElementById('pos-cart-icon-target') ||
+      document.getElementById('pos-cart-target') ||
+      document.getElementById('pos-cart-till') ||
+      rollContainerRef.current;
+
+    // Start flying animation (duration ~1050ms)
+    const flyPromise = (sourceEl && targetEl)
+      ? animateFlyToCart({
+        sourceElement: sourceEl,
+        targetElement: targetEl,
+        imageUrl: item.coverImageUrl,
+        name: item.name,
+      }).catch(() => {
+        // Fallback on visual animation error
+      })
+      : Promise.resolve();
+
+    // 4. Background server validation in parallel with flying animation
+    const lookupPromise = posApi.lookupProduct(item.id).catch((err: unknown) => {
+      const problem = parseProblemDetails(err);
+      if (problem.status === 404 || problem.status === 409 || problem.status === 400) {
+        throw err;
+      }
+      // Dev/fallback product
       const fallbackProduct: PosProductLookupDto = {
         id: item.id,
         barcode: item.id.slice(-8).toUpperCase(),
@@ -323,36 +469,136 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
         brandName: item.brand?.name,
         imageUrl: item.coverImageUrl,
       };
-      addLookupProductToCart(fallbackProduct);
-    } finally {
-      setAddingProductId(null);
-      // Keep viewport stable: do not focus barcode input when selecting from catalog
+      return fallbackProduct;
+    });
+
+    try {
+      // WAIT FOR BOTH: the animation to complete its flight & landing, AND server validation
+      const [product] = await Promise.all([lookupPromise, flyPromise]);
+
+      if (!product.canAddToCart) {
+        // Rollback optimistic button state
+        setFlyingProductIds((prev) => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
+        setScanAlert({
+          type: 'error',
+          title: 'Hàng không đủ điều kiện bán',
+          message:
+            product.rejectionReason ||
+            `Sản phẩm đang ở trạng thái "${product.status}" không đủ điều kiện bán.`,
+          product,
+        });
+        return;
+      }
+
+      // ONLY WHEN FLYING ANIMATION IS COMPLETE & LANDED: Add to cart!
+      setCart((prev) => {
+        if (prev.some((c) => c.id === item.id)) return prev;
+        return [...prev, product];
+      });
+
+      // Clear from flying set now that product is safely in cart
+      setFlyingProductIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    } catch (err: unknown) {
+      // Rollback optimistic button state on rejection
+      setFlyingProductIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+
+      const problem = parseProblemDetails(err);
+      const errorMsg =
+        problem.status === 404
+          ? `Không tìm thấy sản phẩm "${item.name}" trên hệ thống POS.`
+          : problem.status === 409
+            ? `Sản phẩm "${item.name}" vừa được bán hoặc không còn khả dụng.`
+            : problem.title || problem.detail || 'Không thể thêm sản phẩm vào đơn.';
+
+      setScanAlert({
+        type: 'error',
+        title: 'Không thể thêm sản phẩm',
+        message: errorMsg,
+      });
     }
+  };
+
+  // Product detail modal handlers
+  const handleOpenProductDetail = (product: PublicProduct | PosProductLookupDto) => {
+    setDetailModalProduct(product);
+    setIsProductDetailOpen(true);
+  };
+
+  const handleCloseProductDetail = () => {
+    setIsProductDetailOpen(false);
+  };
+
+  const handleThumbnailClick = (e: React.MouseEvent, p: PublicProduct, elementId: string) => {
+    e.stopPropagation();
+    const isAdded = cart.some((item) => item.id === p.id) || flyingProductIds.has(p.id);
+    if (isAdded) return;
+
+    if (clickTimerRef.current[p.id]) {
+      clearTimeout(clickTimerRef.current[p.id]);
+      delete clickTimerRef.current[p.id];
+    }
+
+    clickTimerRef.current[p.id] = setTimeout(() => {
+      void handleSelectProductFromCatalog(p, elementId);
+      delete clickTimerRef.current[p.id];
+    }, 220);
+  };
+
+  const handleProductCardDoubleClick = (e: React.MouseEvent, p: PublicProduct) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (clickTimerRef.current[p.id]) {
+      clearTimeout(clickTimerRef.current[p.id]);
+      delete clickTimerRef.current[p.id];
+    }
+    handleOpenProductDetail(p);
   };
 
   // Remove individual unique item
   const handleRemoveItem = (id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
+    setFlyingProductIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     setScanAlert(null);
     setCheckoutError(null);
   };
 
-  // Clear entire cart
+  // Open clear cart confirmation modal
   const handleClearCart = () => {
     if (cart.length === 0) return;
-    if (window.confirm('Bạn có chắc chắn muốn làm trống toàn bộ giỏ hàng này?')) {
-      setCart([]);
-      setCashGiven(0);
-      setScanAlert(null);
-      setCheckoutError(null);
-      setIsNetworkError(false);
-      try {
-        localStorage.removeItem('ocs_pos_cart');
-      } catch {
-        // ignore storage errors
-      }
-      inputRef.current?.focus({ preventScroll: true });
+    setIsClearCartModalOpen(true);
+  };
+
+  // Perform clearing cart when confirmed
+  const handleConfirmClearCart = () => {
+    setCart([]);
+    setFlyingProductIds(new Set());
+    setCashGiven(0);
+    setScanAlert(null);
+    setCheckoutError(null);
+    setIsNetworkError(false);
+    setIsClearCartModalOpen(false);
+    try {
+      localStorage.removeItem('ocs_pos_cart');
+    } catch {
+      // ignore storage errors
     }
+    inputRef.current?.focus({ preventScroll: true });
   };
 
   // Open transaction confirmation modal
@@ -465,26 +711,28 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
   };
 
   const handleStartNewOrder = () => {
-    setIsTearing(true);
-    window.setTimeout(() => {
-      setCompletedInvoice(null);
-      setCashGiven(0);
-      setScanAlert(null);
-      setCheckoutError(null);
-      setIsNetworkError(false);
-      setIsTearing(false);
-      inputRef.current?.focus({ preventScroll: true });
-    }, 450);
+    setCompletedInvoice(null);
+    setCashGiven(0);
+    setScanAlert(null);
+    setCheckoutError(null);
+    setIsNetworkError(false);
+    inputRef.current?.focus({ preventScroll: true });
   };
 
   return (
-    <div className="space-y-6">
-      {/* Main Two-Column Layout */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
+    <div className="w-full">
+      {/* Main Two-Column Layout: pos-workspace-grid locks exact height to computer screen, never stretching with list */}
+      <div
+        ref={workspaceRef}
+        style={{
+          '--pos-workspace-height': workspaceHeight ? `${workspaceHeight}px` : 'calc(100vh - 215px)',
+        } as React.CSSProperties}
+        className="pos-workspace-grid grid grid-cols-1 gap-5 lg:grid-cols-12 lg:grid-rows-1 items-stretch min-h-0 w-full"
+      >
         {/* Left Column (7 cols): Real Products from API Catalog (Replaces INITIAL_POS_PRODUCTS) */}
-        <div className="space-y-4 lg:col-span-7">
-          <Card className="p-4 sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
+        <div className="lg:col-span-7 h-[520px] sm:h-[600px] lg:h-full min-h-0 flex flex-col overflow-hidden">
+          <Card className="!p-4 sm:!p-5 flex flex-col h-full min-h-0 overflow-hidden">
+            <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
               <div className="flex items-center gap-2">
                 <Package className="size-5 text-brand-highlight" aria-hidden="true" />
                 <h3 className="text-sm font-bold text-ink">Hàng có sẵn</h3>
@@ -505,7 +753,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
             </div>
 
             {/* Category Pills */}
-            <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
+            <div className="shrink-0 mt-3 flex flex-wrap items-center gap-1.5">
               {CATEGORY_NAMES.map((catName) => (
                 <button
                   key={catName}
@@ -522,7 +770,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
             </div>
 
             {/* Barcode Lookup & Catalog Search Form with Orange Camera Scanner Button */}
-            <form onSubmit={handleScanOrLookup} className="mt-3.5 space-y-2">
+            <form onSubmit={handleScanOrLookup} className="shrink-0 mt-3 space-y-2">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <div className="relative flex-1">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
@@ -538,7 +786,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                       setCatalogSearch(val);
                       if (scanAlert) setScanAlert(null);
                     }}
-                    placeholder="Quét mã vạch sản phẩm (hoặc nhập Barcode / SKU / tên món rồi nhấn Enter)..."
+                    placeholder="Quét mã vạch sản phẩm (hoặc nhập Barcode / SKU / tên món)"
                     disabled={isLookingUp}
                     className="w-full rounded-xl border border-border bg-paper py-2.5 pl-9 pr-9 text-xs font-medium text-ink placeholder:text-muted/70 focus:border-brand-highlight focus:outline-none focus:ring-1 focus:ring-brand-highlight/30 transition-all disabled:opacity-60 shadow-2xs"
                   />
@@ -560,6 +808,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
 
                 {/* Nút cam mở máy quét barcode */}
                 <Button
+                  id="pos-camera-btn"
                   type="button"
                   variant="secondary"
                   size="sm"
@@ -571,18 +820,8 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                   Quét Barcode
                 </Button>
 
-                {/* Nút Tra cứu & Thêm */}
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  loading={isLookingUp}
-                  loadingText="Đang tìm..."
-                  startIcon={<Search className="size-3.5" aria-hidden="true" />}
-                  className="shrink-0 py-2 px-3.5 font-bold"
-                >
-                  Tra cứu & Thêm
-                </Button>
+                {/* Hidden submit button to allow Enter key to submit form */}
+                <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted pt-0.5">
@@ -594,7 +833,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
               <div
                 role="alert"
                 aria-live="polite"
-                className={`mt-2.5 flex items-start justify-between gap-3 rounded-xl border p-3 transition-all duration-200 animate-in fade-in ${scanAlert.type === 'error'
+                className={`shrink-0 mt-2.5 flex items-start justify-between gap-3 rounded-xl border p-3 transition-all duration-200 animate-in fade-in ${scanAlert.type === 'error'
                   ? 'border-red-300 bg-red-50 text-red-950'
                   : 'border-amber-300 bg-amber-50 text-amber-950'
                   }`}
@@ -629,11 +868,13 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
             )}
 
             {/* Product Grid */}
-            <div className="mt-4">
-              {loadingProducts ? (
-                <SkeletonLoading variant="list" count={4} />
+            <div className="mt-3 flex-1 min-h-0 flex flex-col overflow-hidden">
+              {loadingProducts && availableProducts.length === 0 ? (
+                <div className="flex-1 overflow-y-auto py-2">
+                  <SkeletonLoading variant="list" count={4} />
+                </div>
               ) : productsError ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center">
+                <div className="my-auto rounded-xl border border-red-200 bg-red-50 p-4 text-center">
                   <p className="text-xs font-semibold text-red-900">{productsError}</p>
                   <Button
                     variant="outline"
@@ -645,28 +886,53 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                   </Button>
                 </div>
               ) : availableProducts.length === 0 ? (
-                <EmptyState
-                  icon={<Package className="size-7 text-muted" aria-hidden="true" />}
-                  title="Không tìm thấy sản phẩm nào"
-                  description="Không có sản phẩm nào đang bán phù hợp với bộ lọc danh mục hoặc từ khóa tìm kiếm."
-                />
+                <div className="flex-1 flex items-center justify-center">
+                  <EmptyState
+                    icon={<Package className="size-7 text-muted" aria-hidden="true" />}
+                    title="Không tìm thấy sản phẩm nào"
+                    description="Không có sản phẩm nào đang bán phù hợp với bộ lọc danh mục hoặc từ khóa tìm kiếm."
+                  />
+                </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto pr-1">
+                <div className={`pos-catalog-scroll-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 flex-1 min-h-0 overflow-y-auto pr-1 pb-1 transition-opacity duration-200 ${loadingProducts ? 'opacity-70' : 'opacity-100'}`}>
                   {availableProducts.map((p) => {
-                    const isAdded = cart.some((item) => item.id === p.id);
-                    const isAddingThis = addingProductId === p.id;
+                    const isAdded = cart.some((item) => item.id === p.id) || flyingProductIds.has(p.id);
                     const priceNum = typeof p.listedPrice === 'number' ? p.listedPrice : Number(p.listedPrice) || 0;
 
                     return (
                       <div
                         key={p.id}
-                        className={`group relative flex flex-col justify-between rounded-xl border p-2.5 transition-all text-left ${isAdded
+                        id={`pos-product-${p.id}`}
+                        onDoubleClick={(e) => handleProductCardDoubleClick(e, p)}
+                        title="Nhấn đúp (double-click) để xem chi tiết sản phẩm"
+                        className={`group relative flex flex-col justify-between rounded-xl border p-2.5 transition-all text-left cursor-pointer select-none ${isAdded
                           ? 'border-emerald-300 bg-emerald-50/40 shadow-xs'
                           : 'border-border/80 bg-paper hover:border-brand-pink hover:shadow-xs'
                           }`}
                       >
-                        {/* Thumbnail */}
-                        <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-surface flex items-center justify-center">
+                        {/* Quick detail preview button on hover */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenProductDetail(p);
+                          }}
+                          className="absolute top-1.5 left-1.5 z-10 size-6 rounded-md bg-white/90 hover:bg-white text-ink shadow-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                          title="Xem chi tiết sản phẩm"
+                          aria-label={`Xem chi tiết ${p.name}`}
+                        >
+                          <Eye className="size-3.5 text-brand-highlight" aria-hidden="true" />
+                        </button>
+
+                        {/* Thumbnail (Click to trigger fly-to-cart shrink animation, double-click for detail) */}
+                        <div
+                          id={`pos-product-thumb-${p.id}`}
+                          onClick={(e) => handleThumbnailClick(e, p, `pos-product-thumb-${p.id}`)}
+                          onDoubleClick={(e) => handleProductCardDoubleClick(e, p)}
+                          className={`relative aspect-square w-full overflow-hidden rounded-lg bg-surface flex items-center justify-center transition-all ${!isAdded ? 'cursor-pointer hover:opacity-95' : ''
+                            }`}
+                          title={!isAdded ? 'Nhấn để thêm vào giỏ · Nhấn đúp để xem chi tiết' : 'Đã trong giỏ · Nhấn đúp để xem chi tiết'}
+                        >
                           {p.coverImageUrl ? (
                             <img
                               src={p.coverImageUrl}
@@ -680,15 +946,8 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                             <Package className="size-8 text-muted/50" aria-hidden="true" />
                           )}
 
-                          {isAdded && (
-                            <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-xs">
-                              <Check className="size-2.5" aria-hidden="true" />
-                              Đã chọn
-                            </div>
-                          )}
-
                           <span className="absolute bottom-1.5 left-1.5 rounded bg-ink/75 px-1 py-0.5 text-[9px] font-semibold text-white">
-                            x1 độc bản
+                            SL: 1
                           </span>
                         </div>
 
@@ -715,27 +974,28 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                           </p>
                         </div>
 
-                        {/* Action Button */}
+                        {/* Action Button - Optimistic UI */}
                         <button
                           type="button"
-                          disabled={isAdded || isAddingThis}
-                          onClick={() => handleSelectProductFromCatalog(p)}
-                          className={`mt-2 flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-bold transition-all ${isAdded
+                          disabled={isAdded}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleSelectProductFromCatalog(p, `pos-product-thumb-${p.id}`);
+                          }}
+                          className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-[13px] font-bold transition-all shadow-2xs ${isAdded
                             ? 'bg-emerald-100 text-emerald-800 cursor-not-allowed'
-                            : 'bg-surface hover:bg-brand-pink-light hover:text-brand-highlight text-ink'
+                            : 'bg-surface hover:bg-brand-pink-light hover:text-brand-highlight text-ink cursor-pointer active:scale-95'
                             }`}
                         >
-                          {isAddingThis ? (
-                            <span>Đang kiểm tra...</span>
-                          ) : isAdded ? (
+                          {isAdded ? (
                             <>
-                              <Check className="size-3" aria-hidden="true" />
+                              <Check className="size-3.5" aria-hidden="true" />
                               <span>Đã trong giỏ</span>
                             </>
                           ) : (
                             <>
-                              <Plus className="size-3" aria-hidden="true" />
-                              <span>Thêm vào đơn</span>
+                              <Plus className="size-3.5" aria-hidden="true" />
+                              <span>Thêm vào giỏ</span>
                             </>
                           )}
                         </button>
@@ -748,79 +1008,167 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
           </Card>
         </div>
 
-        {/* Right Column (5 cols): Thermal Receipt Till (Code Mode / Dose Style) */}
-        <div className="space-y-3 lg:col-span-5 lg:sticky lg:top-4">
-          {/* Till Bay Container (Printer + Paper Roll) */}
-          <div className="rounded-3xl bg-gradient-to-b from-[#FFFDFB] via-[#FAF3EC] to-[#FDF5F7] p-3 sm:p-4 shadow-md border border-[#F2DFDE] space-y-3">
-            {/* Till Header Bar inside the Card (only shown when cart has items or invoice completed) */}
-            {(cart.length > 0 || completedInvoice) && (
-              <div className="flex items-center justify-between px-1 pb-1 border-b border-[#F2DFDE]/80 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setIsPreviewInvoiceOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-brand-highlight bg-brand-pink-light/70 hover:bg-brand-pink-light border border-brand-highlight/20 transition-all cursor-pointer shadow-2xs"
-                  title="Xem và xuất hóa đơn bán lẻ đầy đủ"
-                >
-                  <Receipt className="size-3.5 text-brand-highlight" aria-hidden="true" />
-                  <span>Xuất hóa đơn</span>
-                  {cart.length > 0 && (
-                    <Badge variant="info" className="text-[10px] px-1.5 py-0 ml-0.5">
-                      {cart.length} món
-                    </Badge>
-                  )}
-                </button>
-
-                {cart.length > 0 && !completedInvoice && (
-                  <button
-                    type="button"
-                    onClick={handleClearCart}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-danger hover:text-danger-hover hover:underline transition-colors cursor-pointer px-1 py-1"
-                    title="Xóa toàn bộ giỏ hàng"
-                  >
-                    <Trash2 className="size-3" aria-hidden="true" />
-                    <span>Xóa tất cả</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Paper Roll Bay */}
+        {/* Right Column (5 cols): Harmonized Cart Card matching application cards */}
+        <div className="lg:col-span-5 h-[520px] sm:h-[600px] lg:h-full min-h-0 flex flex-col overflow-hidden">
+          <Card
+            id="pos-cart-till"
+            className="!p-4 sm:!p-5 flex flex-col h-full min-h-0 relative transition-all border-brand-lavender/40 overflow-hidden"
+          >
+            {/* Target anchor for flying animation */}
             <div
-              ref={rollContainerRef}
-              className="pos-roll-container max-h-[440px] overflow-y-auto px-1 pt-2 pb-1 scroll-smooth"
-            >
-              <PosThermalReceipt
-                variant="cart"
-                cartItems={cart}
-                onRemoveItem={handleRemoveItem}
-                cashGiven={cashGiven}
-                paymentMethod={paymentMethod}
-                isPaid={Boolean(completedInvoice)}
-                invoice={completedInvoice}
-                isTearing={isTearing}
-                showFooter={false}
-                isPrintable={false}
-                className={completedInvoice ? 'is-torn-bottom' : ''}
-              />
+              id="pos-cart-target"
+              className="absolute top-4 left-1/2 -translate-x-1/2 w-12 h-3 pointer-events-none"
+              aria-hidden="true"
+            />
+
+            {/* Header: Title, Count, Subtitle, and Actions */}
+            <div className="shrink-0 space-y-1 pb-2 border-b border-border/70">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div
+                    id="pos-cart-icon-target"
+                    className="rounded-lg bg-brand-pink-light p-1.5 text-brand-highlight transition-transform shadow-2xs"
+                  >
+                    <ShoppingCart className="size-4" aria-hidden="true" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-ink">
+                    Giỏ hàng · {cart.length} món
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {(cart.length > 0 || completedInvoice) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsPreviewInvoiceOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-brand-highlight bg-brand-pink-light/70 hover:bg-brand-highlight hover:text-white border border-brand-highlight/30 hover:border-brand-highlight shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 group shrink-0"
+                      title="Xem và xuất hóa đơn bán lẻ (Hiệu ứng máy in)"
+                    >
+                      <Printer className="size-3.5 text-brand-highlight group-hover:text-white transition-colors" aria-hidden="true" />
+                      <span>Xuất HĐ</span>
+                    </button>
+                  )}
+
+                  {cart.length > 0 && !completedInvoice && (
+                    <button
+                      type="button"
+                      onClick={handleClearCart}
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-200 hover:border-red-600 shadow-2xs transition-all cursor-pointer shrink-0"
+                      title="Xóa toàn bộ giỏ hàng"
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                      <span>Xóa tất cả</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Thermal Printer Chassis */}
-            <div className="pos-printer-chassis space-y-3.5">
-              <i className="pos-printer-slot" aria-hidden="true" />
+            {/* Cart Items List with Product Thumbnails & Details */}
+            <div
+              ref={rollContainerRef}
+              className="pos-cart-items-container flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 scroll-smooth py-1"
+            >
+              {cart.length === 0 ? (
+                <div className="h-full min-h-[140px] py-6 text-center flex flex-col items-center justify-center">
+                  <div className="rounded-2xl bg-surface p-3 shadow-2xs mb-2 text-muted">
+                    <ShoppingCart className="size-6" aria-hidden="true" />
+                  </div>
+                  <p className="text-xs font-bold text-ink">Giỏ hàng đang trống</p>
+                  <p className="mt-0.5 text-[11px] text-muted">
+                    Scan mã vạch hoặc chọn sản phẩm để bắt đầu.
+                  </p>
+                </div>
+              ) : (
+                cart.map((item) => (
+                  <div
+                    key={item.id}
+                    onDoubleClick={() => handleOpenProductDetail(item)}
+                    title="Nhấn đúp (double-click) để xem chi tiết sản phẩm"
+                    className="flex items-center gap-3 rounded-xl bg-surface/40 p-2.5 border border-border/70 shadow-2xs transition-all hover:border-brand-pink hover:bg-surface/80 group cursor-pointer select-none"
+                  >
+                    {/* Thumbnail Image */}
+                    <div className="size-14 sm:size-16 rounded-lg overflow-hidden bg-surface border border-border/70 shrink-0 flex items-center justify-center">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="size-full object-cover transition-transform group-hover:scale-105"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <Package className="size-6 text-muted/60" aria-hidden="true" />
+                      )}
+                    </div>
 
-              {/* Due Header */}
-              <div className="flex items-baseline justify-end gap-2 border-b border-[#EBDCD6] pb-2.5">
-                <div className="ml-auto text-right">
-                  <span className="block text-[10px] uppercase tracking-wider text-muted font-bold">
-                    Tổng thanh toán
-                  </span>
-                  <b className="font-mono text-2xl sm:text-3xl font-black text-brand-highlight tracking-tight">
+                    {/* Item Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <h4
+                          className="text-xs sm:text-sm font-bold text-ink truncate"
+                          title={item.name}
+                        >
+                          {item.name}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenProductDetail(item);
+                          }}
+                          className="p-1 text-muted hover:text-brand-highlight hover:bg-surface-subtle rounded transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
+                          title="Xem chi tiết món này"
+                          aria-label={`Xem chi tiết ${item.name}`}
+                        >
+                          <Eye className="size-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted font-medium truncate">
+                        {item.size ? `Size ${item.size} · ` : ''}{item.barcode || item.id}
+                      </p>
+                      <p className="mt-1 text-xs sm:text-sm font-black text-brand-ink">
+                        {formatVndCurrency(item.listedPrice)}
+                      </p>
+                    </div>
+
+                    {/* Remove Action Button */}
+                    {!completedInvoice && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveItem(item.id);
+                        }}
+                        className="p-1.5 text-muted hover:text-danger hover:bg-surface-subtle rounded-lg transition-colors cursor-pointer shrink-0"
+                        title="Xóa món này khỏi giỏ hàng"
+                        aria-label={`Xóa ${item.name}`}
+                      >
+                        <X className="size-4" aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Bottom Summary & Checkout Section - Fixed at bottom */}
+            <div className="shrink-0 space-y-2 pt-2 border-t border-border/70">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs sm:text-sm text-muted font-medium">
+                  <span>Tổng giá bán</span>
+                  <span className="font-semibold text-ink">{formatVndCurrency(totalAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm sm:text-base font-bold text-ink">
+                  <span>Tổng thanh toán</span>
+                  <span className="font-mono text-base sm:text-lg font-black text-brand-highlight">
                     {formatVndCurrency(totalAmount)}
-                  </b>
+                  </span>
                 </div>
               </div>
 
-              {/* Action Buttons if invoice already completed */}
+              {/* Payment Section */}
               {completedInvoice ? (
                 <div className="space-y-2 pt-1">
                   <div className="grid grid-cols-2 gap-2">
@@ -830,7 +1178,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                       size="md"
                       startIcon={<Printer className="size-4" aria-hidden="true" />}
                       onClick={() => window.print()}
-                      className="text-xs font-bold bg-white text-ink border-border hover:bg-surface"
+                      className="text-xs font-bold bg-paper text-ink border-border hover:bg-surface"
                     >
                       In bill (80mm)
                     </Button>
@@ -838,9 +1186,9 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                       type="button"
                       variant="outline"
                       size="md"
-                      startIcon={<Receipt className="size-4" aria-hidden="true" />}
+                      startIcon={<Printer className="size-4" aria-hidden="true" />}
                       onClick={() => setIsPreviewInvoiceOpen(true)}
-                      className="text-xs font-bold bg-brand-pink-surface text-brand-highlight border-brand-pink/50 hover:bg-brand-pink-light"
+                      className="text-xs font-bold bg-brand-pink-surface text-brand-highlight border-brand-pink/50 hover:bg-brand-highlight hover:text-white hover:border-brand-highlight transition-all duration-200 shadow-2xs hover:shadow-xs active:scale-95"
                     >
                       Xuất hóa đơn
                     </Button>
@@ -859,81 +1207,94 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
               ) : (
                 <>
                   {/* Payment Method Selector */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted">
-                      Phương thức thanh toán
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaymentMethod('cash');
-                          setCheckoutError(null);
-                        }}
-                        className={`flex items-center justify-center gap-1.5 rounded-xl border p-2.5 text-xs font-bold transition-all ${paymentMethod === 'cash'
-                          ? 'border-brand-highlight bg-brand-pink-light/80 text-brand-highlight shadow-xs'
-                          : 'border-border bg-white text-ink hover:bg-surface'
-                          }`}
-                      >
-                        <Banknote className="size-3.5" aria-hidden="true" />
-                        Tiền mặt
-                      </button>
+                  <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-surface border border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('cash');
+                        setCheckoutError(null);
+                      }}
+                      className={`flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${paymentMethod === 'cash'
+                        ? 'bg-paper text-brand-ink shadow-xs border border-brand-pink/40'
+                        : 'text-muted hover:text-ink hover:bg-surface-subtle'
+                        }`}
+                    >
+                      <Banknote className="size-3.5 text-brand-highlight" aria-hidden="true" />
+                      <span>Tiền mặt</span>
+                    </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaymentMethod('vietqr');
-                          setCheckoutError(null);
-                        }}
-                        className={`flex items-center justify-center gap-1.5 rounded-xl border p-2.5 text-xs font-bold transition-all ${paymentMethod === 'vietqr'
-                          ? 'border-brand-highlight bg-brand-pink-light/80 text-brand-highlight shadow-xs'
-                          : 'border-border bg-white text-ink hover:bg-surface'
-                          }`}
-                      >
-                        <QrCode className="size-3.5" aria-hidden="true" />
-                        VietQR Động
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('vietqr');
+                        setCheckoutError(null);
+                      }}
+                      className={`flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${paymentMethod === 'vietqr'
+                        ? 'bg-paper text-brand-ink shadow-xs border border-brand-pink/40'
+                        : 'text-muted hover:text-ink hover:bg-surface-subtle'
+                        }`}
+                    >
+                      <QrCode className="size-3.5 text-brand-highlight" aria-hidden="true" />
+                      <span>VietQR</span>
+                    </button>
                   </div>
 
                   {/* Cash Payment Section */}
                   {paymentMethod === 'cash' && (
-                    <div className="rounded-2xl border border-border/80 bg-white/80 p-3 space-y-2.5 shadow-2xs">
-                      <div className="flex items-center justify-between">
+                    <div className="rounded-xl border border-border/80 bg-surface/30 p-2.5 space-y-2 shadow-2xs">
+                      <div className="flex items-center justify-between flex-wrap gap-1.5">
                         <label htmlFor="cash-given-input" className="text-xs font-bold text-ink">
-                          Tiền khách đưa (VNĐ):
+                          Tiền khách đưa:
                         </label>
-                        <div className="flex items-center gap-2">
-                          {cashGiven > 0 && (
-                            <button
-                              type="button"
-                              onClick={handleClearCash}
-                              className="text-[11px] font-semibold text-muted hover:text-ink hover:underline"
-                            >
-                              Xóa
-                            </button>
-                          )}
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <button
                             type="button"
                             onClick={handleSetExactCash}
                             disabled={cart.length === 0}
-                            className="text-[11px] font-bold text-brand-highlight hover:underline disabled:opacity-50"
+                            className="rounded-lg px-2 py-0.5 text-[11px] font-bold bg-brand-pink-light text-brand-highlight hover:bg-brand-pink-light/80 border border-brand-pink/40 transition-all cursor-pointer disabled:opacity-50"
                           >
-                            Đưa đủ ({formatVndCurrency(totalAmount)})
+                            Đưa đủ
                           </button>
+                          {quickCashSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() => {
+                                setCashGiven(suggestion);
+                                setCheckoutError(null);
+                                setIsNetworkError(false);
+                              }}
+                              className={`rounded-lg px-2 py-0.5 text-[11px] font-bold transition-all cursor-pointer ${cashGiven === suggestion
+                                ? 'bg-brand-highlight text-white shadow-2xs'
+                                : 'bg-brand-pink-light text-brand-highlight hover:bg-brand-pink-light/80 border border-brand-pink/30'
+                                }`}
+                            >
+                              {`${Math.round(suggestion / 1000).toLocaleString('vi-VN')}k`}
+                            </button>
+                          ))}
+                          {cashGiven > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleClearCash}
+                              className="text-[11px] font-medium text-muted hover:text-ink hover:underline ml-1 cursor-pointer"
+                            >
+                              Xóa
+                            </button>
+                          )}
                         </div>
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         <div className="relative">
                           <input
                             id="cash-given-input"
-                            type="number"
-                            min={0}
-                            step={1000}
-                            value={cashGiven || ''}
+                            type="text"
+                            inputMode="numeric"
+                            value={cashGiven ? cashGiven.toLocaleString('en-US') : ''}
                             onChange={(e) => {
-                              setCashGiven(Math.max(0, Number(e.target.value)));
+                              const rawDigits = e.target.value.replace(/\D/g, '');
+                              const num = rawDigits ? parseInt(rawDigits, 10) : 0;
+                              setCashGiven(Math.min(num, 1_000_000_000_000));
                               setCheckoutError(null);
                               setIsNetworkError(false);
                             }}
@@ -943,75 +1304,47 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                                 handleOpenConfirmModal();
                               }
                             }}
-                            placeholder="Nhập số tiền khách đưa..."
-                            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm font-black text-ink placeholder:font-normal placeholder:text-muted/60 focus:border-brand-highlight focus:outline-none focus:ring-1 focus:ring-brand-highlight/30"
+                            placeholder="0"
+                            className="w-full rounded-xl border border-border bg-paper py-2 pl-3 pr-8 text-right text-base sm:text-lg font-black text-ink placeholder:text-muted/60 focus:border-brand-highlight focus:outline-none focus:ring-1 focus:ring-brand-highlight/30 shadow-2xs"
                           />
-                          {cashGiven > 0 && (
-                            <span className="absolute inset-y-0 right-3 flex items-center text-xs font-bold text-muted">
-                              VNĐ
-                            </span>
-                          )}
+                          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-bold text-muted">
+                            đ
+                          </span>
                         </div>
                         {cashGiven > 0 && (
-                          <p className="text-[11px] text-muted italic">
+                          <p className="text-[10.5px] text-muted italic truncate" title={formatVndInWords(cashGiven)}>
                             Bằng chữ: <span className="font-semibold text-brand-ink">{formatVndInWords(cashGiven)}</span>
                           </p>
                         )}
                       </div>
 
                       {/* Change calculation */}
-                      <div
-                        className={`rounded-lg border p-2.5 transition-all ${isCashSufficient
-                          ? 'border-emerald-300 bg-emerald-50 text-emerald-950'
-                          : totalAmount > 0 && cashGiven > 0
-                            ? 'border-amber-300 bg-amber-50 text-amber-950'
-                            : 'border-border bg-surface/50 text-muted'
-                          }`}
-                      >
-                        {isCashSufficient ? (
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1">
-                                <CheckCircle2 className="size-3.5 text-emerald-600" aria-hidden="true" />
-                                <span className="text-xs font-bold text-emerald-900">Tiền thừa trả khách:</span>
-                              </div>
-                              <span className="text-sm font-black text-emerald-700">
-                                {formatVndCurrency(changeAmount)}
-                              </span>
-                            </div>
-                            {changeAmount > 0 ? (
-                              <p className="text-[10px] text-emerald-800 italic">
-                                Bằng chữ: <span className="font-bold">{formatVndInWords(changeAmount)}</span>
-                              </p>
-                            ) : (
-                              <p className="text-[10px] text-emerald-700 font-medium">
-                                Khách đưa vừa đủ tiền mặt (Không cần trả lại).
-                              </p>
-                            )}
-                          </div>
-                        ) : totalAmount > 0 && cashGiven > 0 ? (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-amber-900">Còn thiếu:</span>
-                            <span className="text-sm font-black text-amber-700">
-                              {formatVndCurrency(totalAmount - cashGiven)}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between text-xs">
-                            <span>Tiền thừa trả khách:</span>
-                            <span className="font-bold text-ink">0 đ</span>
-                          </div>
-                        )}
+                      <div className="flex items-center justify-between pt-1 border-t border-border/60">
+                        <span className="text-xs font-bold text-ink">Tiền thừa trả khách:</span>
+                        <span
+                          className={`text-base sm:text-lg font-black font-mono ${isCashSufficient
+                            ? 'text-brand-highlight'
+                            : totalAmount > 0 && cashGiven > 0
+                              ? 'text-amber-600'
+                              : 'text-muted'
+                            }`}
+                        >
+                          {isCashSufficient
+                            ? formatVndCurrency(changeAmount)
+                            : totalAmount > 0 && cashGiven > 0
+                              ? `Thiếu ${formatVndCurrency(totalAmount - cashGiven)}`
+                            : '0 đ'}
+                        </span>
                       </div>
                     </div>
                   )}
 
                   {/* VietQR Helper */}
                   {paymentMethod === 'vietqr' && (
-                    <div className="rounded-xl border border-brand-pink/60 bg-brand-pink-light/40 p-3 space-y-2 text-xs">
+                    <div className="rounded-xl border border-brand-pink/60 bg-brand-pink-light/40 p-2.5 space-y-1.5 text-xs">
                       <div className="flex items-start gap-2">
                         <QrCode className="size-4 text-brand-highlight shrink-0 mt-0.5" aria-hidden="true" />
-                        <p className="text-ink/80 leading-relaxed">
+                        <p className="text-ink/80 leading-relaxed text-[11.5px]">
                           Khách quét mã VietQR tự động khớp giao dịch 100%. Bạn có thể chuyển sang phân hệ <strong>Hóa đơn chờ VietQR</strong>.
                         </p>
                       </div>
@@ -1020,7 +1353,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="w-full text-xs bg-white text-ink border-border hover:bg-surface"
+                          className="w-full text-xs bg-white text-ink border-border hover:bg-surface py-1"
                           endIcon={<ArrowRight className="size-3" aria-hidden="true" />}
                           onClick={onSwitchToVietQr}
                         >
@@ -1034,7 +1367,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                   {checkoutError && (
                     <div
                       role="alert"
-                      className={`rounded-lg border p-2.5 text-xs flex flex-col gap-2 ${isNetworkError
+                      className={`rounded-lg border p-2 text-xs flex flex-col gap-1.5 ${isNetworkError
                         ? 'border-red-300 bg-red-50 text-red-950'
                         : 'border-amber-300 bg-amber-50 text-amber-950'
                         }`}
@@ -1051,12 +1384,12 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                               Lỗi kết nối mạng
                             </span>
                           )}
-                          <p className="leading-relaxed font-medium">{checkoutError}</p>
+                          <p className="leading-relaxed font-medium text-[11px]">{checkoutError}</p>
                         </div>
                       </div>
 
                       {isNetworkError && (
-                        <div className="flex justify-end pt-1">
+                        <div className="flex justify-end pt-0.5">
                           <Button
                             type="button"
                             variant="outline"
@@ -1065,7 +1398,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                             loadingText="Đang kết nối lại..."
                             startIcon={<RefreshCw className="size-3" aria-hidden="true" />}
                             onClick={handleCheckoutCash}
-                            className="text-xs font-bold border-red-300 bg-white text-red-800 hover:bg-red-50"
+                            className="text-xs font-bold border-red-300 bg-white text-red-800 hover:bg-red-50 py-1"
                           >
                             Thử lại thanh toán
                           </Button>
@@ -1076,19 +1409,21 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
 
                   {/* Checkout Action Button */}
                   {paymentMethod === 'cash' ? (
-                    <Button
+                    <button
                       type="button"
-                      variant="primary"
-                      size="md"
                       disabled={cart.length === 0 || !isCashSufficient || isCheckingOut}
-                      loading={isCheckingOut}
-                      loadingText="Đang xử lý..."
                       onClick={handleOpenConfirmModal}
-                      className="w-full py-3.5 text-sm font-black shadow-md bg-brand-highlight text-white hover:bg-brand-highlight/90 disabled:opacity-50"
-                      startIcon={<Banknote className="size-4" aria-hidden="true" />}
+                      className="w-full py-2.5 sm:py-3 px-4 rounded-xl bg-[#F06292] hover:bg-[#E84E7F] active:bg-[#D83A6D] text-white font-black shadow-sm flex items-center justify-center gap-2.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]"
                     >
-                      THANH TOÁN TIỀN MẶT ({formatVndCurrency(totalAmount)})
-                    </Button>
+                      <div className="size-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                        <Printer className="size-3.5 sm:size-4 text-white" aria-hidden="true" />
+                      </div>
+                      <span className="font-black uppercase tracking-wide text-xs sm:text-sm">
+                        {isCheckingOut
+                          ? 'Đang xử lý thanh toán...'
+                          : 'XÁC NHẬN THANH TOÁN & XUẤT BILL'}
+                      </span>
+                    </button>
                   ) : (
                     <Button
                       type="button"
@@ -1096,7 +1431,7 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                       size="md"
                       disabled={cart.length === 0}
                       onClick={onSwitchToVietQr}
-                      className="w-full py-3.5 text-sm font-black bg-brand-ink text-white hover:bg-brand-ink/90 disabled:opacity-50 shadow-md"
+                      className="w-full py-2.5 sm:py-3 text-xs sm:text-sm font-black bg-brand-ink text-white hover:bg-brand-ink/90 disabled:opacity-50 shadow-md rounded-xl"
                       startIcon={<QrCode className="size-4" aria-hidden="true" />}
                     >
                       Chuyển qua màn hình VietQR
@@ -1104,9 +1439,8 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
                   )}
                 </>
               )}
-
             </div>
-          </div>
+          </Card>
         </div>
       </div>
 
@@ -1144,6 +1478,61 @@ export const PosCartWorkspace: React.FC<PosCartWorkspaceProps> = ({
         open={isCameraScannerOpen}
         onClose={() => setIsCameraScannerOpen(false)}
         onScanSuccess={handleCameraScanSuccess}
+      />
+
+      {/* Clear Cart Confirmation Modal */}
+      <Modal
+        open={isClearCartModalOpen}
+        onClose={() => setIsClearCartModalOpen(false)}
+        title="Xác nhận xóa giỏ hàng"
+        appearance="simple"
+        className="max-w-[300px] overflow-hidden rounded-2xl [&>header]:hidden [&>fieldset>div]:!p-0"
+        footer={null}
+      >
+        <div className="px-5 pt-6 pb-4 text-center">
+          <h3 className="text-base font-bold text-ink sm:text-lg">
+            Xóa {cart.length} sản phẩm?
+          </h3>
+          <p className="mt-1.5 text-xs text-muted sm:text-sm">
+            Các sản phẩm đã xóa không thể khôi phục
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 border-t border-border">
+          <button
+            type="button"
+            onClick={() => setIsClearCartModalOpen(false)}
+            className="border-r border-border py-3 px-4 text-center text-xs font-semibold text-muted transition-colors hover:bg-surface hover:text-ink cursor-pointer"
+          >
+            Hủy
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmClearCart}
+            className="py-3 px-4 text-center text-xs font-bold text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 cursor-pointer"
+          >
+            Xóa
+          </button>
+        </div>
+      </Modal>
+
+      {/* Product Detail Card Modal on Double Click */}
+      <PosProductDetailModal
+        open={isProductDetailOpen}
+        product={detailModalProduct}
+        isInCart={
+          detailModalProduct
+            ? cart.some((item) => item.id === detailModalProduct.id) || flyingProductIds.has(detailModalProduct.id)
+            : false
+        }
+        onClose={handleCloseProductDetail}
+        onAddToCart={(prod) => {
+          if ('canAddToCart' in prod) {
+            addLookupProductToCart(prod);
+          } else {
+            void handleSelectProductFromCatalog(prod);
+          }
+        }}
       />
     </div >
   );

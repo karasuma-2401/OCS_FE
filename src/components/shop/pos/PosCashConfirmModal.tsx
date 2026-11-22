@@ -55,7 +55,7 @@ export const PosCashConfirmModal: React.FC<PosCashConfirmModalProps> = ({
           <span className="font-extrabold text-ink">Xác nhận giao dịch tiền mặt</span>
         </div>
       }
-      description="Kiểm tra tiền nhận, tiền thừa và xác nhận để máy chủ ghi nhận giao dịch & xuất hóa đơn."
+
       className="max-w-xl"
       footer={
         <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
@@ -105,11 +105,10 @@ export const PosCashConfirmModal: React.FC<PosCashConfirmModalProps> = ({
         {error && (
           <div
             role="alert"
-            className={`rounded-xl border p-3.5 text-xs transition-all ${
-              isNetworkError
-                ? 'border-red-300 bg-red-50 text-red-950 shadow-xs'
-                : 'border-amber-300 bg-amber-50 text-amber-950'
-            }`}
+            className={`rounded-xl border p-3.5 text-xs transition-all ${isNetworkError
+              ? 'border-red-300 bg-red-50 text-red-950 shadow-xs'
+              : 'border-amber-300 bg-amber-50 text-amber-950'
+              }`}
           >
             <div className="flex items-start gap-2.5">
               {isNetworkError ? (
@@ -175,7 +174,7 @@ export const PosCashConfirmModal: React.FC<PosCashConfirmModalProps> = ({
           <div className="flex items-center justify-between text-xs font-bold text-muted border-b border-border/70 pb-1">
             <span className="flex items-center gap-1.5">
               <ShoppingCart className="size-3.5 text-muted" aria-hidden="true" />
-              Sản phẩm thanh toán ({cart.length} món độc bản)
+              Sản phẩm thanh toán ({cart.length} món)
             </span>
             <span>Đơn giá</span>
           </div>
