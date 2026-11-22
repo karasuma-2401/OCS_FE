@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CheckCircle2, Printer, PlusCircle, Receipt, Download } from 'lucide-react';
 import { Button, Modal } from '@/components/shared';
 import {
@@ -10,6 +10,8 @@ import {
   PosThermalReceipt,
   type PosThermalReceiptCartItem,
 } from './PosThermalReceipt';
+import { PosPrinterDevice } from './PosPrinterDevice';
+import { posAudio } from './posAudio';
 
 export interface PosInvoiceSuccessModalProps {
   open: boolean;
@@ -33,6 +35,50 @@ export const PosInvoiceSuccessModal: React.FC<PosInvoiceSuccessModalProps> = ({
   onNewOrder,
 }) => {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [printStage, setPrintStage] = useState<'printing' | 'settling' | 'settled'>('printing');
+  const [printKey, setPrintKey] = useState(0);
+  const chamberRef = useRef<HTMLDivElement>(null);
+
+  // Print sequence: Prints out gradually until full bill is visible, then smoothly tucks into a scrollable frame
+  const startPrintSequence = useCallback(() => {
+    setPrintStage('printing');
+    setPrintKey((k) => k + 1);
+
+    // Phát âm thanh máy in nhiệt rè rè nhẹ nhàng đồng bộ 2.0s với hiệu ứng cuộn bill, kết thúc bằng tiếng tách cắt giấy
+    posAudio.playPrintingBuzz(2.0);
+
+    const timeouts: number[] = [];
+
+    // Phase 1: Print out all lines until the bottom of the bill is out (2.0s feed)
+    // Phase 2: After user sees the full bill, smoothly tuck down into scrollable height (at 2800ms)
+    const settleId = window.setTimeout(() => {
+      setPrintStage('settling');
+      chamberRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 2800);
+    timeouts.push(settleId);
+
+    // Phase 3: Transition finishes, activate scrollable state (at 3650ms)
+    const doneId = window.setTimeout(() => {
+      setPrintStage('settled');
+    }, 3650);
+    timeouts.push(doneId);
+
+    return timeouts;
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      const timeouts = startPrintSequence();
+      return () => {
+        timeouts.forEach((id) => window.clearTimeout(id));
+        posAudio.stopPrintingBuzz();
+      };
+    }
+  }, [open, startPrintSequence]);
+
+  const handleReplayPrint = () => {
+    startPrintSequence();
+  };
 
   // If modal is not open, do not render
   if (!open) {
@@ -99,7 +145,7 @@ export const PosInvoiceSuccessModal: React.FC<PosInvoiceSuccessModalProps> = ({
             ? `Bản in hóa đơn thanh toán cho ${cartItems.length} sản phẩm.`
             : 'Xem trước mẫu hóa đơn in nhiệt tại quầy POS.'
       }
-      className="max-w-md"
+      className="max-w-md max-h-[calc(100dvh-6rem)] sm:max-h-[calc(100dvh-7rem)] my-auto mb-10 sm:mb-14"
       footer={
         <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 w-full no-print">
           <div className="flex flex-wrap items-center gap-2">
@@ -150,30 +196,52 @@ export const PosInvoiceSuccessModal: React.FC<PosInvoiceSuccessModalProps> = ({
         </div>
       }
     >
-      <div className="space-y-4">
-        {/* The Thermal Paper Receipt (Full with Footer, Totals, Barcode & Store Disclaimer) */}
-        <div className="rounded-2xl bg-gradient-to-b from-[#FFFDFB] via-[#FAF3EC] to-[#FDF5F7] border border-[#F2DFDE] p-4 sm:p-5 shadow-sm flex justify-center overflow-x-auto">
-          <div className="w-full max-w-[340px]">
-            <PosThermalReceipt
-              variant={isCompleted ? 'invoice' : 'cart'}
-              invoice={invoice}
-              cartItems={cartItems}
-              cashGiven={cashGiven}
-              paymentMethod={paymentMethod}
-              cashierName={cashierName}
-              isPaid={isCompleted}
-              showFooter={true}
-              isPrintable={true}
-              className="is-torn-bottom"
+      <div className="space-y-3">
+        {/* The Thermal Printer Station with Depth & Feed Effect (Transparent, Card-free) */}
+        <div className="pos-printer-station bg-transparent border-0 shadow-none">
+          {/* Paper Chamber: Unconstrained during print to show full bill, then tucks into scrollable */}
+          <div
+            ref={chamberRef}
+            className={`w-full px-2 sm:px-4 pt-2 pb-1 flex justify-center scroll-smooth ${printStage === 'printing'
+                ? 'pos-chamber-printing'
+                : printStage === 'settling'
+                  ? 'pos-chamber-settling'
+                  : 'pos-chamber-settled'
+              }`}
+          >
+            <div className="w-full max-w-[340px] relative">
+              <div
+                key={printKey}
+                className={printStage === 'printing' ? 'pos-paper-feeding' : ''}
+              >
+                <PosThermalReceipt
+                  variant={isCompleted ? 'invoice' : 'cart'}
+                  invoice={invoice}
+                  cartItems={cartItems}
+                  cashGiven={cashGiven}
+                  paymentMethod={paymentMethod}
+                  cashierName={cashierName}
+                  isPaid={isCompleted}
+                  showFooter={true}
+                  isPrintable={true}
+                  disableItemsScroll={true}
+                  className="is-torn-bottom"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Minimalist Printer Chassis matching thermal paper width */}
+          <div className="w-full max-w-[340px] mx-auto shrink-0 z-20 mt-2 mb-2">
+            <PosPrinterDevice
+              isPrinting={printStage === 'printing'}
+              onFeed={handleReplayPrint}
             />
           </div>
         </div>
 
         {/* Quick Help Note */}
-        <p className="text-center text-[11px] text-muted no-print">
-          Nhấn <strong>"In bill (80mm)"</strong> để in trực tiếp từ trình duyệt ra máy in nhiệt hóa đơn
-          {pdfUrl ? ' hoặc "File PDF" để xem bản lưu trữ.' : '.'}
-        </p>
+
       </div>
     </Modal>
   );
