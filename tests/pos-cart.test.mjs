@@ -235,3 +235,42 @@ test('Cash payment success: only shows real invoice from API and clears cart', a
   assert.equal(cashGiven, 0);
 });
 
+test('PosThermalReceipt: long item list activates scrollable container and print styles', () => {
+  const receiptComponentSource = readFileSync(
+    new URL('../src/components/shop/pos/PosThermalReceipt.tsx', import.meta.url),
+    'utf8',
+  );
+  const receiptCssSource = readFileSync(
+    new URL('../src/components/shop/pos/posReceipt.css', import.meta.url),
+    'utf8',
+  );
+
+  // Check that PosThermalReceipt checks items.length > 4 to apply scrollable container
+  assert.match(
+    receiptComponentSource,
+    /items\.length > 4[\s\S]*pos-receipt-items-scroll max-h-48 sm:max-h-56 overflow-y-auto/,
+    'PosThermalReceipt should apply scrollable class when items count exceeds 4',
+  );
+
+  // Check that scroll indicator is present
+  assert.match(
+    receiptComponentSource,
+    /cuộn để xem/,
+    'Receipt should have a subtle scroll helper indicator',
+  );
+
+  // Check CSS contains the scrollbar styling
+  assert.match(
+    receiptCssSource,
+    /\.pos-receipt-items-scroll\s*\{[\s\S]*scrollbar-width:\s*thin;/,
+    'posReceipt.css should declare custom scrollbar for receipt items',
+  );
+
+  // Check that @media print resets max-height and overflow
+  assert.match(
+    receiptCssSource,
+    /@media print[\s\S]*\.pos-receipt-items-scroll\s*\{[\s\S]*max-height:\s*none !important;[\s\S]*overflow:\s*visible !important;/,
+    '@media print must reset max-height and overflow so all items are printed',
+  );
+});
+

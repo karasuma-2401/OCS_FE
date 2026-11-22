@@ -52,6 +52,10 @@ export interface PosThermalReceiptProps {
    * Trigger tear-off rip animation
    */
   isTearing?: boolean;
+  /**
+   * Disable inner items scroll (e.g. when printing or viewing the full invoice)
+   */
+  disableItemsScroll?: boolean;
   className?: string;
 }
 
@@ -67,6 +71,7 @@ export const PosThermalReceipt: React.FC<PosThermalReceiptProps> = ({
   showFooter,
   isPrintable = true,
   isTearing = false,
+  disableItemsScroll = false,
   className = '',
 }) => {
   const prevItemsCountRef = useRef<number>(cartItems.length);
@@ -167,7 +172,7 @@ export const PosThermalReceipt: React.FC<PosThermalReceiptProps> = ({
       {/* 1. Header Cửa Hàng OCS */}
       <header className="pos-paper-header">
         <h3 className="uppercase">CỬA HÀNG THỜI TRANG KÝ GỬI OCS</h3>
-        <span>Hàng hiệu ký gửi tuyển chọn • Độc bản x1</span>
+        <span>Hàng hiệu ký gửi tuyển chọn</span>
         <span>Hotline: 098.765.4321 • Website: ocs.vn</span>
         <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-muted">
           <span>{formattedDate}</span>
@@ -187,7 +192,14 @@ export const PosThermalReceipt: React.FC<PosThermalReceiptProps> = ({
         {/* Table column header */}
         <div className="grid grid-cols-[28px_1fr_auto] gap-1.5 pb-1 text-[11px] font-bold text-muted border-b border-dashed border-[#B9B7AE]">
           <span>SL</span>
-          <span>TÊN SẢN PHẨM</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="truncate">TÊN SẢN PHẨM</span>
+            {!disableItemsScroll && !isInvoice && items.length > 4 && (
+              <span className="no-print text-[9.5px] font-normal text-muted/70 italic truncate">
+                ({items.length} món · cuộn để xem)
+              </span>
+            )}
+          </div>
           <span className="text-right">ĐƠN GIÁ</span>
         </div>
 
@@ -196,7 +208,13 @@ export const PosThermalReceipt: React.FC<PosThermalReceiptProps> = ({
             Scan mã vạch hoặc chọn sản phẩm để bắt đầu.
           </div>
         ) : (
-          <div className="space-y-1">
+          <div
+            className={`space-y-1 ${
+              !disableItemsScroll && !isInvoice && items.length > 4
+                ? 'pos-receipt-items-scroll max-h-48 sm:max-h-56 overflow-y-auto pr-1 overscroll-contain'
+                : ''
+            }`}
+          >
             {items.map((item, index) => (
               <div
                 key={item.id || item.barcode || index}
