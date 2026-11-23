@@ -3,14 +3,14 @@ import {
   Calendar,
   Clock,
   Package,
-  AlertCircle,
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
 import { appointmentApi } from '@/api/appointmentApi';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import type { Appointment, AppointmentStatus } from '@/types';
-import { Badge, Button, Modal, SkeletonLoading, EmptyState } from '@/components/shared';
+import { AlertBanner, Badge, Button, Modal, SkeletonLoading, EmptyState } from '@/components/shared';
 
 interface MyBookingsProps {
   onNewBookingClick?: () => void;
@@ -18,6 +18,7 @@ interface MyBookingsProps {
 
 export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
   const { hasPermission } = useAuth();
+  const toast = useToast();
   const canCancel = hasPermission('appointments.own.cancel');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -29,24 +30,37 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
   const [cancelling, setCancelling] = useState<boolean>(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  const fetchHistory = async () => {
-    setLoading(true);
+  const fetchHistory = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setErrorMsg(null);
     try {
       const data = await appointmentApi.getMyHistory();
       setAppointments(data);
     } catch (err: any) {
-      const message =
-        err.response?.data?.message ||
-        'Không tải được lịch sử lịch hẹn. Vui lòng thử lại sau.';
-      setErrorMsg(message);
+      if (showLoading) {
+        const message =
+          err.response?.data?.message ||
+          'Không tải được lịch sử lịch hẹn. Vui lòng thử lại sau.';
+        setErrorMsg(message);
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchHistory();
+    fetchHistory(true);
+    const interval = setInterval(() => fetchHistory(false), 8000);
+    const handleFocus = () => fetchHistory(false);
+    const handleCustomRefresh = () => fetchHistory(false);
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('ocs:notification:refresh', handleCustomRefresh);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('ocs:notification:refresh', handleCustomRefresh);
+    };
   }, []);
 
   const handleConfirmCancel = async () => {
@@ -76,11 +90,18 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
 
       setCancellingAppointment(null);
       setCancelReason('');
+      toast.info('Đã hủy lịch hẹn ký gửi', {
+        description: `Mã lịch hẹn ${cancellingAppointment.trackingNumber} đã được hủy.`,
+      });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ocs:notification:refresh'));
+      }
     } catch (err: any) {
       const message =
         err.response?.data?.message ||
         'Không thể hủy lịch hẹn này. Có thể đã quá giờ quy định.';
       setCancelError(message);
+      toast.error('Không thể hủy lịch hẹn', { description: message });
     } finally {
       setCancelling(false);
     }
@@ -115,38 +136,27 @@ export function MyBookings({ onNewBookingClick }: MyBookingsProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-ink">
-            Lịch hẹn ký gửi của bạn
-          </h2>
-          <p className="mt-1 text-xs text-muted">
-            Theo dõi trạng thái các cuộc hẹn tiếp nhận đồ và quản lý lịch hẹn trực tiếp.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchHistory} startIcon={<RotateCcw size={14} />}>
-            Làm mới
+      <div className="flex justify-end items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => void fetchHistory(true)} startIcon={<RotateCcw size={14} />}>
+          Làm mới
+        </Button>
+        {onNewBookingClick && (
+          <Button size="sm" onClick={onNewBookingClick} startIcon={<Sparkles size={14} />}>
+            Đặt lịch mới
           </Button>
-          {onNewBookingClick && (
-            <Button size="sm" onClick={onNewBookingClick} startIcon={<Sparkles size={14} />}>
-              Đặt lịch mới
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       {errorMsg && (
-        <div className="rounded-2xl border border-state-danger/30 bg-state-danger-soft p-4 text-xs text-state-danger flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={16} />
-            <span>{errorMsg}</span>
-          </div>
-          <button onClick={fetchHistory} className="font-bold underline hover:no-underline">
-            Thử lại
-          </button>
-        </div>
+        <AlertBanner
+          variant="error"
+          title="Không thể tải danh sách lịch hẹn"
+          description={errorMsg}
+          action={{
+            label: 'Thử lại',
+            onClick: () => void fetchHistory(true),
+          }}
+        />
       )}
 
       {appointments.length === 0 ? (

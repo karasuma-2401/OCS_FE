@@ -7,7 +7,9 @@ export type BadgeVariant =
   | "warning"
   | "danger"
   | "info"
-  | "neutral";
+  | "neutral"
+  | "brand"
+  | "payment";
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
@@ -19,8 +21,10 @@ const badgeVariants: Record<BadgeVariant, string> = {
   success: "bg-state-success-soft text-state-success-strong",
   warning: "bg-state-warning-soft text-state-warning-strong",
   danger: "bg-state-danger-soft text-state-danger",
-  info: "bg-brand-pink-light text-brand-highlight",
+  info: "bg-state-info-muted text-state-info",
   neutral: "bg-brand-pink-surface text-brand-ink",
+  brand: "bg-brand-pink-light text-brand-highlight",
+  payment: "bg-state-payment-muted text-state-payment",
 };
 
 export function Badge({

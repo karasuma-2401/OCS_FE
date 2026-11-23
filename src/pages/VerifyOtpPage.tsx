@@ -2,7 +2,7 @@ import { authStyles } from '@/components/layout/authStyles';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { verifyOtp, resendOtp, parseProblemDetails } from '@/api/auth';
-import { Button, Toast } from '@/components/shared';
+import { Button, AlertBanner } from '@/components/shared';
 import { MailCheck, ArrowLeft, RefreshCw, CheckCircle2, AlertCircle, Clock, ShieldAlert } from 'lucide-react';
 
 interface OtpLocationState {
@@ -291,10 +291,10 @@ export const VerifyOtpPage: React.FC = () => {
 
         {errorMessage && (
           <div className="mb-4">
-            <Toast
+            <AlertBanner
               variant="error"
               title="Lỗi xác thực"
-              message={errorMessage}
+              description={errorMessage}
               onClose={() => setErrorMessage(null)}
             />
           </div>
@@ -302,10 +302,10 @@ export const VerifyOtpPage: React.FC = () => {
 
         {infoMessage && (
           <div className="mb-4">
-            <Toast
+            <AlertBanner
               variant="info"
               title="Thông báo"
-              message={infoMessage}
+              description={infoMessage}
               onClose={() => setInfoMessage(null)}
             />
           </div>

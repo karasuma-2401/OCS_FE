@@ -12,10 +12,32 @@ export interface FcmStatusResponse {
   devices: Array<{ deviceType: string; lastUsedAt: string }>;
 }
 
+export interface TestNotificationResponse extends Notification {
+  pushDelivery: {
+    targetedDeviceCount: number;
+    successCount: number;
+    failureCount: number;
+    firebaseConfigured: boolean;
+  } | null;
+}
+
+export interface GetNotificationsQuery {
+  limit?: number;
+  unreadOnly?: boolean;
+  category?: string;
+}
+
 export const notificationApi = {
-  async getMyNotifications(limit = 50): Promise<NotificationResponse> {
+  async getMyNotifications(
+    limitOrQuery: number | GetNotificationsQuery = 50,
+  ): Promise<NotificationResponse> {
+    const params: GetNotificationsQuery =
+      typeof limitOrQuery === 'number'
+        ? { limit: limitOrQuery }
+        : { limit: 50, ...limitOrQuery };
+
     const response = await apiClient.get<NotificationResponse>('/notifications', {
-      params: { limit },
+      params,
     });
     return response.data;
   },
@@ -60,8 +82,14 @@ export const notificationApi = {
     return response.data;
   },
 
-  async sendTestNotification(): Promise<Notification> {
-    const response = await apiClient.post<Notification>('/notifications/fcm/test');
+  async sendTestNotification(category?: string): Promise<TestNotificationResponse> {
+    const response = await apiClient.post<TestNotificationResponse>(
+      '/notifications/fcm/test',
+      null,
+      {
+        params: category ? { category } : undefined,
+      },
+    );
     return response.data;
   },
 };

@@ -18,6 +18,10 @@ import {
   CheckCircle2,
   Loader2,
   RotateCcw,
+  Plus,
+  Pencil,
+  Trash2,
+  Camera,
 } from 'lucide-react';
 import type {
   Appointment,
@@ -67,6 +71,34 @@ export interface ConsignmentItemRow {
   customerPayout: number;
   images?: string[];
 }
+
+export interface ItemFormState {
+  name: string;
+  brandId: string;
+  brand: string;
+  categoryId: string;
+  category: string;
+  size: string;
+  material: string;
+  conditionPercent: number;
+  listedPrice: number;
+  commissionRate?: number;
+  images: string[];
+}
+
+const emptyItemForm = (defaultRate = 20): ItemFormState => ({
+  name: '',
+  brandId: '',
+  brand: '',
+  categoryId: '',
+  category: '',
+  size: '',
+  material: '',
+  conditionPercent: 100,
+  listedPrice: 0,
+  commissionRate: defaultRate,
+  images: [],
+});
 
 interface ConsignmentReceptionModalProps {
   open: boolean;
@@ -165,7 +197,16 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
     initialAppointment?.note || '',
   );
   const [items, setItems] = useState<ConsignmentItemRow[]>([]);
-  const [photoModalItem, setPhotoModalItem] = useState<ConsignmentItemRow | null>(null);
+  const [itemForm, setItemForm] = useState<ItemFormState>(() => emptyItemForm(20));
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemFormErrors, setItemFormErrors] = useState<Record<string, string>>({});
+  const [photoModalTarget, setPhotoModalTarget] = useState<{
+    id: string;
+    name: string;
+    category?: string;
+    size?: string;
+    images: string[];
+  } | null>(null);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftSaveSuccess, setDraftSaveSuccess] = useState(false);
@@ -210,13 +251,24 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
       setCustomerProfile(found); setSavedCustomer(found); setCustomerName(found.fullName); setCustomerPhone(found.phoneNumber); setCustomerEmail(found.email || '');
     } catch { setCustomerMessage('Không thể tải hồ sơ khách hàng. Vui lòng thử lại.'); }
     finally { setLookingUpCustomer(false); }
-  };  const handleItemImagesChange = (itemId: string, newImages: string[]) => {
-    setItems((prev) =>
-      prev.map((i) => (i.id === itemId ? { ...i, images: newImages } : i)),
-    );
-    setPhotoModalItem((curr) =>
-      curr && curr.id === itemId ? { ...curr, images: newImages } : curr,
-    );
+  };
+
+  const handleImagesChange = (targetId: string, newImages: string[]) => {
+    if (targetId === 'form') {
+      setItemForm((prev) => ({ ...prev, images: newImages }));
+      setPhotoModalTarget((curr) => (curr && curr.id === 'form' ? { ...curr, images: newImages } : curr));
+    } else {
+      setItems((prev) => prev.map((i) => (i.id === targetId ? { ...i, images: newImages } : i)));
+      setPhotoModalTarget((curr) => (curr && curr.id === targetId ? { ...curr, images: newImages } : curr));
+    }
+  };
+
+  const handleRemoveFormImage = (url: string) => {
+    // Chỉ gỡ ảnh khỏi form tiếp nhận, bảo lưu ảnh trên R2
+    setItemForm((prev) => ({
+      ...prev,
+      images: prev.images.filter((img) => img !== url),
+    }));
   };
   React.useEffect(() => {
     if (!open) return;
@@ -452,63 +504,132 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
     }
     onClose();
   };
-  const addItem = () => {
-    setItems((current) => {
-      const next = [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          name: '',
-          size: '',
-          material: '',
-          category: '',
-          categoryId: '',
-          brandId: '',
-          brand: '',
-          condition: '100%',
-          conditionPercent: 100,
-          listedPrice: 0,
-          customerPayout: 0,
-          images: [],
-        },
-      ];
-      if (next.length > actualItemCount) {
-        setActualItemCount(next.length);
-        setActualItemCountInput(String(next.length));
-      }
+  const clearItemFormError = (field: string) => {
+    setItemFormErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
       return next;
     });
+  };
+
+  const validateItemForm = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!itemForm.name.trim()) errs.name = 'Vui lòng nhập tên sản phẩm.';
+    if (!itemForm.brandId || !brands.some((b) => b.id === itemForm.brandId)) errs.brandId = 'Vui lòng chọn thương hiệu.';
+    if (!itemForm.categoryId || !categories.some((c) => c.id === itemForm.categoryId)) errs.categoryId = 'Vui lòng chọn danh mục.';
+    if (!itemForm.size) errs.size = 'Vui lòng chọn kích thước.';
+    if (!validReceptionPrice(itemForm.listedPrice)) errs.listedPrice = 'Giá niêm yết phải từ 1 đến 999.999.999.999 đồng.';
+    if (intakeType === 'consignment' && (itemForm.commissionRate == null || itemForm.commissionRate < 0 || itemForm.commissionRate > 100)) {
+      errs.commissionRate = 'Hoa hồng shop từ 0% đến 100%.';
+    }
+    setItemFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSaveItemFromForm = () => {
+    if (!validateItemForm()) return;
+
+    const brandObj = brands.find((b) => b.id === itemForm.brandId);
+    const categoryObj = categories.find((c) => c.id === itemForm.categoryId);
+    const resolvedRate =
+      itemForm.commissionRate ??
+      (brandObj && brandObj.defaultCommissionRate > 0
+        ? brandObj.defaultCommissionRate
+        : getTierDefaultCommissionRate(brandObj?.tier));
+
+    const payout = Math.round(
+      itemForm.listedPrice * (intakeType === 'buyout' ? 0.5 : (100 - resolvedRate) / 100),
+    );
+
+    if (editingItemId) {
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === editingItemId
+            ? {
+              ...it,
+              name: itemForm.name.trim(),
+              brandId: itemForm.brandId,
+              brand: brandObj?.name || itemForm.brand,
+              brandTier: brandObj?.tier,
+              categoryId: itemForm.categoryId,
+              category: categoryObj?.name || itemForm.category,
+              size: itemForm.size,
+              material: itemForm.material?.trim() || '',
+              condition: `${itemForm.conditionPercent}%`,
+              conditionPercent: itemForm.conditionPercent,
+              listedPrice: itemForm.listedPrice,
+              commissionRate: resolvedRate,
+              customerPayout: payout,
+              images: itemForm.images,
+            }
+            : it,
+        ),
+      );
+      setEditingItemId(null);
+    } else {
+      const newItem: ConsignmentItemRow = {
+        id: crypto.randomUUID(),
+        name: itemForm.name.trim(),
+        brandId: itemForm.brandId,
+        brand: brandObj?.name || itemForm.brand,
+        brandTier: brandObj?.tier,
+        categoryId: itemForm.categoryId,
+        category: categoryObj?.name || itemForm.category,
+        size: itemForm.size,
+        material: itemForm.material?.trim() || '',
+        condition: `${itemForm.conditionPercent}%`,
+        conditionPercent: itemForm.conditionPercent,
+        listedPrice: itemForm.listedPrice,
+        commissionRate: resolvedRate,
+        customerPayout: payout,
+        images: itemForm.images,
+      };
+      setItems((prev) => {
+        const next = [...prev, newItem];
+        if (next.length > actualItemCount) {
+          setActualItemCount(next.length);
+          setActualItemCountInput(String(next.length));
+        }
+        return next;
+      });
+    }
+
+    setItemForm(emptyItemForm(commissionShop));
+    setItemFormErrors({});
     clearFieldError('items');
   };
-  const updateItem = (id: string, changes: Partial<ConsignmentItemRow>) => setItems(current => current.map(item => {
-    if (item.id !== id) return item;
-    const next = { ...item, ...changes };
-    return { ...next, condition: `${next.conditionPercent}%`, customerPayout: Math.round(next.listedPrice * (intakeType === 'buyout' ? 0.5 : (100 - (next.commissionRate ?? 0)) / 100)) };
-  }));
-  const handleRemoveItem = async (id: string) => {
-    const itemToRemove = items.find((i) => i.id === id);
-    if (itemToRemove?.images && itemToRemove.images.length > 0) {
-      const remainingImages: string[] = [];
-      const failedErrors: string[] = [];
 
-      for (const url of itemToRemove.images) {
-        try {
-          await consignmentApi.deleteProductImage(url);
-        } catch (err: unknown) {
-          remainingImages.push(url);
-          const axiosErr = err as { response?: { data?: { detail?: string } } };
-          failedErrors.push(axiosErr?.response?.data?.detail || 'Không thể xóa ảnh');
-        }
-      }
+  const handleStartEdit = (item: ConsignmentItemRow) => {
+    setEditingItemId(item.id);
+    setItemForm({
+      name: item.name,
+      brandId: item.brandId,
+      brand: item.brand || '',
+      categoryId: item.categoryId,
+      category: item.category || '',
+      size: item.size,
+      material: item.material || '',
+      conditionPercent: item.conditionPercent,
+      listedPrice: item.listedPrice,
+      commissionRate: item.commissionRate,
+      images: item.images || [],
+    });
+    setItemFormErrors({});
+    document.getElementById('reception-item-form-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
-      if (remainingImages.length > 0) {
-        setItems((prev) =>
-          prev.map((it) => (it.id === id ? { ...it, images: remainingImages } : it)),
-        );
-        setApiError(`Không thể xóa ${remainingImages.length} ảnh trên R2: ${failedErrors.join('; ')}.`);
-        return;
-      }
+  const handleCancelEdit = () => {
+    setEditingItemId(null);
+    setItemForm(emptyItemForm(commissionShop));
+    setItemFormErrors({});
+  };
+
+  const handleRemoveItem = (id: string) => {
+    if (editingItemId === id) {
+      handleCancelEdit();
     }
+    // Gỡ sản phẩm khỏi danh sách tiếp nhận mà không xóa tệp tin trên R2
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
@@ -740,9 +861,9 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
 
   return (
     <div className={embedded ? "" : "fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"}>
-      
+
       <div className={embedded ? "relative w-full flex flex-col rounded-2xl bg-surface-default shadow-sm border border-border/70 text-text-primary font-sans" : "relative w-full max-w-6xl max-h-[92vh] flex flex-col rounded-3xl bg-surface-default shadow-2xl border border-border/70 overflow-hidden text-text-primary font-sans"}>
-        
+
         <div className={`flex items-center justify-between px-8 py-5 border-b border-border/70 bg-surface-default shrink-0 ${embedded ? 'rounded-t-2xl' : ''}`}>
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-pink-light text-brand-highlight shadow-xs">
@@ -775,10 +896,10 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
           </button>}
         </div>
 
-        
-        <div className="flex-1 overflow-y-auto px-8 py-7 space-y-6 text-base">
 
-          
+        <div className="flex-1 overflow-y-auto px-8 py-7 space-y-6 text-base [scrollbar-gutter:stable] pb-12">
+
+
           <ReceptionIntakeTabs
             value={intakeType}
             onConsignment={() => setIntakeType('consignment')}
@@ -829,7 +950,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
             </div>
           )}
 
-          
+
           {/* Card Thông tin khách hàng */}
           <Card title="Thông tin khách hàng" description={initialAppointment ? 'Hồ sơ khách theo lịch hẹn.' : 'Tra cứu theo số điện thoại trước khi tiếp nhận.'} className="!bg-surface-default !border-border">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -951,7 +1072,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
             <p className="mt-3 text-sm font-medium text-brand-highlight">{dateRangeStr}</p>
           </Card>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            
+
             <div className="rounded-2xl border border-border/80 bg-surface-default p-4.5 shadow-sm relative overflow-hidden">
               <div className="flex justify-between items-start">
                 <span className="text-xs font-bold text-text-muted">
@@ -971,7 +1092,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
               </p>
             </div>
 
-            
+
             <div className="rounded-2xl border border-border/80 bg-surface-default p-4.5 shadow-sm relative overflow-hidden">
               <div className="flex justify-between items-start">
                 <span className="text-xs font-bold text-text-muted">
@@ -986,7 +1107,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
               </p>
             </div>
 
-            
+
             <div className="rounded-2xl border border-brand-pink-light bg-brand-pink-surface p-4.5 shadow-sm relative overflow-hidden">
               <div className="flex justify-between items-start">
                 <span className="text-xs font-bold text-brand-highlight">
@@ -1001,7 +1122,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
               </p>
             </div>
 
-            
+
             <div className="rounded-2xl border border-border/80 bg-surface-default p-4.5 shadow-sm relative overflow-hidden">
               <div className="flex justify-between items-start">
                 <span className="text-xs font-bold text-text-muted">
@@ -1017,113 +1138,385 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
             </div>
           </div>
 
-          
-          {/* Card Danh sách sản phẩm */}
-          <Card className="!bg-surface-default !border-border" title="Danh sách sản phẩm" description="Tạo sản phẩm trước, sau đó nhập thông tin và ảnh trong từng sản phẩm." actions={<Button variant="outline" onClick={addItem}>Thêm sản phẩm</Button>}>
+
+          {/* Card Form Thêm / Chỉnh sửa sản phẩm tách riêng */}
+          <Card
+            id="reception-item-form-section"
+            className="!bg-surface-default !border-border"
+            title={
+              <div className="flex items-center gap-2.5">
+                <span className="font-bold text-ink">
+                  {editingItemId ? 'Chỉnh sửa thông tin sản phẩm' : 'Thêm sản phẩm tiếp nhận'}
+                </span>
+                {editingItemId ? (
+                  <span className="rounded-lg bg-amber-100 text-amber-800 px-2.5 py-0.5 text-xs font-bold border border-amber-300">
+                    Đang chỉnh sửa
+                  </span>
+                ) : (
+                  <span className="rounded-lg bg-brand-pink-light text-brand-highlight px-2.5 py-0.5 text-xs font-bold">
+                    Mới
+                  </span>
+                )}
+              </div>
+            }
+            description="Nhập thông tin sản phẩm và tải ảnh, sau đó bấm thêm để lưu vào danh sách sản phẩm."
+            actions={
+              editingItemId ? (
+                <Button variant="outline" size="sm" onClick={handleCancelEdit}>
+                  Hủy chỉnh sửa
+                </Button>
+              ) : (
+                itemForm.name || itemForm.brandId || itemForm.listedPrice > 0 ? (
+                  <Button variant="ghost" size="sm" onClick={() => setItemForm(emptyItemForm(commissionShop))}>
+                    Làm mới ô nhập
+                  </Button>
+                ) : null
+              )
+            }
+          >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Input
+                label="Tên sản phẩm *"
+                placeholder="VD: Áo khoác dạ nữ dáng dài..."
+                value={itemForm.name}
+                maxLength={200}
+                error={itemFormErrors.name}
+                onChange={event => {
+                  setItemForm(prev => ({ ...prev, name: event.target.value }));
+                  clearItemFormError('name');
+                }}
+              />
+              <Combobox
+                label="Thương hiệu *"
+                value={itemForm.brandId}
+                placeholder="Chọn thương hiệu"
+                error={itemFormErrors.brandId}
+                options={brands.map(brand => ({ value: brand.id, label: brand.name }))}
+                onChange={value => {
+                  const brand = brands.find(b => b.id === value);
+                  if (brand) {
+                    const rate = brand.defaultCommissionRate > 0 ? brand.defaultCommissionRate : getTierDefaultCommissionRate(brand.tier);
+                    setItemForm(prev => ({
+                      ...prev,
+                      brandId: brand.id,
+                      brand: brand.name,
+                      commissionRate: rate,
+                    }));
+                    clearItemFormError('brandId');
+                  }
+                }}
+              />
+              <Combobox
+                label="Danh mục *"
+                value={itemForm.categoryId}
+                placeholder="Chọn danh mục"
+                error={itemFormErrors.categoryId}
+                options={categories.map(category => ({ value: category.id, label: category.name }))}
+                onChange={value => {
+                  const cat = categories.find(c => c.id === value);
+                  setItemForm(prev => ({
+                    ...prev,
+                    categoryId: value,
+                    category: cat?.name || '',
+                  }));
+                  clearItemFormError('categoryId');
+                }}
+              />
+              <Combobox
+                label="Kích thước *"
+                value={itemForm.size}
+                placeholder="Chọn kích thước"
+                error={itemFormErrors.size}
+                options={COMMON_SIZES.map(value => ({ value, label: value }))}
+                onChange={value => {
+                  setItemForm(prev => ({ ...prev, size: value }));
+                  clearItemFormError('size');
+                }}
+              />
+              <Combobox
+                label="Chất liệu"
+                value={itemForm.material || ''}
+                placeholder="Chọn chất liệu"
+                options={COMMON_MATERIALS.map(value => ({ value, label: value }))}
+                onChange={value => setItemForm(prev => ({ ...prev, material: value }))}
+              />
+              <Input
+                label="Độ mới (%)"
+                type="number"
+                min={0}
+                max={100}
+                value={itemForm.conditionPercent}
+                onChange={event => setItemForm(prev => ({ ...prev, conditionPercent: Number(event.target.value) }))}
+              />
+              <ContractMoneyInput
+                label="Giá niêm yết (đ) *"
+                value={itemForm.listedPrice}
+                error={itemFormErrors.listedPrice}
+                onChange={val => {
+                  setItemForm(prev => ({ ...prev, listedPrice: val || 0 }));
+                  clearItemFormError('listedPrice');
+                }}
+              />
+              {intakeType === 'consignment' && (
+                <Input
+                  label="Hoa hồng shop (%)"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={itemForm.commissionRate ?? ''}
+                  error={itemFormErrors.commissionRate}
+                  onChange={event => {
+                    setItemForm(prev => ({
+                      ...prev,
+                      commissionRate: event.target.value === '' ? undefined : Number(event.target.value),
+                    }));
+                    clearItemFormError('commissionRate');
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Live calculate & actions */}
+            <div className="mt-5 pt-4 border-t border-border flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  startIcon={<Camera size={16} />}
+                  onClick={() =>
+                    setPhotoModalTarget({
+                      id: 'form',
+                      name: itemForm.name || 'Sản phẩm',
+                      category: itemForm.category,
+                      size: itemForm.size,
+                      images: itemForm.images,
+                    })
+                  }
+                >
+                  Chụp / tải ảnh ({itemForm.images.length})
+                </Button>
+                <div className="rounded-xl bg-brand-pink-surface px-3 py-1.5 border border-brand-pink-light/60">
+                  <span className="text-xs text-muted">Dự kiến khách nhận: </span>
+                  <span className="text-sm font-extrabold text-brand-highlight">
+                    {formatVND(
+                      Math.round(
+                        itemForm.listedPrice *
+                        (intakeType === 'buyout'
+                          ? 0.5
+                          : (100 - (itemForm.commissionRate ?? commissionShop)) / 100),
+                      ),
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                {editingItemId && (
+                  <Button variant="outline" onClick={handleCancelEdit}>
+                    Hủy sửa
+                  </Button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSaveItemFromForm}
+                  style={{ color: '#FFFFFF' }}
+                  className="flex items-center gap-2 rounded-xl bg-[#E53E8A] hover:bg-[#D42B76] !text-white px-5 py-2.5 text-sm font-bold shadow-sm transition active:scale-95"
+                >
+                  {editingItemId ? (
+                    <>
+                      <CheckCircle2 size={16} /> Lưu thay đổi
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} /> Thêm sản phẩm
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Thumbnail preview if form has images */}
+            {itemForm.images.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-border/50">
+                <p className="text-xs font-semibold text-text-secondary mb-2">Ảnh sản phẩm đang nhập:</p>
+                <div className="flex flex-wrap gap-2.5">
+                  {itemForm.images.map((url, idx) => (
+                    <div key={url} className="relative group rounded-lg overflow-hidden border border-border">
+                      <img src={url} alt={`Ảnh ${idx + 1}`} className="h-16 w-16 object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => void handleRemoveFormImage(url)}
+                        title="Xóa ảnh này"
+                        className="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Card Danh sách sản phẩm dạng draft */}
+          <Card
+            className="!bg-surface-default !border-border"
+            title={
+              <div className="flex items-center gap-2.5">
+                <span className="font-bold text-ink">Danh sách sản phẩm</span>
+                <span className="rounded-full bg-brand-pink-light px-2.5 py-0.5 text-xs font-extrabold text-brand-highlight">
+                  {items.length} món
+                </span>
+              </div>
+            }
+            description="Mỗi lần ấn thêm sản phẩm sẽ được lưu vào danh sách bên dưới. Bạn có thể xem lại, sửa hoặc xóa từng sản phẩm trước khi tạo hợp đồng."
+          >
             {fieldErrors.items && (
-              <div className="mb-3 rounded-xl border border-state-danger-border bg-state-danger-soft p-3 text-xs font-semibold text-state-danger">
+              <div className="mb-4 rounded-xl border border-state-danger-border bg-state-danger-soft p-3 text-xs font-semibold text-state-danger">
                 {fieldErrors.items}
               </div>
             )}
-            {items.length === 0 && <p className="text-sm text-muted">Chưa có sản phẩm. Chọn Thêm sản phẩm để bắt đầu.</p>}
-            <div className="space-y-4">
-              {items.map((item, index) => <Card key={item.id} className="!bg-surface-default !border-border" title={`Sản phẩm ${index + 1}`} actions={<Button variant="outline" onClick={() => void handleRemoveItem(item.id)}>Xóa</Button>}>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <Input
-                    label="Tên sản phẩm"
-                    value={item.name}
-                    maxLength={200}
-                    error={fieldErrors[`item_name_${item.id}`]}
-                    onChange={event => {
-                      updateItem(item.id, { name: event.target.value });
-                      clearFieldError(`item_name_${item.id}`);
-                    }}
-                  />
-                  <Combobox
-                    label="Thương hiệu"
-                    value={item.brandId}
-                    placeholder="Chọn thương hiệu"
-                    error={fieldErrors[`item_brand_${item.id}`]}
-                    options={brands.map(brand => ({ value: brand.id, label: brand.name }))}
-                    onChange={value => {
-                      const brand = brands.find(b => b.id === value);
-                      if (brand) {
-                        updateItem(item.id, {
-                          brandId: brand.id,
-                          brand: brand.name,
-                          brandTier: brand.tier,
-                          commissionRate: brand.defaultCommissionRate > 0 ? brand.defaultCommissionRate : getTierDefaultCommissionRate(brand.tier)
-                        });
-                        clearFieldError(`item_brand_${item.id}`);
-                      }
-                    }}
-                  />
-                  <Combobox
-                    label="Danh mục"
-                    value={item.categoryId}
-                    placeholder="Chọn danh mục"
-                    error={fieldErrors[`item_category_${item.id}`]}
-                    options={categories.map(category => ({ value: category.id, label: category.name }))}
-                    onChange={value => {
-                      updateItem(item.id, { categoryId: value, category: categories.find(category => category.id === value)?.name || '' });
-                      clearFieldError(`item_category_${item.id}`);
-                    }}
-                  />
-                  <Combobox
-                    label="Kích thước"
-                    value={item.size}
-                    placeholder="Chọn kích thước"
-                    error={fieldErrors[`item_size_${item.id}`]}
-                    options={COMMON_SIZES.map(value => ({ value, label: value }))}
-                    onChange={value => {
-                      updateItem(item.id, { size: value });
-                      clearFieldError(`item_size_${item.id}`);
-                    }}
-                  />
-                  <Combobox
-                    label="Chất liệu"
-                    value={item.material || ''}
-                    placeholder="Chọn chất liệu"
-                    options={COMMON_MATERIALS.map(value => ({ value, label: value }))}
-                    onChange={value => updateItem(item.id, { material: value })}
-                  />
-                  <Input
-                    label="Độ mới (%)"
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={item.conditionPercent}
-                    onChange={event => updateItem(item.id, { conditionPercent: Number(event.target.value) })}
-                  />
-                  <ContractMoneyInput
-                    label="Giá niêm yết (đ)"
-                    value={item.listedPrice}
-                    error={fieldErrors[`item_price_${item.id}`]}
-                    onChange={val => {
-                      updateItem(item.id, { listedPrice: val || 0 });
-                      clearFieldError(`item_price_${item.id}`);
-                    }}
-                  />
-                  {intakeType === 'consignment' && (
-                    <Input
-                      label="Hoa hồng shop (%)"
-                      type="number"
-                      min={0}
-                      max={100}
-                      step="0.01"
-                      value={item.commissionRate ?? ''}
-                      error={fieldErrors[`item_commission_${item.id}`]}
-                      onChange={event => {
-                        updateItem(item.id, { commissionRate: event.target.value === '' ? undefined : Number(event.target.value) });
-                        clearFieldError(`item_commission_${item.id}`);
-                      }}
-                    />
-                  )}
+
+            {items.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border py-12 px-4 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-dashboard text-muted mb-3">
+                  <Tag size={22} />
                 </div>
-                <div className="mt-4 flex flex-wrap items-center gap-3"><Button variant="outline" onClick={() => setPhotoModalItem(item)}>Chụp / tải ảnh ({item.images?.length || 0})</Button><span className="text-sm text-muted">Dự kiến khách nhận: {formatVND(item.customerPayout)}</span></div>
-                {!!item.images?.length && <div className="mt-3 flex flex-wrap gap-2">{item.images.map(url => <img key={url} src={url} alt={`Ảnh ${item.name || `sản phẩm ${index + 1}`}`} className="h-20 w-20 rounded-lg object-cover" />)}</div>}
-              </Card>)}
-            </div>
+                <h4 className="text-sm font-bold text-ink">Chưa có sản phẩm nào trong danh sách</h4>
+                <p className="mt-1 text-xs text-muted max-w-sm mx-auto">
+                  Hãy nhập thông tin sản phẩm vào form ở trên rồi bấm nút <strong className="text-brand-highlight">"Thêm sản phẩm"</strong> để bắt đầu tiếp nhận.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-border bg-surface-default">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead className="bg-surface-dashboard text-xs font-bold uppercase tracking-wider text-muted border-b border-border">
+                    <tr>
+                      <th className="py-3 px-3 text-center w-12">#</th>
+                      <th className="py-3 px-3 text-center w-16">Ảnh</th>
+                      <th className="py-3 px-4">Tên sản phẩm</th>
+                      <th className="py-3 px-3">Thương hiệu</th>
+                      <th className="py-3 px-3">Danh mục</th>
+                      <th className="py-3 px-3 text-center">Size / Vải</th>
+                      <th className="py-3 px-3 text-center">Độ mới</th>
+                      <th className="py-3 px-4 text-right">Giá niêm yết</th>
+                      <th className="py-3 px-3 text-center">Hoa hồng</th>
+                      <th className="py-3 px-4 text-right">Khách nhận</th>
+                      <th className="py-3 px-3 text-center w-24">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/70">
+                    {items.map((item, idx) => (
+                      <tr
+                        key={item.id}
+                        className={`transition ${editingItemId === item.id
+                          ? 'bg-amber-50/70 ring-1 ring-amber-300'
+                          : 'hover:bg-brand-pink-surface/30'
+                          }`}
+                      >
+                        <td className="py-3.5 px-3 text-center font-bold text-muted text-xs">
+                          {idx + 1}
+                        </td>
+                        <td className="py-3.5 px-3 text-center">
+                          {item.images && item.images.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPhotoModalTarget({
+                                  id: item.id,
+                                  name: item.name,
+                                  category: item.category,
+                                  size: item.size,
+                                  images: item.images || [],
+                                })
+                              }
+                              className="relative group inline-block focus:outline-none"
+                              title="Xem / chụp thêm ảnh"
+                            >
+                              <img
+                                src={item.images[0]}
+                                alt={item.name}
+                                className="h-10 w-10 rounded-lg object-cover border border-border shadow-2xs group-hover:opacity-80 transition"
+                              />
+                              <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E53E8A] px-1 text-[9px] font-bold text-white shadow-xs">
+                                {item.images.length}
+                              </span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPhotoModalTarget({
+                                  id: item.id,
+                                  name: item.name,
+                                  category: item.category,
+                                  size: item.size,
+                                  images: [],
+                                })
+                              }
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-dashed border-border text-muted hover:border-brand-pink hover:text-brand-highlight hover:bg-brand-pink-surface transition text-xs font-semibold"
+                              title="Tải ảnh cho sản phẩm này"
+                            >
+                              +Ảnh
+                            </button>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-ink">
+                          {item.name}
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span className="inline-block rounded-md bg-surface-dashboard px-2 py-0.5 text-xs font-semibold text-text-secondary border border-border/60">
+                            {item.brand || '—'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-xs text-text-secondary">
+                          {item.category || '—'}
+                        </td>
+                        <td className="py-3.5 px-3 text-center text-xs text-text-secondary">
+                          <span className="font-bold">{item.size || '—'}</span>
+                          {item.material && (
+                            <span className="text-muted block text-[11px]">{item.material}</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-3 text-center text-xs font-bold text-emerald-700">
+                          {item.conditionPercent}%
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-extrabold text-ink">
+                          {formatVND(item.listedPrice)}
+                        </td>
+                        <td className="py-3.5 px-3 text-center text-xs font-semibold text-text-secondary">
+                          {intakeType === 'consignment' ? `${item.commissionRate ?? 20}%` : '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-extrabold text-brand-highlight">
+                          {formatVND(item.customerPayout)}
+                        </td>
+                        <td className="py-3.5 px-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(item)}
+                              className="p-1.5 rounded-lg text-text-muted hover:text-brand-highlight hover:bg-brand-pink-light/60 transition"
+                              title="Chỉnh sửa sản phẩm này"
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleRemoveItem(item.id)}
+                              className="p-1.5 rounded-lg text-text-muted hover:text-state-danger hover:bg-state-danger-soft transition"
+                              title="Xóa khỏi danh sách"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </div>
         {/* Footer controls */}
@@ -1181,22 +1574,22 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
         </div>
       </div>
 
-      
-      {photoModalItem && (
+
+      {photoModalTarget && (
         <ItemPhotoModal
-          open={Boolean(photoModalItem)}
-          onClose={() => setPhotoModalItem(null)}
-          itemName={photoModalItem.name}
-          itemCategory={photoModalItem.category}
-          itemSize={photoModalItem.size}
-          images={photoModalItem.images || []}
+          open={Boolean(photoModalTarget)}
+          onClose={() => setPhotoModalTarget(null)}
+          itemName={photoModalTarget.name || 'Sản phẩm'}
+          itemCategory={photoModalTarget.category || ''}
+          itemSize={photoModalTarget.size || ''}
+          images={photoModalTarget.images || []}
           onImagesChange={(newImages) =>
-            handleItemImagesChange(photoModalItem.id, newImages)
+            handleImagesChange(photoModalTarget.id, newImages)
           }
         />
       )}
 
-      
+
       {printModalOpen && createdContract && (
         <ReceptionPrintModal
           open={printModalOpen}

@@ -75,12 +75,118 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
     setPrintError('');
     setPrinting(true);
     try {
-      const images = Array.from(document.querySelectorAll<HTMLImageElement>('#reception-printable-sheet img'));
-      await Promise.all(images.map(image => image.decode().catch(() => {})));
-      await document.fonts.ready;
-      window.print();
+      const sheet = document.getElementById('reception-printable-sheet');
+      if (!sheet) {
+        window.print();
+        return;
+      }
+
+      // Pre-decode all images
+      const images = Array.from(sheet.querySelectorAll<HTMLImageElement>('img'));
+      await Promise.race([
+        Promise.all(images.map(image => image.decode().catch(() => {}))),
+        new Promise(resolve => setTimeout(resolve, 800)),
+      ]);
+      await Promise.race([
+        document.fonts.ready.catch(() => {}),
+        new Promise(resolve => setTimeout(resolve, 500)),
+      ]);
+
+      // Create an invisible iframe for isolated, clean printing
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(iframe);
+
+      const frameDoc = iframe.contentWindow?.document;
+      if (!frameDoc) {
+        window.print();
+        return;
+      }
+
+      // Collect all stylesheets from current document
+      const styleSheets = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+        .map(el => el.outerHTML)
+        .join('\n');
+
+      frameDoc.open();
+      frameDoc.write(`
+        <!DOCTYPE html>
+        <html lang="vi">
+          <head>
+            <meta charset="utf-8" />
+            <title>${title} - #${contract.contractNumber}</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+            ${styleSheets}
+            <style>
+              @page {
+                size: A4 portrait;
+                margin: 8mm 10mm;
+              }
+              *, *::before, *::after {
+                box-sizing: border-box;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-family: "Be Vietnam Pro", system-ui, -apple-system, sans-serif !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              #reception-printable-sheet {
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                position: static !important;
+              }
+              table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                page-break-inside: auto;
+              }
+              tr {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+              }
+              .signature-block {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+              }
+            </style>
+          </head>
+          <body>
+            ${sheet.outerHTML}
+          </body>
+        </html>
+      `);
+      frameDoc.close();
+
+      iframe.contentWindow?.focus();
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.print();
+        } finally {
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 1500);
+        }
+      }, 300);
     } catch {
-      setPrintError('Không thể chuẩn bị bản in. Vui lòng thử lại.');
+      setPrintError('Không thể mở hộp thoại in. Vui lòng thử lại.');
     } finally {
       setPrinting(false);
     }
@@ -123,10 +229,69 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
     : null;
 
   return (
-    <div className="fixed inset-0 z-80 flex items-center justify-center p-3 sm:p-5 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="reception-print-container relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl bg-white shadow-2xl border border-gray-200 overflow-hidden text-gray-900 font-sans print:p-0 print:border-none print:shadow-none print:rounded-none">
+    <div className="reception-print-overlay fixed inset-0 z-80 flex items-center justify-center p-3 sm:p-5 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-150 print:static print:inset-auto print:p-0 print:bg-transparent print:backdrop-blur-none print:block print:overflow-visible print:max-h-none print:w-full">
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm 12mm;
+          }
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            font-family: "Be Vietnam Pro", system-ui, -apple-system, sans-serif !important;
+          }
+          .reception-print-overlay {
+            position: static !important;
+            inset: auto !important;
+            background: transparent !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            transform: none !important;
+          }
+          .reception-print-container {
+            position: static !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            background: transparent !important;
+            transform: none !important;
+          }
+          .reception-print-scroll {
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            padding: 0 !important;
+            background: transparent !important;
+          }
+          .reception-print-toolbar,
+          .print-hide {
+            display: none !important;
+          }
+        }
+      `}</style>
+      <div className="reception-print-container relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl bg-white shadow-2xl border border-gray-200 overflow-hidden text-gray-900 font-sans print:static print:p-0 print:border-none print:shadow-none print:rounded-none print:max-h-none print:overflow-visible print:w-full print:bg-transparent">
         {/* Modal Toolbar */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 print:hidden shrink-0">
+        <div className="reception-print-toolbar flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 print:hidden shrink-0">
           <div className="flex items-center gap-2 text-sm font-extrabold text-gray-900">
             <CheckCircle className="text-emerald-600" size={18} />
             <span>{title}</span>
@@ -141,7 +306,7 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
               onClick={() => void handlePrint()}
               disabled={printing || Boolean(referenceNotice)}
               style={{ color: '#FFFFFF' }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 !text-white font-bold text-xs shadow-sm transition active:scale-95"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-pink text-brand-ink hover:bg-brand-pink-hover font-bold text-xs shadow-sm transition active:scale-95"
             >
               <Printer size={15} /> {printing ? 'Đang chuẩn bị...' : 'In / lưu PDF'}
             </button>
@@ -163,7 +328,7 @@ export const ReceptionPrintModal: React.FC<ReceptionPrintModalProps> = ({
         )}
 
         {/* Unified Contract Sheet - exact match across view, print, intake, and management */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 print:p-0 print:overflow-visible bg-white">
+        <div className="reception-print-scroll flex-1 overflow-y-auto p-4 sm:p-8 print:p-0 print:overflow-visible print:max-h-none bg-white">
           {referenceNotice && (
             <p role="note" className="mb-4 rounded-xl border border-amber-600 bg-amber-50 p-3 font-bold text-amber-900 text-xs print:hidden">
               BẢN THAM KHẢO: {referenceNotice}

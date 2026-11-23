@@ -62,7 +62,7 @@ export function Input({
           aria-describedby={describedBy}
           aria-busy={loading || undefined}
           className={joinClasses(
-            "w-full rounded-xl border bg-paper px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-70",
+            "w-full rounded-xl border bg-paper px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-70",
             error
               ? "border-state-danger focus:border-state-danger focus:ring-state-danger/20"
               : "border-border focus:border-brand-pink-focus focus:ring-brand-pink/25",

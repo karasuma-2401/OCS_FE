@@ -1,9 +1,9 @@
 import { authStyles } from '@/components/layout/authStyles';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, MailCheck, RefreshCw, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, MailCheck, RefreshCw } from 'lucide-react';
 import { completePasswordReset, parseProblemDetails, requestPasswordReset, verifyPasswordReset } from '@/api/auth';
-import { Button, Form, Input, PasswordInput, Toast } from '@/components/shared';
+import { AlertBanner, Button, Form, Input, PasswordInput } from '@/components/shared';
 import { validateConfirmPassword, validateEmail, validatePasswordPolicy } from '@/utils/validation';
 import { deleteOtpDigit, fillOtpDigits } from '@/utils/otp';
 
@@ -107,14 +107,15 @@ export const ForgotPasswordPage: React.FC = () => {
         {step === 'password' && 'Nhập mật khẩu mới và xác nhận lại để hoàn tất.'}
         {step === 'done' && 'Bạn có thể đăng nhập bằng mật khẩu mới.'}
       </p>
-      {error && <div className="mb-[1.35rem]"><Toast variant="error" title="Không thể thực hiện" message={error} onClose={() => setError(null)} /></div>}
-      {notice && <div className="mb-[1.35rem] flex items-start gap-3 rounded-xl border border-[#c5ddfa] bg-[#f1f7ff] px-4 py-[.95rem] text-xs leading-[1.55] text-[#275b8c]" role="status">
-        <MailCheck size={20} className="mt-[.1rem] shrink-0 text-[#3c78b8]" aria-hidden="true" />
-        <div className="min-w-0 flex-1"><strong className="block text-[.76rem] text-[#245785]">Kiểm tra hộp thư của bạn</strong><p className="mt-[.22rem]">Nếu email đủ điều kiện, mã xác thực sẽ được gửi đến. Hãy kiểm tra cả thư mục spam nhé.</p></div>
-        <button type="button" className={`
-          shrink-0 cursor-pointer rounded-[4px] border-0 bg-transparent p-0 text-[#7192b1] hover:text-[#245785]
-          focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[#b35a80]
-        `} onClick={() => setNotice(false)} aria-label="Đóng thông báo"><X size={17} /></button>
+      {error && <div className="mb-[1.35rem]"><AlertBanner variant="error" title="Không thể thực hiện" description={error} onClose={() => setError(null)} /></div>}
+      {notice && <div className="mb-[1.35rem]">
+        <AlertBanner
+          variant="info"
+          icon={<MailCheck size={18} aria-hidden="true" />}
+          title="Kiểm tra hộp thư của bạn"
+          description="Nếu email đủ điều kiện, mã xác thực sẽ được gửi đến. Hãy kiểm tra cả thư mục spam nhé."
+          onClose={() => setNotice(false)}
+        />
       </div>}
       {step !== 'done' && <Form className={authStyles.form} onSubmit={submit} loading={loading} disabled={loading}>
         {step === 'email' && <Input label="Địa chỉ email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" placeholder="ban@example.com" required />}

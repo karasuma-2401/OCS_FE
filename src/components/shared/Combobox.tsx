@@ -36,6 +36,7 @@ export function Combobox({ options, value, onChange, ariaLabel, label, placehold
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom');
   const selectedIndex = options.findIndex((option) => option.value === value);
   const selected = options[selectedIndex];
 
@@ -66,6 +67,16 @@ export function Combobox({ options, value, onChange, ariaLabel, label, placehold
   }
 
   function showMenu() {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (spaceBelow < 260 && spaceAbove > spaceBelow) {
+        setPlacement('top');
+      } else {
+        setPlacement('bottom');
+      }
+    }
     const initial = selectedIndex >= 0 && !options[selectedIndex].disabled ? selectedIndex : enabledFrom(0, 1);
     setActive(initial);
     setOpen(true);

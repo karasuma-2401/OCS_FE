@@ -153,7 +153,7 @@ export function DatePicker({ value, onChange, label, ariaLabel, id, name, requir
           event.currentTarget.setCustomValidity(nextDraft && (!next || !inRange(next)) ? 'Vui lòng nhập ngày hợp lệ trong khoảng cho phép (dd/mm/yyyy).' : '');
           setDraft(nextDraft);
           emit(next && inRange(next) ? next : '');
-        }} className="min-w-0 flex-1 rounded-l-xl bg-transparent px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-muted/70 disabled:cursor-not-allowed disabled:opacity-70" />
+        }} className="min-w-0 flex-1 rounded-l-xl bg-transparent px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-70" />
         <button ref={triggerRef} type="button" disabled={disabled} aria-label={label ? `Chọn ${typeof label === 'string' ? label.toLocaleLowerCase('vi-VN') : 'ngày'}` : 'Chọn ngày'} aria-expanded={open} aria-controls={open ? calendarId : undefined} onClick={openCalendar} className="mr-1.5 rounded-lg p-2 text-brand-highlight hover:bg-brand-pink-light focus-visible:outline-2 focus-visible:outline-brand-pink-focus disabled:cursor-not-allowed disabled:opacity-50"><CalendarDays size={18} aria-hidden="true" /></button>
       </div>
       {name && <input type="hidden" name={name} value={value} disabled={disabled} />}

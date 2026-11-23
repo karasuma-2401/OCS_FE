@@ -12,7 +12,7 @@
   --color-accent: #EF9F45;
   --color-accent-dark: #D48427;
   --color-accent-hover: #F3AF62;
-  --color-muted: #6B7C72;
+  --color-muted: #56655C;
   --color-muted-on-dark: #A5B6AC;
   --color-success: #2E7D32;
   --color-danger: #D32F2F;
@@ -28,12 +28,24 @@
   --color-state-success-border: #BBF7D0;
   --color-state-info: #1E40AF;
   --color-state-info-strong: #1D4ED8;
-  --color-state-info-soft: #DBEAFE;
+  --color-state-info-icon: #2563EB;
+  --color-state-info-soft: #EFF6FF;
+  --color-state-info-muted: #DBEAFE;
+  --color-state-info-border: #BFDBFE;
   --color-state-warning: #B45309;
   --color-state-warning-strong: #92400E;
-  --color-state-warning-soft: #FEF3C7;
+  --color-state-warning-icon: #D97706;
+  --color-state-warning-soft: #FFFBEB;
+  --color-state-warning-muted: #FEF3C7;
+  --color-state-warning-border: #FDE68A;
   --color-state-neutral: #1F2937;
+  --color-state-neutral-icon: #4B5563;
   --color-state-neutral-soft: #F3F4F6;
+  --color-state-neutral-border: #E5E7EB;
+  --color-state-payment: #047857;
+  --color-state-payment-soft: #ECFDF5;
+  --color-state-payment-muted: #D1FAE5;
+  --color-state-payment-border: #A7F3D0;
   --color-state-danger: #B91C1C;
   --color-state-danger-strong: #DC2626;
   --color-state-danger-icon: #EF4444;
@@ -57,7 +69,7 @@
 
   --color-text-primary: #111C2D;
   --color-text-secondary: #524347;
-  --color-text-muted: #64748B;
+  --color-text-muted: #475569;
   --color-surface-default: #FFFFFF;
   --color-surface-active: #FCF9FC;
 
@@ -77,6 +89,27 @@
   --animate-process-marker: process-marker-in .45s ease-out both;
   --animate-process-line: process-line-across .4s ease-out both;
   --animate-process-line-down: process-line-down .4s ease-out both;
+  --animate-toast-enter: toast-enter .26s cubic-bezier(.16, 1, .3, 1) both;
+  --animate-bell-swing: bell-swing .65s cubic-bezier(.22, 1, .36, 1) both;
+
+  @keyframes toast-enter {
+    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes bell-swing {
+    0% { transform: rotate(0deg); }
+    18% { transform: rotate(16deg); }
+    36% { transform: rotate(-13deg); }
+    54% { transform: rotate(9deg); }
+    72% { transform: rotate(-5deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  @keyframes toast-progress {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+  }
 
   @keyframes rail-caption-in {
     from { opacity: 0; }
@@ -110,7 +143,18 @@
 }
 
 @layer base {
+  html, body, button, input, select, textarea, optgroup {
+    font-family: var(--font-sans);
+  }
+
   body {
     @apply font-sans bg-surface text-ink;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-toast-enter,
+  .animate-bell-swing {
+    animation: none !important;
   }
 }

@@ -166,11 +166,12 @@ export const UnifiedContractSheet: React.FC<UnifiedContractSheetProps> = ({
         @media print {
           @page {
             size: A4 portrait;
-            margin: 12mm 15mm;
+            margin: 8mm 10mm;
           }
           body {
             background: white !important;
             color: black !important;
+            font-family: "Be Vietnam Pro", system-ui, -apple-system, sans-serif !important;
           }
           body:not([data-print-mode="barcode"]) * {
             visibility: hidden !important;
@@ -180,7 +181,7 @@ export const UnifiedContractSheet: React.FC<UnifiedContractSheetProps> = ({
             visibility: visible !important;
           }
           body:not([data-print-mode="barcode"]) #${printableId} {
-            position: absolute !important;
+            position: relative !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
