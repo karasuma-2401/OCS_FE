@@ -5,8 +5,6 @@ import {
   WifiOff,
   CheckCircle2,
   RefreshCw,
-  Receipt,
-  ShoppingCart,
 } from 'lucide-react';
 import { Button, Modal } from '@/components/shared';
 import { formatVndCurrency } from './VietQrPaymentModal';
@@ -50,15 +48,16 @@ export const PosCashConfirmModal: React.FC<PosCashConfirmModalProps> = ({
       }}
       closeOnBackdrop={!isSubmitting}
       title={
-        <div className="flex items-center gap-2.5 text-brand-ink">
-          <Banknote className="size-6 text-brand-highlight" aria-hidden="true" />
-          <span className="font-extrabold text-ink">Xác nhận giao dịch tiền mặt</span>
+        <div className="flex items-center gap-2 text-brand-ink">
+          <Banknote className="size-5 text-brand-highlight" aria-hidden="true" />
+          <span className="font-extrabold text-ink">Xác nhận thanh toán tiền mặt</span>
         </div>
       }
-
-      className="max-w-xl"
+      description="Kiểm tra số tiền thu và tiền thối trước khi xuất hóa đơn."
+      className="max-w-[440px]"
+      contentClassName="!py-4"
       footer={
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 w-full">
           <Button
             type="button"
             variant="outline"
@@ -66,7 +65,7 @@ export const PosCashConfirmModal: React.FC<PosCashConfirmModalProps> = ({
             disabled={isSubmitting}
             onClick={onClose}
           >
-            Quay lại / Sửa tiền
+            Sửa tiền
           </Button>
 
           {error && isNetworkError && onRetry ? (
@@ -78,7 +77,7 @@ export const PosCashConfirmModal: React.FC<PosCashConfirmModalProps> = ({
               loadingText="Đang kết nối lại..."
               startIcon={<RefreshCw className="size-4" aria-hidden="true" />}
               onClick={onRetry}
-              className="bg-brand-highlight text-white hover:bg-brand-highlight/90 font-bold"
+              className="bg-brand-highlight text-white enabled:hover:bg-brand-highlight/90 font-bold shadow-xs"
             >
               Thử lại thanh toán
             </Button>
@@ -88,11 +87,11 @@ export const PosCashConfirmModal: React.FC<PosCashConfirmModalProps> = ({
               variant="primary"
               size="md"
               loading={isSubmitting}
-              loadingText="Đang ghi nhận vào hệ thống..."
+              loadingText="Đang ghi nhận..."
               disabled={isSubmitting || cart.length === 0 || cashGiven < totalAmount}
               startIcon={<CheckCircle2 className="size-4" aria-hidden="true" />}
               onClick={onConfirm}
-              className="bg-emerald-600 text-white hover:bg-emerald-700 font-bold"
+              className="bg-[#E84E7F] text-white enabled:hover:bg-[#D83A6D] enabled:active:bg-[#C22D5E] font-bold shadow-xs"
             >
               Xác nhận thanh toán
             </Button>
@@ -100,21 +99,22 @@ export const PosCashConfirmModal: React.FC<PosCashConfirmModalProps> = ({
         </div>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {/* Error Notification Alert (Network / API Error) */}
         {error && (
           <div
             role="alert"
-            className={`rounded-xl border p-3.5 text-xs transition-all ${isNetworkError
-              ? 'border-red-300 bg-red-50 text-red-950 shadow-xs'
-              : 'border-amber-300 bg-amber-50 text-amber-950'
-              }`}
+            className={`rounded-xl border p-3 text-xs transition-all ${
+              isNetworkError
+                ? 'border-red-300 bg-red-50 text-red-950 shadow-2xs'
+                : 'border-amber-300 bg-amber-50 text-amber-950'
+            }`}
           >
             <div className="flex items-start gap-2.5">
               {isNetworkError ? (
-                <WifiOff className="size-5 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
+                <WifiOff className="size-4.5 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
               ) : (
-                <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
+                <AlertTriangle className="size-4.5 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
               )}
               <div className="space-y-1 flex-1">
                 <p className="font-bold text-xs uppercase tracking-wide">
@@ -125,7 +125,7 @@ export const PosCashConfirmModal: React.FC<PosCashConfirmModalProps> = ({
                 <p className="leading-relaxed font-medium">{error}</p>
                 {isNetworkError && (
                   <p className="text-[11px] text-red-800/90 font-medium">
-                    🛡️ Giỏ hàng và tiền khách đưa vẫn được giữ nguyên vẹn. Không có hóa đơn giả nào được tạo.
+                    Giỏ hàng và tiền khách đưa vẫn được giữ nguyên vẹn. Không có hóa đơn giả nào được tạo.
                   </p>
                 )}
               </div>
@@ -133,75 +133,89 @@ export const PosCashConfirmModal: React.FC<PosCashConfirmModalProps> = ({
           </div>
         )}
 
-        {/* Amount & Change Breakdown Box */}
-        <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
-          <div className="flex items-center justify-between border-b border-border/80 pb-2">
-            <span className="text-xs font-semibold text-muted">Tổng tiền đơn hàng:</span>
-            <span className="text-base font-black text-ink">{formatVndCurrency(totalAmount)}</span>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted">Tiền khách đưa:</span>
-              <span className="text-base font-black text-brand-ink">{formatVndCurrency(cashGiven)}</span>
-            </div>
-            <p className="text-[11px] text-muted text-right italic">
-              Bằng chữ: <span className="font-semibold text-ink">{formatVndInWords(cashGiven)}</span>
-            </p>
-          </div>
-
-          <div className="pt-2 border-t border-border/80 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-800">Tiền thừa trả lại khách:</span>
-              <span className="text-xl font-black text-emerald-700">
-                {formatVndCurrency(changeAmount)}
+        {/* Financial Summary: Two-tier hierarchy separating Totals from Change Due */}
+        <div className="space-y-2">
+          <div className="rounded-xl border border-border/80 bg-surface/65 px-3.5 py-3 space-y-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-xs font-medium text-muted">Tổng tiền hàng ({cart.length} món)</span>
+              <span className="font-mono text-sm font-bold tabular-nums text-ink">
+                {formatVndCurrency(totalAmount)}
               </span>
             </div>
+
+            <div className="border-t border-border/60 pt-2 flex items-start justify-between gap-2">
+              <span className="text-xs font-medium text-muted pt-0.5">Tiền khách đưa</span>
+              <div className="text-right">
+                <span className="block font-mono text-base font-extrabold tabular-nums text-brand-ink leading-tight">
+                  {formatVndCurrency(cashGiven)}
+                </span>
+                <span className="block text-[11px] text-muted/85 mt-0.5">
+                  {formatVndInWords(cashGiven)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Highlighted Change Callout */}
+          <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/75 px-3.5 py-2.5 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="block text-xs font-bold text-emerald-900">
+                Tiền thừa trả khách
+              </span>
+              {changeAmount > 0 && (
+                <span className="block text-[11px] font-medium text-emerald-700/90 truncate mt-0.5">
+                  {formatVndInWords(changeAmount)}
+                </span>
+              )}
+            </div>
+
             {changeAmount > 0 ? (
-              <p className="text-[11px] text-emerald-700 text-right italic font-medium">
-                Bằng chữ: <span className="font-bold">{formatVndInWords(changeAmount)}</span>
-              </p>
+              <span className="font-mono text-xl font-black tabular-nums text-emerald-700 shrink-0 tracking-tight">
+                {formatVndCurrency(changeAmount)}
+              </span>
             ) : (
-              <p className="text-[11px] text-emerald-600 text-right font-medium">
-                Khách đưa vừa đủ tiền, không cần trả lại tiền thừa.
-              </p>
+              <span className="inline-flex items-center rounded-full bg-emerald-100/90 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 shrink-0">
+                Đưa vừa đủ
+              </span>
             )}
           </div>
         </div>
 
         {/* Cart Item Summary */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-muted border-b border-border/70 pb-1">
-            <span className="flex items-center gap-1.5">
-              <ShoppingCart className="size-3.5 text-muted" aria-hidden="true" />
-              Sản phẩm thanh toán ({cart.length} món)
-            </span>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between px-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+            <span>Sản phẩm ({cart.length})</span>
             <span>Đơn giá</span>
           </div>
 
-          <div className="max-h-36 overflow-y-auto space-y-1.5 divide-y divide-border/40 pr-1">
-            {cart.map((item, index) => (
-              <div key={item.id || index} className="pt-1.5 first:pt-0 flex items-center justify-between gap-2 text-xs">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-ink truncate">{item.name}</p>
-                  <p className="font-mono text-[10px] text-muted">
-                    Barcode: {item.barcode || 'N/A'} {item.size ? `• Size: ${item.size}` : ''}
-                  </p>
+          <div className="rounded-xl border border-border/75 bg-paper overflow-hidden">
+            <div className="max-h-40 overflow-y-auto divide-y divide-border/50 [scrollbar-width:thin]">
+              {cart.map((item, index) => (
+                <div
+                  key={item.id || index}
+                  className="px-3 py-2 flex items-center justify-between gap-2.5 text-xs"
+                >
+                  <span className="font-mono text-[11px] font-semibold text-muted/70 w-4 shrink-0">
+                    {index + 1}.
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-ink truncate">{item.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[10.5px] text-muted">
+                      <span className="font-mono">{item.barcode || 'N/A'}</span>
+                      {item.size && (
+                        <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] font-semibold text-ink/75 border border-border/60">
+                          Size {item.size}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="font-mono text-xs font-bold tabular-nums text-ink shrink-0">
+                    {formatVndCurrency(item.listedPrice)}
+                  </span>
                 </div>
-                <span className="font-bold text-ink shrink-0">
-                  {formatVndCurrency(item.listedPrice)}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-
-        {/* Security & Integrity Note */}
-        <div className="rounded-lg bg-surface/80 border border-border/80 p-2.5 flex items-start gap-2 text-[11px] text-muted">
-          <Receipt className="size-4 text-brand-highlight shrink-0 mt-0.5" aria-hidden="true" />
-          <p className="leading-relaxed">
-            Thu ngân xác nhận đã thu đủ số tiền mặt từ khách. Sau khi máy chủ API phản hồi thành công, hóa đơn chính thức sẽ được tạo và các sản phẩm trên sẽ chuyển trạng thái sang <strong>Đã bán</strong>.
-          </p>
         </div>
       </div>
     </Modal>
