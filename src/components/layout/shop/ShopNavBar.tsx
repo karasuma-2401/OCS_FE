@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import {
   Banknote,
   BarChart3,
+  Boxes,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -11,8 +12,8 @@ import {
   Handshake,
   Home,
   LogOut,
-  Package,
   Settings,
+  ShoppingBag,
   ShoppingCart,
   Store,
   UsersRound,
@@ -77,8 +78,8 @@ const navigation: ShopNavItem[] = [
 
 const navigationIcons: Record<ShopNavId, LucideIcon> = {
   pos: ShoppingCart,
-  inventory: Package,
-  buyout: Banknote,
+  inventory: Boxes,
+  buyout: ShoppingBag,
   consignment: Handshake,
   customers: UsersRound,
   settlement: Banknote,

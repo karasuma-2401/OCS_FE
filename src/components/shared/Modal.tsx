@@ -19,6 +19,9 @@ export interface ModalProps {
   disabled?: boolean;
   closeOnBackdrop?: boolean;
   className?: string;
+  bodyClassName?: string;
+  contentClassName?: string;
+  footerClassName?: string;
   appearance?: "default" | "simple";
 }
 
@@ -35,6 +38,9 @@ export function Modal({
   disabled = false,
   closeOnBackdrop = true,
   className,
+  bodyClassName,
+  contentClassName,
+  footerClassName,
   appearance = "default",
 }: ModalProps) {
   const titleId = useId();
@@ -170,14 +176,16 @@ export function Modal({
             <InlineError>{error}</InlineError>
           </div>
         )}
-        <fieldset disabled={closeDisabled} className="min-h-0 min-w-0 overflow-y-auto border-0 p-0">
-          <div className="px-4 py-4 sm:px-6 sm:py-5">
-            {loading ? (loadingFallback ?? <Loading />) : children}
-          </div>
-        </fieldset>
+        <div className={twMerge("min-h-0 min-w-0 overflow-y-auto", bodyClassName)}>
+          <fieldset disabled={closeDisabled} className="min-w-0 border-0 p-0">
+            <div className={twMerge("px-4 py-4 sm:px-6 sm:py-5", contentClassName)}>
+              {loading ? (loadingFallback ?? <Loading />) : children}
+            </div>
+          </fieldset>
+        </div>
         {footer && (
           <fieldset disabled={closeDisabled} className="min-w-0 shrink-0 border-0 p-0">
-            <footer className="flex flex-wrap justify-end gap-2 border-t border-border px-4 py-3 sm:px-6 sm:py-4">
+            <footer className={twMerge("flex flex-wrap justify-end gap-2 border-t border-border px-4 py-3 sm:px-6 sm:py-4", footerClassName)}>
               {footer}
             </footer>
           </fieldset>

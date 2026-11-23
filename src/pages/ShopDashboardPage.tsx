@@ -90,7 +90,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
   }
 
   return (
-    <div className="flex min-h-screen flex-col gap-4 bg-surface-dashboard px-3 pt-[11px] pb-12 lg:flex-row lg:items-start">
+    <div className={`flex min-h-screen flex-col gap-4 bg-surface-dashboard px-3 pt-[11px] lg:flex-row lg:items-start ${activeTab === 'pos' ? 'pb-3' : 'pb-12'}`}>
       <ShopNavBar
         activeItem={activeTab}
         showAccounts={canOpenScreen('accounts')}
@@ -117,7 +117,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         }}
       />
 
-      <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 p-6 text-text-primary">
+      <main className={`mx-auto w-full max-w-7xl min-w-0 flex-1 text-text-primary ${activeTab === 'pos' ? 'p-3 sm:px-5 sm:py-3' : 'p-6'}`}>
         {activeTab !== 'consignment' && <h1 className="sr-only">{currentTabInfo.title}</h1>}
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
