@@ -8,7 +8,7 @@ import ts from 'typescript';
 
 const require = createRequire(import.meta.url);
 const permissions = { screenPaths: {
-  pos: '/shop/pos', inventory: '/shop/inventory', consignment: '/shop/consignment',
+  pos: '/shop/pos', inventory: '/shop/inventory', expiry: '/shop/expiry', consignment: '/shop/consignment',
   customers: '/shop/customers', settlement: '/shop/settlement', reports: '/shop/reports',
   settings: '/shop/settings', accounts: '/admin/accounts',
 } };
@@ -37,4 +37,13 @@ test('disabled shop navigation is not an actionable link', () => {
   const html = renderToStaticMarkup(React.createElement(ShopNavBar, { allowedItems: ['inventory'], disabledItems: ['inventory'] }));
   assert.match(html, /aria-disabled="true"/);
   assert.doesNotMatch(html, /href="\/shop\/inventory"/);
+});
+
+test('expiry has its own sidebar link and selected state', () => {
+  const html = renderToStaticMarkup(React.createElement(ShopNavBar, {
+    activeItem: 'expiry', allowedItems: ['inventory', 'expiry'],
+  }));
+  assert.match(html, /href="\/shop\/expiry"[^>]*aria-current="page"/);
+  assert.match(html, /Xử Lý Hàng Hết Hạn/);
+  assert.match(html, /href="\/shop\/inventory"/);
 });

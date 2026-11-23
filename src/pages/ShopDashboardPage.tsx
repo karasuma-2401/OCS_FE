@@ -8,6 +8,7 @@ import { AppointmentManagement } from '@/components/shop/AppointmentManagement';
 import { AccountManagement } from '@/components/shop/AccountManagement';
 import { FunctionPermissions } from '@/components/shop/FunctionPermissions';
 import { InventoryManagement } from '@/components/shop/InventoryManagement';
+import { ExpiryProcessingPage } from '@/pages/ExpiryProcessingPage';
 import { BuyoutManagement } from '@/components/shop/BuyoutManagement';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { PosPage } from '@/components/shop/pos/PosPage';
@@ -25,6 +26,10 @@ const tabTitles: Record<ShopNavId, { title: string; desc: string }> = {
   inventory: {
     title: 'Quản Lý Kho Hàng & Sản Phẩm',
     desc: 'Quản lý danh sách sản phẩm, in nhãn barcode và cập nhật tình trạng hàng hóa.',
+  },
+  expiry: {
+    title: 'Xử Lý Hàng Ký Gửi Hết Hạn',
+    desc: 'Theo dõi và xác nhận bàn giao hàng ký gửi đã hết hạn.',
   },
   buyout: {
     title: 'Thu mua đứt',
@@ -77,6 +82,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
 
   const currentTabInfo = tabTitles[activeTab];
   const canOpenScreen = (id: ShopNavId) => {
+    if (id === 'expiry' && hasRole('Admin')) return true;
     const required = screenRequirements[id];
     return hasPermission(screenPermissions[id]) && (!required || hasPermission(required));
   };
@@ -121,7 +127,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         {activeTab !== 'consignment' && <h1 className="sr-only">{currentTabInfo.title}</h1>}
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
-        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'buyout' ? <BuyoutManagement /> : activeTab === 'pos' ? <PosPage /> : activeTab === 'settings' ? <FunctionPermissions /> : <>
+        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'expiry' ? <ExpiryProcessingPage /> : activeTab === 'buyout' ? <BuyoutManagement /> : activeTab === 'pos' ? <PosPage /> : activeTab === 'settings' ? <FunctionPermissions /> : <>
           <PageHeaderCard
             icon={activeTab === 'customers' ? <Users size={24} aria-hidden="true" /> : activeTab === 'settlement' ? <Receipt size={24} aria-hidden="true" /> : <BarChart3 size={24} aria-hidden="true" />}
             title={currentTabInfo.title}

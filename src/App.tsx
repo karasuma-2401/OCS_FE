@@ -86,6 +86,7 @@ export default function App() {
       <Route path="/shop/contracts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ContractListPage /></ProtectedRoute>} />
       <Route path="/shop/contracts/:id" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><ContractPdfPage /></ProtectedRoute>} />
       <Route path="/shop/inventory/barcode" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><BarcodePrintPage /></ProtectedRoute>} />
+      <Route path="/shop/inventory/expiry" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><ShopDashboardPage initialTab="expiry" /></ProtectedRoute>} />
       <Route path="/shop/products/barcode" element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Staff']}><BarcodePrintPage /></ProtectedRoute>} />
       <Route path="/admin/accounts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ShopDashboardPage initialTab="accounts" /></ProtectedRoute>} />
       <Route path="/shop/accounts" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><ShopDashboardPage initialTab="accounts" /></ProtectedRoute>} />

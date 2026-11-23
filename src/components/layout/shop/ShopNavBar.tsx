@@ -3,6 +3,7 @@ import {
   Banknote,
   BarChart3,
   Boxes,
+  CalendarClock,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -55,6 +56,7 @@ export interface ShopNavBarProps {
 const navigation: ShopNavItem[] = [
   { id: "pos", label: "POS Bán Hàng", href: screenPaths.pos },
   { id: "inventory", label: "Quản Lý Kho", href: screenPaths.inventory },
+  { id: "expiry", label: "Xử Lý Hàng Hết Hạn", href: screenPaths.expiry },
   { id: "buyout", label: "Thu Mua Đứt", href: screenPaths.buyout },
   {
     id: "consignment",
@@ -79,6 +81,7 @@ const navigation: ShopNavItem[] = [
 const navigationIcons: Record<ShopNavId, LucideIcon> = {
   pos: ShoppingCart,
   inventory: Boxes,
+  expiry: CalendarClock,
   buyout: ShoppingBag,
   consignment: Handshake,
   customers: UsersRound,
