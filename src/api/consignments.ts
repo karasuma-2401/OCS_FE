@@ -4,6 +4,7 @@ export interface ConsignmentProduct {
   id: string; barcode: string; name: string; status: string; listedPrice: number;
   agreedCommissionRate: number | null; estimatedPayout: number | null;
   detailAvailable: boolean;
+  handledAt: string | null;
 }
 export interface ConsignmentProductDetail extends ConsignmentProduct {
   description: string | null;
@@ -12,10 +13,12 @@ export interface ConsignmentProductDetail extends ConsignmentProduct {
   size: string | null;
   condition: string | null;
   imageUrls: string[];
+  expiryProcessingType: string | null; expiryProcessingStatus: string | null; collectionDeadline: string | null;
 }
 export interface Consignment {
   contractId: string; contractNumber: string; appointmentId: string | null;
   signedAt: string; endsAt: string; status: string; expiryHandling: string;
+  expiryProcessingType: string | null; expiryProcessingStatus: string | null; collectionDeadline: string | null;
   products: ConsignmentProduct[]; estimatedPayout: number | null; settledAmount: number;
   contractDocument: {
     fileName: string;
