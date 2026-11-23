@@ -1,30 +1,33 @@
 /* ==========================================================================
-   POS Thermal Receipt Styles
-   Inspired by Code Mode "Dose" paper receipt till
+   POS Thermal Receipt & Hardware Effects
+   (Layout/spacing lives in Tailwind utilities; this file keeps keyframes,
+    repeating/serrated pseudo-elements, custom scrollbars, and @media print.)
    ========================================================================== */
-
-/* ------------------------------------------------------------ Paper Roll Container */
-.pos-roll-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  position: relative;
-  min-height: 280px;
-}
 
 /* ------------------------------------------------------------ Thermal Paper */
 .pos-thermal-paper {
   position: relative;
-  background: linear-gradient(90deg, #F4F2EA, #FAF8F2 9%, #FAF8F2 91%, #F1EFE6);
-  color: #18211D;
+  /* Clean, authentic thermal paper:
+     - Pure crisp white (#FFFFFF) throughout
+     - Very subtle, clean soft gradient to #F8F9FA at top for gentle depth without any discoloration
+  */
+  background: linear-gradient(to top,
+      #FFFFFF 0%,
+      #FFFFFF 60%,
+      #FAFBFD 85%,
+      #F3F5F7 100%);
+  color: #111827;
   font-family: "Space Mono", "SF Mono", "Courier New", Courier, monospace, ui-monospace;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 10px 28px -4px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.04);
   transform-origin: 50% 100%;
   border-radius: 2px 2px 0 0;
-  padding: 22px 18px 20px;
+  padding: 15px 16px 14px;
+  border: 1px solid #E5E7EB;
 }
 
-/* Jagged / serrated tear-off teeth on top of receipt paper */
+/* Jagged / serrated tear-off teeth on top of receipt paper (matches clean light top #F3F5F7) */
 .pos-thermal-paper::before {
   content: "";
   position: absolute;
@@ -33,13 +36,13 @@
   top: -6px;
   height: 7px;
   background:
-    linear-gradient(-45deg, #FAF8F2 5px, transparent 0) 0 0 / 10px 10px repeat-x,
-    linear-gradient(45deg, #FAF8F2 5px, transparent 0) 0 0 / 10px 10px repeat-x;
+    linear-gradient(-45deg, #F3F5F7 5px, transparent 0) 0 0 / 10px 10px repeat-x,
+    linear-gradient(45deg, #F3F5F7 5px, transparent 0) 0 0 / 10px 10px repeat-x;
   transform: scaleY(-1);
   pointer-events: none;
 }
 
-/* Optional bottom tear-off teeth when bill is completely torn */
+/* Optional bottom tear-off teeth when bill is completely torn (matches pure white #FFFFFF) */
 .pos-thermal-paper.is-torn-bottom::after {
   content: "";
   position: absolute;
@@ -48,50 +51,12 @@
   bottom: -6px;
   height: 7px;
   background:
-    linear-gradient(-45deg, #FAF8F2 5px, transparent 0) 0 0 / 10px 10px repeat-x,
-    linear-gradient(45deg, #FAF8F2 5px, transparent 0) 0 0 / 10px 10px repeat-x;
+    linear-gradient(-45deg, #FFFFFF 5px, transparent 0) 0 0 / 10px 10px repeat-x,
+    linear-gradient(45deg, #FFFFFF 5px, transparent 0) 0 0 / 10px 10px repeat-x;
   pointer-events: none;
 }
 
-/* ------------------------------------------------------------ Store Header */
-.pos-paper-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 2px;
-  padding-bottom: 12px;
-  margin-bottom: 10px;
-  border-bottom: 1px dashed #B9B7AE;
-  color: #55625B;
-  font-size: 11.5px;
-}
-
-.pos-paper-header h3 {
-  font-family: "Be Vietnam Pro", system-ui, sans-serif;
-  font-size: 15px;
-  font-weight: 800;
-  color: #18211D;
-  letter-spacing: -0.01em;
-  margin-bottom: 2px;
-}
-
-/* ------------------------------------------------------------ Receipt Line Items */
-.pos-receipt-line {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  column-gap: 6px;
-  align-items: baseline;
-  width: 100%;
-  padding: 5px 0;
-  text-align: left;
-  border-bottom: 1px dotted rgba(185, 183, 174, 0.4);
-}
-
-.pos-receipt-line:last-child {
-  border-bottom: none;
-}
-
+/* ------------------------------------------------------------ Line Feed Reveal */
 .pos-line-feed-in {
   animation: pos-feed-in 0.22s steps(5, end) forwards;
 }
@@ -102,6 +67,7 @@
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     max-height: 120px;
     opacity: 1;
@@ -109,49 +75,22 @@
   }
 }
 
-/* ------------------------------------------------------------ Totals Section */
-.pos-paper-sum {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed #B9B7AE;
-}
-
-.pos-paper-sum div {
-  display: flex;
-  justify-content: space-between;
-  padding: 2px 0;
-  font-size: 12px;
-}
-
-.pos-paper-sum-total {
-  margin: 6px 0 !important;
-  padding: 6px 0 !important;
-  border-top: 1.5px solid #18211D;
-  border-bottom: 1.5px solid #18211D;
-  font-family: "Be Vietnam Pro", system-ui, sans-serif;
-  font-size: 16px !important;
-  font-weight: 800 !important;
-  color: #18211D;
-}
-
 /* ------------------------------------------------------------ Barcode Lines Graphic */
 .pos-barcode-graphic {
   display: block;
-  height: 32px;
-  margin: 12px 14px 4px;
-  background: repeating-linear-gradient(
-    90deg,
-    #18211D 0 2px,
-    transparent 2px 4px,
-    #18211D 4px 5px,
-    transparent 5px 8px,
-    #18211D 8px 11px,
-    transparent 11px 13px,
-    #18211D 13px 16px,
-    transparent 16px 17px,
-    #18211D 17px 20px,
-    transparent 20px 23px
-  );
+  height: 24px;
+  margin: 8px 14px 3px;
+  background: repeating-linear-gradient(90deg,
+      #18211D 0 2px,
+      transparent 2px 4px,
+      #18211D 4px 5px,
+      transparent 5px 8px,
+      #18211D 8px 11px,
+      transparent 11px 13px,
+      #18211D 13px 16px,
+      transparent 16px 17px,
+      #18211D 17px 20px,
+      transparent 20px 23px);
 }
 
 /* ------------------------------------------------------------ Red Rubber Paid Stamp */
@@ -185,10 +124,12 @@
     transform: rotate(-11deg) scale(2.8);
     opacity: 0;
   }
+
   70% {
     transform: rotate(-11deg) scale(0.93);
     opacity: 0.95;
   }
+
   to {
     transform: rotate(-11deg) scale(1);
     opacity: 0.92;
@@ -201,10 +142,12 @@
     transform: translateY(0) rotate(0);
     opacity: 1;
   }
+
   20% {
     transform: translateY(-14px) rotate(-1.5deg);
     opacity: 1;
   }
+
   100% {
     transform: translateY(-130%) rotate(-8deg);
     opacity: 0;
@@ -215,30 +158,330 @@
   animation: pos-paper-rip 0.65s cubic-bezier(0.5, 0, 0.8, 0.4) forwards;
 }
 
-/* ------------------------------------------------------------ Printer Chassis & Slot (Pink / White-Beige Theme) */
-.pos-printer-chassis {
-  position: relative;
-  background: linear-gradient(180deg, #FFFFFF 0%, #FAF5F2 100%);
-  color: #18211D;
-  border-radius: 20px 20px 0 0;
-  border-top: 1px solid #EBDCD6;
-  box-shadow: 0 -6px 20px -6px rgba(141, 83, 108, 0.12);
-  padding: 20px 16px 16px;
+/* ------------------------------------------------------------ Paper Roll-up Feeding Animation */
+@keyframes pos-printer-roll-up {
+  0% {
+    transform: translateY(calc(100% - 24px));
+    opacity: 0.88;
+  }
+
+  16% {
+    transform: translateY(calc(82% - 20px));
+    opacity: 0.95;
+  }
+
+  36% {
+    transform: translateY(calc(58% - 14px));
+    opacity: 1;
+  }
+
+  58% {
+    transform: translateY(calc(36% - 8px));
+  }
+
+  78% {
+    transform: translateY(calc(16% - 4px));
+  }
+
+  94% {
+    transform: translateY(calc(3% - 1px));
+  }
+
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
+.pos-paper-feeding {
+  animation: pos-printer-roll-up 2s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+  will-change: transform;
+}
+
+/* ------------------------------------------------------------ Black Thermal Printer Chassis & Slot */
+.pos-printer-chassis {
+  position: relative;
+  background: linear-gradient(180deg, #2A2E35 0%, #1F2227 20%, #141619 60%, #0B0C0E 100%);
+  color: #F3F4F6;
+  border-radius: 18px 18px 12px 12px;
+  border: 1px solid #373C46;
+  box-shadow:
+    0 14px 32px -4px rgba(0, 0, 0, 0.55),
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.7);
+  padding: 16px 14px 10px;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* Deep recessed paper exit slot at the top where receipt emerges */
 .pos-printer-slot {
   position: absolute;
   left: 14px;
   right: 14px;
   top: 0;
   height: 8px;
-  border-radius: 0 0 6px 6px;
-  background: #E8DAD4;
-  box-shadow: inset 0 2px 4px rgba(56, 47, 62, 0.22);
+  border-radius: 0 0 5px 5px;
+  background: #050607;
+  box-shadow:
+    inset 0 4px 7px rgba(0, 0, 0, 0.95),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Metallic serrated cutter blade along the printer slot mouth */
+.pos-printer-cutter {
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg,
+      #64748B 0%,
+      #94A3B8 20%,
+      #F1F5F9 50%,
+      #94A3B8 80%,
+      #64748B 100%);
+  box-shadow:
+    0 0.5px 1px rgba(255, 255, 255, 0.35),
+    0 -1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Front tactile feed button with authentic mechanical bevel */
+.pos-printer-feed-btn {
+  background: linear-gradient(180deg, #2D313A 0%, #202328 100%);
+  border: 1px solid #3E4450;
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.pos-printer-feed-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #373C47 0%, #272B32 100%);
+  border-color: #4F5666;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.pos-printer-feed-btn:active:not(:disabled) {
+  background: #191B1F;
+  border-color: #2D313A;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  transform: translateY(1px);
+}
+
+/* ------------------------------------------------------------ Fly-to-cart Shrink Animation Styles */
+.pos-flyer-clone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 99999;
+  pointer-events: none;
+  overflow: hidden;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform, opacity, filter, border-radius, box-shadow;
+  transform-origin: center center;
+}
+
+.pos-flyer-clone img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* Till container bounce / bump when item lands */
+@keyframes pos-till-bounce {
+  0% {
+    transform: scale(1);
+  }
+
+  20% {
+    transform: scale(1.02) translateY(-4px);
+    box-shadow: 0 16px 36px -4px rgba(141, 83, 108, 0.24), 0 0 0 2px rgba(250, 155, 191, 0.5);
+  }
+
+  50% {
+    transform: scale(0.99) translateY(1px);
+  }
+
+  75% {
+    transform: scale(1.008) translateY(-1px);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
+.pos-cart-bump {
+  animation: pos-till-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Shopping cart icon bounce animation when item lands */
+@keyframes pos-cart-icon-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  30% {
+    transform: scale(1.4) rotate(-6deg);
+    box-shadow: 0 0 12px rgba(250, 155, 191, 0.8);
+  }
+
+  60% {
+    transform: scale(0.92) rotate(3deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0deg);
+    box-shadow: none;
+  }
+}
+
+.pos-cart-icon-bump {
+  animation: pos-cart-icon-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Floating +1 badge when item lands in cart */
+@keyframes pos-plus-one-float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.5);
+  }
+
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -14px) scale(1.15);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -26px) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -40px) scale(0.85);
+  }
+}
+
+.pos-plus-one-pill {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99998;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #FA9BBF, #8D536C);
+  color: #ffffff;
+  font-family: "Be Vietnam Pro", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(141, 83, 108, 0.4);
+  animation: pos-plus-one-float 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* Sparkle particles burst at landing point */
+@keyframes pos-sparkle-burst {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 1;
+  }
+
+  60% {
+    transform: scale(1.3) rotate(90deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(0.8) rotate(180deg);
+    opacity: 0;
+  }
+}
+
+.pos-sparkle-fx {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99997;
+  animation: pos-sparkle-burst 0.65s ease-out forwards;
+}
+
+/* ------------------------------------------------------------ Cart Items Scrollbar */
+.pos-cart-items-container,
+.pos-catalog-scroll-grid {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(141, 83, 108, 0.25) transparent;
+}
+
+/* ------------------------------------------------------------ Thermal Receipt Items Scrollbar */
+.pos-receipt-items-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(185, 183, 174, 0.7) transparent;
+}
+
+.pos-receipt-items-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pos-receipt-items-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pos-receipt-items-scroll::-webkit-scrollbar-thumb {
+  background: rgba(185, 183, 174, 0.7);
+  border-radius: 9999px;
+}
+
+.pos-receipt-items-scroll::-webkit-scrollbar-thumb:hover {
+  background: #8D536C;
+}
+
+.pos-cart-items-container::-webkit-scrollbar,
+.pos-catalog-scroll-grid::-webkit-scrollbar {
+  width: 5px;
+}
+
+.pos-cart-items-container::-webkit-scrollbar-track,
+.pos-catalog-scroll-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pos-cart-items-container::-webkit-scrollbar-thumb,
+.pos-catalog-scroll-grid::-webkit-scrollbar-thumb {
+  background: rgba(141, 83, 108, 0.25);
+  border-radius: 9999px;
+}
+
+.pos-cart-items-container::-webkit-scrollbar-thumb:hover,
+.pos-catalog-scroll-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(141, 83, 108, 0.5);
+}
+
+/* ------------------------------------------------------------ Hide Number Spinners */
+#cash-given-input::-webkit-outer-spin-button,
+#cash-given-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+#cash-given-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* ------------------------------------------------------------ Print Media Query */
 @media print {
+
   /* Hide all screen elements except the printable thermal receipt */
   body * {
     visibility: hidden;
@@ -261,11 +504,21 @@
     border: none !important;
     background: #ffffff !important;
     color: #000000 !important;
+    transform: none !important;
+    animation: none !important;
+    filter: none !important;
   }
 
   .pos-printable-receipt::before,
   .pos-printable-receipt::after {
     display: none !important;
+  }
+
+  .pos-receipt-chamber,
+  .pos-receipt-items-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+    padding-right: 0 !important;
   }
 
   .no-print {

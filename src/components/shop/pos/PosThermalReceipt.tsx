@@ -52,6 +52,10 @@ export interface PosThermalReceiptProps {
    * Trigger tear-off rip animation
    */
   isTearing?: boolean;
+  /**
+   * Disable inner items scroll (e.g. when printing or viewing the full invoice)
+   */
+  disableItemsScroll?: boolean;
   className?: string;
 }
 
@@ -67,6 +71,7 @@ export const PosThermalReceipt: React.FC<PosThermalReceiptProps> = ({
   showFooter,
   isPrintable = true,
   isTearing = false,
+  disableItemsScroll = false,
   className = '',
 }) => {
   const prevItemsCountRef = useRef<number>(cartItems.length);
@@ -165,9 +170,14 @@ export const PosThermalReceipt: React.FC<PosThermalReceiptProps> = ({
       data-testid="pos-thermal-receipt"
     >
       {/* 1. Header Cửa Hàng OCS */}
-      <header className="pos-paper-header">
-        <h3 className="uppercase">CỬA HÀNG THỜI TRANG KÝ GỬI OCS</h3>
-        <span>Hàng hiệu ký gửi tuyển chọn • Độc bản x1</span>
+      <header
+        data-receipt-header
+        className="flex flex-col items-center text-center gap-0.5 pb-2 mb-2 border-b border-dashed border-[#B9B7AE] text-[#55625B] text-[11px]"
+      >
+        <h3 className="font-sans text-sm font-extrabold tracking-tight text-[#18211D] uppercase mb-0.5">
+          CỬA HÀNG THỜI TRANG KÝ GỬI OCS
+        </h3>
+        <span>Hàng hiệu ký gửi tuyển chọn</span>
         <span>Hotline: 098.765.4321 • Website: ocs.vn</span>
         <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-muted">
           <span>{formattedDate}</span>
@@ -187,7 +197,14 @@ export const PosThermalReceipt: React.FC<PosThermalReceiptProps> = ({
         {/* Table column header */}
         <div className="grid grid-cols-[28px_1fr_auto] gap-1.5 pb-1 text-[11px] font-bold text-muted border-b border-dashed border-[#B9B7AE]">
           <span>SL</span>
-          <span>TÊN SẢN PHẨM</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="truncate">TÊN SẢN PHẨM</span>
+            {!disableItemsScroll && !isInvoice && items.length > 4 && (
+              <span className="no-print text-[9.5px] font-normal text-muted/70 italic truncate">
+                ({items.length} món · cuộn để xem)
+              </span>
+            )}
+          </div>
           <span className="text-right">ĐƠN GIÁ</span>
         </div>
 
@@ -196,11 +213,18 @@ export const PosThermalReceipt: React.FC<PosThermalReceiptProps> = ({
             Scan mã vạch hoặc chọn sản phẩm để bắt đầu.
           </div>
         ) : (
-          <div className="space-y-1">
+          <div
+            className={`space-y-1 ${
+              !disableItemsScroll && !isInvoice && items.length > 4
+                ? 'pos-receipt-items-scroll max-h-48 sm:max-h-56 overflow-y-auto pr-1 overscroll-contain'
+                : ''
+            }`}
+          >
             {items.map((item, index) => (
               <div
                 key={item.id || item.barcode || index}
-                className="pos-receipt-line group relative pos-line-feed-in"
+                data-receipt-line
+                className="grid grid-cols-[28px_minmax(0,1fr)_auto] gap-x-1.5 items-baseline w-full py-1 text-left border-b border-dotted border-[#B9B7AE]/40 last:border-b-0 group relative pos-line-feed-in"
               >
                 {/* Quantity column */}
                 <span className="font-mono text-xs font-semibold text-muted">
@@ -247,28 +271,31 @@ export const PosThermalReceipt: React.FC<PosThermalReceiptProps> = ({
       {shouldShowFooter && (
         <>
           {/* 3. Tổng Tiền & Chi Tiết Thanh Toán */}
-          <div className="pos-paper-sum">
-            <div>
+          <div data-receipt-summary className="mt-2 pt-2 border-t border-dashed border-[#B9B7AE]">
+            <div data-receipt-row className="flex justify-between py-0.5 text-[11.5px]">
               <span className="text-muted">Tổng tiền hàng ({items.length} món):</span>
               <span className="font-mono font-semibold text-ink">
                 {formatVndCurrency(totalAmount)}
               </span>
             </div>
 
-            <div>
+            <div data-receipt-row className="flex justify-between py-0.5 text-[11.5px]">
               <span className="text-muted">Thuế VAT (0%):</span>
               <span className="font-mono text-ink">0 đ</span>
             </div>
 
             {/* Highlighted Total */}
-            <div className="pos-paper-sum-total">
+            <div
+              data-receipt-total
+              className="flex justify-between items-baseline my-1 py-1 border-y-[1.5px] border-[#18211D] font-sans text-[15px] font-extrabold text-[#18211D]"
+            >
               <span className="text-sm font-extrabold uppercase">TỔNG CỘNG:</span>
               <span className="font-mono text-base font-black">
                 {formatVndCurrency(totalAmount)}
               </span>
             </div>
 
-            <div>
+            <div data-receipt-row className="flex justify-between py-0.5 text-[11.5px]">
               <span className="text-muted">Phương thức thanh toán:</span>
               <span className="font-semibold text-ink">{resolvedPaymentMethod}</span>
             </div>
@@ -276,13 +303,13 @@ export const PosThermalReceipt: React.FC<PosThermalReceiptProps> = ({
             {/* Cash Details if payment is cash or was cash */}
             {(paymentMethod === 'cash' || resolvedPaymentMethod.includes('Tiền mặt')) && (
               <>
-                <div>
+                <div data-receipt-row className="flex justify-between py-0.5 text-[11.5px]">
                   <span className="text-muted">Tiền khách đưa:</span>
                   <span className="font-mono font-bold text-ink">
                     {effectiveCashGiven > 0 ? formatVndCurrency(effectiveCashGiven) : '---'}
                   </span>
                 </div>
-                <div>
+                <div data-receipt-row className="flex justify-between py-0.5 text-[11.5px]">
                   <span className="text-muted">Tiền thừa trả khách:</span>
                   <span className="font-mono font-black text-emerald-800">
                     {effectiveCashGiven >= totalAmount

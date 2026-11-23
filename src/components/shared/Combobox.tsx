@@ -21,10 +21,11 @@ export interface ComboboxProps {
   error?: ReactNode;
   helperText?: ReactNode;
   className?: string;
+  size?: 'sm' | 'md';
 }
 
 /** A controlled, select-only combobox with keyboard and form support. */
-export function Combobox({ options, value, onChange, ariaLabel, label, placeholder = 'Chọn một mục', disabled = false, name, id, error, helperText, className }: ComboboxProps) {
+export function Combobox({ options, value, onChange, ariaLabel, label, placeholder = 'Chọn một mục', disabled = false, name, id, error, helperText, className, size = 'md' }: ComboboxProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const listId = `${inputId}-list`;
@@ -136,13 +137,13 @@ export function Combobox({ options, value, onChange, ariaLabel, label, placehold
           disabled={disabled}
           onClick={() => { if (open) setOpen(false); else showMenu(); }}
           onKeyDown={onKeyDown}
-          className={`flex min-h-10 w-full items-center justify-between gap-3 rounded-xl border bg-paper px-3.5 py-2.5 text-left text-sm text-ink outline-none transition focus-visible:ring-2 focus-visible:ring-brand-pink/40 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-70 ${error ? 'border-state-danger' : open ? 'border-brand-pink-focus' : 'border-border hover:border-brand-pink-focus'}`}
+          className={`flex w-full items-center justify-between border bg-paper text-left text-ink outline-none transition focus-visible:ring-2 focus-visible:ring-brand-pink/40 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-70 ${size === 'sm' ? 'min-h-7 gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold' : 'min-h-10 gap-3 rounded-xl px-3.5 py-2.5 text-sm'} ${error ? 'border-state-danger' : open ? 'border-brand-pink-focus' : 'border-border hover:border-brand-pink-focus'}`}
         >
           <span className={selected ? 'min-w-0 truncate' : 'min-w-0 truncate text-muted'}>{selected?.label ?? placeholder}</span>
-          <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown size={size === 'sm' ? 13 : 16} aria-hidden="true" className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         {name && <input type="hidden" name={name} value={value} disabled={disabled} />}
-        {open && <ul id={listId} role="listbox" aria-label={ariaLabel} aria-labelledby={ariaLabel ? undefined : inputId} className={`absolute z-[80] max-h-60 w-full min-w-44 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-border bg-paper p-1.5 shadow-lg ${placement === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}>
+        {open && <ul id={listId} role="listbox" aria-label={ariaLabel} aria-labelledby={ariaLabel ? undefined : inputId} className={`absolute z-[80] max-h-60 w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-border bg-paper p-1.5 shadow-lg ${size === 'sm' ? 'min-w-36' : 'min-w-44'} ${placement === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}>
           {options.length === 0 && <li className="px-3 py-2 text-sm text-muted">Không có lựa chọn</li>}
           {options.map((option, index) => <li
             id={`${listId}-option-${index}`}
@@ -153,8 +154,8 @@ export function Combobox({ options, value, onChange, ariaLabel, label, placehold
             onMouseDown={(event) => event.preventDefault()}
             onMouseEnter={() => { if (!option.disabled) setActive(index); }}
             onClick={() => choose(index)}
-            className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm ${option.disabled ? 'cursor-not-allowed text-muted/50' : `cursor-pointer ${active === index ? 'bg-brand-pink-surface text-brand-highlight' : 'text-ink'}`}`}
-          ><span>{option.label}</span>{option.value === value && <Check size={16} className="shrink-0 text-brand-highlight" aria-hidden="true" />}</li>)}
+            className={`flex items-center justify-between gap-2 rounded-lg ${size === 'sm' ? 'px-2.5 py-1.5 text-xs font-medium' : 'px-3 py-2.5 text-sm'} ${option.disabled ? 'cursor-not-allowed text-muted/50' : `cursor-pointer ${active === index ? 'bg-brand-pink-surface text-brand-highlight' : 'text-ink'}`}`}
+          ><span>{option.label}</span>{option.value === value && <Check size={size === 'sm' ? 14 : 16} className="shrink-0 text-brand-highlight" aria-hidden="true" />}</li>)}
         </ul>}
       </div>
       {(error || helperText) && <p id={descriptionId} className={`mt-1.5 text-xs ${error ? 'text-state-danger' : 'text-muted'}`}>{error || helperText}</p>}
