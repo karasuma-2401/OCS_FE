@@ -29,7 +29,10 @@ export const PosPrinterDevice: React.FC<PosPrinterDeviceProps> = ({
       </div>
 
       {/* 2. Top Lid Opening Seam Line */}
-      <div className="pos-printer-lid-seam" aria-hidden="true" />
+      <div
+        className="relative w-full h-px bg-black/85 shadow-[0_1px_0_rgba(255,255,255,0.07)] -mt-0.5 mb-1"
+        aria-hidden="true"
+      />
 
       {/* 3. Front Face Panel: Hardware LED & Tactile FEED Button */}
       <div className="flex items-center justify-between px-1.5 pt-1 text-xs">
@@ -74,9 +77,12 @@ export const PosPrinterDevice: React.FC<PosPrinterDeviceProps> = ({
       </div>
 
       {/* 4. Bottom Base Rubber Feet */}
-      <div className="pos-printer-feet" aria-hidden="true">
-        <span className="pos-printer-foot" />
-        <span className="pos-printer-foot" />
+      <div
+        className="absolute inset-x-[18px] bottom-0 flex justify-between pointer-events-none"
+        aria-hidden="true"
+      >
+        <span className="w-5 h-0.5 bg-[#050607] rounded-t-[2px] shadow-[0_1px_2px_rgba(0,0,0,0.6)]" />
+        <span className="w-5 h-0.5 bg-[#050607] rounded-t-[2px] shadow-[0_1px_2px_rgba(0,0,0,0.6)]" />
       </div>
     </div>
   );
