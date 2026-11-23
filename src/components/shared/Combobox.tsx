@@ -143,7 +143,7 @@ export function Combobox({ options, value, onChange, ariaLabel, label, placehold
           <ChevronDown size={size === 'sm' ? 13 : 16} aria-hidden="true" className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         {name && <input type="hidden" name={name} value={value} disabled={disabled} />}
-        {open && <ul id={listId} role="listbox" aria-label={ariaLabel} aria-labelledby={ariaLabel ? undefined : inputId} className={`absolute z-[80] mt-1.5 max-h-60 w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-border bg-paper p-1.5 shadow-lg ${size === 'sm' ? 'min-w-36' : 'min-w-44'}`}>
+        {open && <ul id={listId} role="listbox" aria-label={ariaLabel} aria-labelledby={ariaLabel ? undefined : inputId} className={`absolute z-[80] max-h-60 w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-border bg-paper p-1.5 shadow-lg ${size === 'sm' ? 'min-w-36' : 'min-w-44'} ${placement === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}>
           {options.length === 0 && <li className="px-3 py-2 text-sm text-muted">Không có lựa chọn</li>}
           {options.map((option, index) => <li
             id={`${listId}-option-${index}`}
