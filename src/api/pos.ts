@@ -1,4 +1,5 @@
 import { apiClient, resolveApiAssetUrl, API_BASE_URL } from './client';
+import type { VietQrPaymentSession } from '../types';
 
 export interface PosProductLookupDto {
   id: string;
@@ -17,6 +18,11 @@ export interface PosProductLookupDto {
 export interface PosCashPaymentRequest {
   productIds: string[];
   cashGiven: number;
+}
+
+export interface PosVietQrCheckoutRequest {
+  productIds: string[];
+  forceNew?: boolean;
 }
 
 export interface PosInvoiceItemDto {
@@ -76,6 +82,14 @@ export const posApi = {
   checkoutCash: async (request: PosCashPaymentRequest): Promise<PosCashPaymentResponse> => {
     const response = await apiClient.post<PosCashPaymentResponse>(
       '/pos/checkout/cash',
+      request
+    );
+    return response.data;
+  },
+
+  checkoutVietQr: async (request: PosVietQrCheckoutRequest): Promise<VietQrPaymentSession> => {
+    const response = await apiClient.post<VietQrPaymentSession>(
+      '/pos/checkout/vietqr',
       request
     );
     return response.data;

@@ -22,19 +22,15 @@ export interface FlyToCartOptions {
    */
   onLand?: () => void;
   /**
-   * Animation flight duration in milliseconds (default: 1180ms - slowed down by 0.5s)
+   * Animation flight duration in milliseconds (default: 620ms)
    */
   duration?: number;
 }
 
 /**
- * Default flight duration in ms (~1.05s).
- * Flow:
- * - 0% - 18% (~190ms): Overlay popup từ ảnh trên card sản phẩm (nhanh 1.2x)
- * - 18% - 68% (~530ms): Bay lên phía trên và thu nhỏ lại (chậm 0.7x)
- * - 68% - 100% (~330ms): Bay vào giỏ hàng (tăng tốc độ, đường bay thẳng dứt khoát)
+ * Default flight duration in ms (~620ms) for crisp, responsive POS feedback.
  */
-export const DEFAULT_FLY_DURATION = 1050;
+export const DEFAULT_FLY_DURATION = 620;
 
 /**
  * Calculates a point along a quadratic Bézier curve.
@@ -259,7 +255,7 @@ export function animateFlyToCart(options: FlyToCartOptions): Promise<void> {
     if (typeof flyer.animate === 'function') {
       const anim = flyer.animate(keyframes, {
         duration,
-        easing: 'ease-in-out',
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
         fill: 'forwards',
       });
 

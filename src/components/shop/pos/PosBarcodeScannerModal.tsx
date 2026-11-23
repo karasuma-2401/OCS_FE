@@ -216,7 +216,7 @@ export const PosBarcodeScannerModal: React.FC<PosBarcodeScannerModalProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={() => void startScanner(selectedDeviceId)}
-                className="mt-2 text-xs bg-white text-ink border-white hover:bg-white/90"
+                className="mt-2 text-xs bg-white text-ink border-white enabled:hover:bg-white/90 enabled:hover:border-white"
               >
                 Thử kết nối lại
               </Button>
@@ -269,7 +269,7 @@ export const PosBarcodeScannerModal: React.FC<PosBarcodeScannerModalProps> = ({
               variant="primary"
               size="sm"
               disabled={!manualInput.trim()}
-              className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold border-amber-500"
+              className="text-xs bg-amber-500 enabled:hover:bg-amber-600 text-white font-bold border-amber-500"
             >
               Thêm
             </Button>

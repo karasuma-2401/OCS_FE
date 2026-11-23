@@ -189,7 +189,7 @@ export const PosProductDetailModal: React.FC<PosProductDetailModalProps> = ({
         <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 w-full">
           <div className="flex items-center gap-2 text-xs text-muted">
             <ShieldCheck className="size-4 text-emerald-600 shrink-0" aria-hidden="true" />
-            <span className="hidden sm:inline">Hàng ký gửi (SL: 1) · Đã kiểm duyệt điều kiện bán</span>
+            <span className="hidden sm:inline">Hàng ký gửi · Đã kiểm duyệt điều kiện bán</span>
           </div>
 
           <div className="flex items-center justify-end gap-2">
@@ -227,7 +227,7 @@ export const PosProductDetailModal: React.FC<PosProductDetailModalProps> = ({
                   }
                   onClose();
                 }}
-                className="bg-brand-highlight hover:bg-brand-highlight/90 text-white font-bold text-sm py-2.5 px-4.5 shadow-sm"
+                className="bg-brand-highlight enabled:hover:bg-brand-highlight/90 text-white font-bold text-sm py-2.5 px-4.5 shadow-sm"
               >
                 Thêm vào giỏ hàng
               </Button>
@@ -257,9 +257,6 @@ export const PosProductDetailModal: React.FC<PosProductDetailModalProps> = ({
             <span className="rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold flex items-center gap-1">
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
               {status === 'OnSale' ? 'Đang mở bán' : status}
-            </span>
-            <span className="rounded-md bg-brand-pink-light text-brand-highlight border border-brand-pink/40 px-2 py-0.5 text-[11px] font-bold">
-              SL: 1
             </span>
           </div>
         </div>
@@ -355,15 +352,9 @@ export const PosProductDetailModal: React.FC<PosProductDetailModalProps> = ({
 
           {/* Right: Specifications & Details */}
           <div className="md:col-span-7 space-y-3.5">
-            <div>
-              <h3 className="text-base sm:text-lg font-extrabold text-ink leading-snug">
-                {name}
-              </h3>
-              <p className="mt-1 text-xs text-muted flex items-center gap-1.5">
-                <span>Mã hệ thống:</span>
-                <span className="font-mono text-ink font-semibold">{product.id}</span>
-              </p>
-            </div>
+            <h3 className="text-base sm:text-lg font-extrabold text-ink leading-snug">
+              {name}
+            </h3>
 
             {/* Price Box */}
             <div className="rounded-xl border border-brand-pink/50 bg-brand-pink-surface/50 p-3 space-y-1">
