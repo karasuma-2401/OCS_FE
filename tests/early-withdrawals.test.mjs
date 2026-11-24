@@ -42,6 +42,20 @@ test('withdrawal API separates customer ownership routes from permissioned staff
 });
 
 const helpers = load('../src/utils/earlyWithdrawals.ts');
+test('fee and next-step descriptions distinguish waiting, ended, paid, partial and free requests', () => {
+  const row = { status: 'Pending', totalPenaltyAmount: 3000, paymentStatus: 'Unpaid', paidAt: null };
+  assert.equal(helpers.withdrawalFeeState(row).label, 'Chưa đến bước thu phí');
+  for (const status of ['Cancelled', 'Rejected']) {
+    assert.equal(helpers.withdrawalFeeState({ ...row, status }).label, 'Không cần đóng phí');
+    assert.equal(helpers.withdrawalFeeState({ ...row, status, paymentStatus: 'Partial' }).label, 'Đã thu một phần');
+    assert.equal(helpers.withdrawalFeeState({ ...row, status, paymentStatus: 'Paid' }).label, 'Đã thu đủ phí');
+  }
+  assert.equal(helpers.withdrawalFeeState({ ...row, status: 'Approved' }).label, 'Chờ thu phí');
+  assert.equal(helpers.withdrawalFeeState({ ...row, status: 'Approved', paymentStatus: 'Paid', totalPenaltyAmount: 0 }).label, 'Miễn phí');
+  assert.match(helpers.withdrawalNextStep({ ...row, status: 'Approved', paymentStatus: 'Paid' }, true), /nhận hàng/);
+  assert.match(helpers.withdrawalNextStep({ ...row, status: 'Approved' }, false), /Xác nhận thu đủ phí/);
+  assert.match(helpers.withdrawalNextStep({ ...row, status: 'Completed', handedOverAt: '2026-11-25T01:00:00Z' }, true), /Đã nhận đủ hàng/);
+});
 test('withdrawal search and summary use server totals and preserve customer scope and filters', async () => {
   const calls = [];
   const signal = new AbortController().signal;

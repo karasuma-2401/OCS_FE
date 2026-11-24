@@ -5,7 +5,27 @@ import { AlertBanner, Badge, Button, Card, Combobox, EmptyState, ErrorState, Inp
 import { ShopSummaryStrip, type ShopSummaryCard } from '@/components/shop/ShopSummaryStrip';
 import { ListFilterChips, type ListFilterChip } from '@/components/shop/ListFilterChips';
 import { WithdrawalStatusBadge } from './WithdrawalStatusBadge';
-import { withdrawalDate, withdrawalError, withdrawalMoney, withdrawalLabels } from '@/utils/earlyWithdrawals';
+import { withdrawalDate, withdrawalError, withdrawalMoney, withdrawalLabels, withdrawalFeeState } from '@/utils/earlyWithdrawals';
+
+function RequestProducts({ row }: { row: EarlyWithdrawal }) {
+  const first = row.items[0];
+  return <div className="min-w-0 max-w-80 space-y-1">
+    <p className="truncate font-semibold text-brand-ink" title={first?.name}>{first?.name || 'Chưa có sản phẩm'}</p>
+    <p className="text-xs text-muted">{first?.contractNumber || '—'}{row.items.length > 1 && <span className="ml-2 text-brand-highlight">+{row.items.length - 1} món khác</span>}</p>
+  </div>;
+}
+
+function RequestFee({ row }: { row: EarlyWithdrawal }) {
+  const fee = withdrawalFeeState(row);
+  const ended = row.status === 'Cancelled' || row.status === 'Rejected';
+  const label = row.paymentStatus === 'Partial' ? 'Thu một phần'
+    : row.totalPenaltyAmount > 0 && row.paymentStatus === 'Paid' ? 'Đã thu phí'
+    : ended ? 'Không thu phí' : row.totalPenaltyAmount === 0 ? 'Miễn phí' : 'Chưa thu phí';
+  return <div className="space-y-1">
+    <p className={`whitespace-nowrap font-bold tabular-nums ${ended ? 'text-muted' : 'text-brand-highlight'}`}>{withdrawalMoney(row.totalPenaltyAmount)}</p>
+    <Badge variant={fee.tone}>{label}</Badge>
+  </div>;
+}
 
 const PAGE_SIZE = 20;
 export function WithdrawalRequestsTable({ customer, refresh, onSelect }: {
@@ -68,11 +88,11 @@ export function WithdrawalRequestsTable({ customer, refresh, onSelect }: {
   ];
   const openDetail = (row: EarlyWithdrawal) => { setSelectedId(row.id); onSelect(row); };
   const columns: TableColumn<EarlyWithdrawal>[] = [
-    { key: 'request', header: 'Yêu cầu', render: row => <div><p className="font-bold text-brand-highlight">{row.id.slice(0, 8).toUpperCase()}</p><p className="mt-1 whitespace-nowrap text-xs text-muted">{withdrawalDate(row.requestedAt)}</p><p className="mt-1 text-xs text-muted">{row.items.length} món</p></div> },
+    { key: 'request', header: 'Yêu cầu', render: row => <div className="space-y-1"><p className="font-bold text-brand-highlight">#{row.id.slice(0, 8).toUpperCase()}</p><p className="whitespace-nowrap text-xs text-muted">{withdrawalDate(row.requestedAt)}</p></div> },
+    { key: 'products', header: 'Sản phẩm', cellClassName: 'min-w-56 max-w-80', render: row => <RequestProducts row={row} /> },
     ...(!customer ? [{ key: 'customer', header: 'Khách hàng', render: (row: EarlyWithdrawal) => <div><p className="font-semibold">{row.customerName || 'Khách ký gửi'}</p><p className="mt-1 text-xs text-muted">{row.customerPhone || 'Chưa có số điện thoại'}</p></div> }] : []),
-    { key: 'status', header: 'Kết quả xử lý', render: row => <div className="space-y-2"><WithdrawalStatusBadge status={row.status} />{row.status === 'Rejected' && <p className="max-w-xs whitespace-pre-wrap break-words text-xs text-state-danger"><strong>Lý do: </strong>{row.decisionNote || 'Vui lòng liên hệ cửa hàng.'}</p>}</div> },
-    { key: 'fee', header: 'Phí rút hàng', render: row => <div className="space-y-1 whitespace-nowrap"><p className="font-bold text-brand-highlight">{withdrawalMoney(row.totalPenaltyAmount)}</p><Badge variant={row.paymentStatus === 'Paid' ? 'success' : 'neutral'}>{row.totalPenaltyAmount === 0 ? 'Miễn phí' : row.paymentStatus === 'Paid' ? 'Đã thu phí' : 'Chưa thu đủ'}</Badge></div> },
-    { key: 'handover', header: 'Bàn giao', render: row => row.handedOverAt ? <span className="whitespace-nowrap text-sm">{withdrawalDate(row.handedOverAt)}</span> : <span className="text-sm text-muted">{row.status === 'Approved' ? 'Chờ giao hàng' : '—'}</span> },
+    { key: 'status', header: 'Trạng thái', render: row => <WithdrawalStatusBadge status={row.status} /> },
+    { key: 'fee', header: 'Phí rút hàng', render: row => <RequestFee row={row} /> },
     { key: 'actions', header: 'Thao tác', render: row => <TableDetailButton onClick={() => openDetail(row)} /> },
   ];
   return <div className="space-y-5">
@@ -98,7 +118,15 @@ export function WithdrawalRequestsTable({ customer, refresh, onSelect }: {
     {loading ? <SkeletonLoading variant="table" columns={columns.length} count={4} className="p-5" label="Đang tải yêu cầu rút hàng..." />
       : error ? <ErrorState title="Không thể tải yêu cầu" description={error} onRetry={() => setRetry(x => x + 1)} />
       : !rows.length ? <EmptyState className="border-0" title={chips.length ? 'Không có yêu cầu phù hợp' : 'Chưa có yêu cầu rút hàng'} description={chips.length ? 'Thử thay đổi hoặc xóa bộ lọc để xem kết quả.' : customer ? 'Yêu cầu và kết quả xử lý của cửa hàng sẽ xuất hiện ở đây.' : 'Các yêu cầu khách gửi sẽ xuất hiện ở đây để duyệt và bàn giao.'} />
-      : <><p className="px-4 py-2 text-right text-xs text-muted sm:hidden">Vuốt ngang để xem bảng</p><Table className="rounded-none border-0 !bg-white" columns={columns} data={rows} rowKey="id" selectedRowKey={selectedId} selectionAppearance="accent" onRowClick={row => setSelectedId(row.id)} /></>}
+      : <>
+        <div className="hidden lg:block"><Table className="rounded-none border-0 !bg-white" columns={columns} data={rows} rowKey="id" selectedRowKey={selectedId} selectionAppearance="accent" onRowClick={row => setSelectedId(row.id)} /></div>
+        <ul className="divide-y divide-border lg:hidden" aria-label="Danh sách yêu cầu rút hàng">{rows.map(row => <li key={row.id} className="space-y-3 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-brand-highlight">#{row.id.slice(0, 8).toUpperCase()}</p><p className="mt-1 text-xs text-muted">Gửi {withdrawalDate(row.requestedAt)}</p></div><TableDetailButton onClick={() => openDetail(row)} /></div>
+          {!customer && <p className="whitespace-normal break-words text-sm"><strong>{row.customerName || 'Khách ký gửi'}</strong> · {row.customerPhone || 'Chưa có số điện thoại'}</p>}
+          <RequestProducts row={row} />
+          <div className="flex flex-wrap items-center justify-between gap-3"><WithdrawalStatusBadge status={row.status} /><div className="text-right"><RequestFee row={row} /></div></div>
+        </li>)}</ul>
+      </>}
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-4"><p className="text-xs text-muted">Tự cập nhật mỗi 30 giây</p>{!error && total > PAGE_SIZE && <Pagination page={page} totalPages={Math.ceil(total / PAGE_SIZE)} onPageChange={next => { setPage(next); setSelectedId(null); }} />}</div>
     </Card>
   </div>;

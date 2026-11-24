@@ -27,6 +27,8 @@ export function CustomerEarlyWithdrawalsPage() {
   const [selected, setSelected] = useState<EarlyWithdrawal | null>(null);
   const [notice, setNotice] = useState('');
   const [requestError, setRequestError] = useState('');
+  const retryProductIds = useRef<string[] | null>(null);
+  const [retryNotice, setRetryNotice] = useState('');
   const setTab = (value: 'withdraw' | 'requests') => setParams(current => {
     const next = new URLSearchParams(current); next.set('tab', value); next.delete('requestId'); return next;
   });
@@ -44,7 +46,19 @@ export function CustomerEarlyWithdrawalsPage() {
     const controller = new AbortController();
     setLoading(true); setError('');
     earlyWithdrawalsApi.eligible(controller.signal)
-      .then(items => { if (!controller.signal.aborted) { setProducts(items); setChosen(current => current.filter(id => items.some(p => p.productId === id))); } })
+      .then(items => {
+        if (controller.signal.aborted) return;
+        setProducts(items);
+        const retryIds = retryProductIds.current;
+        if (retryIds) {
+          const available = items.filter(p => retryIds.includes(p.productId));
+          setChosen(available.map(p => p.productId));
+          setRetryNotice(available.length === retryIds.length
+            ? 'Đã chọn lại các món còn đủ điều kiện. Kiểm tra phí và chọn lý do trước khi gửi yêu cầu mới.'
+            : `Có ${available.length}/${retryIds.length} món còn đủ điều kiện và đã được chọn. Các món còn lại có thể đã bán, hết hạn hoặc có yêu cầu khác đang xử lý.`);
+          retryProductIds.current = null;
+        } else setChosen(current => current.filter(id => items.some(p => p.productId === id)));
+      })
       .catch(err => { if (!controller.signal.aborted) setError(withdrawalError(err)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -93,6 +107,7 @@ export function CustomerEarlyWithdrawalsPage() {
       }}>{label}</Button>)}
     </div>
     {tab === 'withdraw' ? <section id="withdrawal-panel-withdraw" role="tabpanel" aria-labelledby="withdrawal-tab-withdraw" className="space-y-4">
+    {retryNotice && <AlertBanner variant="info" message={retryNotice} onClose={() => setRetryNotice('')} />}
     {targetProductId && !loading && !error && (targetProduct ? <AlertBanner variant="info" title={`Rút ${targetProduct.name} · ${targetProduct.barcode}`} message={`Hợp đồng ${targetProduct.contractNumber}. Món đã được chọn sẵn; kiểm tra phí rồi tiếp tục gửi yêu cầu.`} action={{ label: 'Xem tất cả món', onClick: clearTarget }} /> : <AlertBanner variant="warning" title="Món được chọn không còn đủ điều kiện rút" message="Món có thể đã có yêu cầu xử lý, đã bán hoặc hết thời hạn hợp đồng. Bạn có thể kiểm tra tại tab Theo dõi yêu cầu muốn rút hoặc chọn món khác." action={{ label: 'Xem tất cả món', onClick: clearTarget }} />)}
     <Card className="min-w-0 !bg-white !p-0" aria-label="Chọn món đủ điều kiện rút">
       <div className="border-b border-border px-4 py-5 sm:px-6">
@@ -107,8 +122,11 @@ export function CustomerEarlyWithdrawalsPage() {
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border bg-brand-pink-surface p-4 sm:px-6"><div aria-live="polite"><p className="text-sm font-semibold">Đã chọn {selectedProducts.length}/100 món</p><p className="mt-1 text-sm text-muted">Tổng phí dự kiến <strong className="ml-1 text-lg text-brand-highlight">{withdrawalMoney(withdrawalEstimate(selectedProducts))}</strong></p></div><div className="flex flex-wrap gap-2"><Button variant="ghost" disabled={!chosen.length} onClick={() => setChosen([])}>Bỏ chọn</Button><Button disabled={loading || !selectedProducts.length || selectedProducts.length > 100} onClick={() => setDraftItems(selectedProducts)}>Tiếp tục gửi yêu cầu</Button></div></div></>}
     </Card>
     </section> : <section id="withdrawal-panel-requests" role="tabpanel" aria-labelledby="withdrawal-tab-requests" className="space-y-4">{requestError && <AlertBanner variant="error" title="Không thể mở yêu cầu" message={requestError} onClose={() => setRequestError('')} />}<WithdrawalRequestsTable customer refresh={refresh} onSelect={setSelected} /></section>}
-    {draftItems && <CreateWithdrawalModal items={draftItems} onClose={() => setDraftItems(null)} onStale={update} onCreated={row => { setDraftItems(null); setChosen([]); setSelected(row); setNotice('Đã gửi yêu cầu rút hàng. Theo dõi kết quả duyệt, thu phí và bàn giao tại đây.'); setParams({ tab: 'requests' }); setSearch(''); setQuery(''); update(); }} />}
-    {selected && <WithdrawalDetailsModal key={selected.id} item={selected} customer onClose={closeDetail} onUpdated={update} />}
+    {draftItems && <CreateWithdrawalModal items={draftItems} onClose={() => setDraftItems(null)} onStale={update} onTrackRequests={() => { setDraftItems(null); setParams({ tab: 'requests' }); update(); }} onCreated={row => { setDraftItems(null); setChosen([]); setSelected(row); setNotice('Đã gửi yêu cầu rút hàng. Theo dõi kết quả duyệt, thu phí và bàn giao tại đây.'); setParams({ tab: 'requests' }); setSearch(''); setQuery(''); update(); }} />}
+    {selected && <WithdrawalDetailsModal key={selected.id} item={selected} customer onClose={closeDetail} onUpdated={update} onRequestAgain={row => {
+      setSelected(null); setDraftItems(null); setChosen([]); setNotice(''); setRetryNotice(''); setSearch(''); setQuery('');
+      retryProductIds.current = row.items.map(p => p.productId); setLoading(true); setParams({ tab: 'withdraw' }); update();
+    }} />}
   </div>;
 }
 

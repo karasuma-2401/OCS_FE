@@ -42,6 +42,38 @@ function shared(capture) {
 }
 const eligible = { productId: 'p1', contractId: 'c1', contractNumber: 'KG-01', name: 'Áo', barcode: 'BC-01', listedPrice: 100000, penaltyRate: 20, penaltyAmount: 20000, endsAt: '2027-01-01' };
 
+test('staff opens shared VietQR instead of manually confirming transfer and refreshes before handover', async () => {
+  const state = hooks(); const capture = { buttons: [] }; let form; let qr; let manualCalls = 0; let updates = 0;
+  let row = { id: 'request', status: 'Approved', paymentStatus: 'Unpaid', totalPenaltyAmount: 3000,
+    requestedAt: '2026-11-25T01:00:00Z', approvedAt: '2026-11-25T01:01:00Z', items: [] };
+  const ui = shared(capture);
+  const component = load('../src/components/shared/WithdrawalDetailsModal.tsx', {
+    react: { ...state.react, useId: () => 'payment-form' }, 'lucide-react': icons,
+    '@/api/withdrawalPayments': { withdrawalPaymentApi: () => ({}) },
+    '@/components/shop/pos/VietQrPaymentModal': { VietQrPaymentModal: props => { qr = props; return null; } },
+    '@/api/earlyWithdrawals': { earlyWithdrawalsApi: { detail: async () => row, pay: async () => { manualCalls++; } } },
+    '@/context/AuthContext': { useAuth: () => ({ hasPermission: () => true }) },
+    '@/utils/earlyWithdrawals': load('../src/utils/earlyWithdrawals.ts', {}),
+    '@/components/shared': new Proxy({}, { get: (_, key) => key === 'Modal' ? props => {
+      const find = children => React.Children.forEach(children, child => { if (React.isValidElement(child)) { if (child.type === 'form') form = child.props; find(child.props.children); } });
+      find(props.children); return props.open ? React.createElement('div', null, props.children, props.footer) : null;
+    } : ui[key] }),
+    './WithdrawalStatusBadge': { WithdrawalStatusBadge: () => null },
+  }).WithdrawalDetailsModal;
+  const render = () => { state.begin(); capture.buttons = []; return renderToStaticMarkup(React.createElement(component, { item: row, customer: false, onClose() {}, onUpdated() { updates++; } })); };
+  render(); await state.flush(); render();
+  capture.buttons.find(b => b.children === 'Xác nhận đã thu đủ phí').onClick();
+  let html = render();
+  assert.match(html, /Mở VietQR/); assert.doesNotMatch(html, /Tôi đã nhận đủ/);
+  assert.equal(capture.buttons.find(b => b.children === 'Mở VietQR').disabled, false);
+  await form.onSubmit({ preventDefault() {} }); render();
+  assert.equal(qr.documentLabel, 'yêu cầu rút hàng'); assert.equal(qr.saleInvoiceId, row.id);
+  assert.equal(manualCalls, 0);
+  row = { ...row, paymentStatus: 'Paid', paidAt: row.approvedAt };
+  qr.onPaymentSuccess(); qr.onClose(); render(); await state.flush(); html = render();
+  assert.match(html, /Xác nhận đã bàn giao/); assert.ok(updates > 0);
+});
+
 test('customer tabs preselect the linked product, preserve selection and show tracking after creation', async () => {
   const state = hooks(); const capture = { buttons: [] }; let params = new URLSearchParams('tab=withdraw&contractId=c1&productId=p1'); let create; let detail; let history = false;
   const windowBefore = globalThis.window;
@@ -74,7 +106,45 @@ test('customer tabs preselect the linked product, preserve selection and show tr
     assert.equal(params.get('tab'), 'requests'); assert.equal(params.has('productId'), false);
     assert.equal(history, true); assert.equal(detail.item.id, 'request-1');
     assert.doesNotMatch(html, /Chọn món muốn rút/);
+    detail.onRequestAgain({ id: 'request-1', status: 'Cancelled', items: [{ productId: 'p1' }, { productId: 'no-longer-eligible' }] });
+    for (let i = 0; i < 3; i++) { render(); await state.flush(); }
+    html = render();
+    assert.equal(params.get('tab'), 'withdraw');
+    assert.match(html, /Có 1\/2 món còn đủ điều kiện/);
+    assert.match(html, /checked/);
+    capture.buttons.find(b => b.children === 'Tiếp tục gửi yêu cầu').onClick(); render();
+    assert.deepEqual(create.items.map(p => p.productId), ['p1']);
   } finally { globalThis.window = windowBefore; }
+});
+
+test('create modal prevents double submit and requires rechecking after conflict or uncertain response', async () => {
+  for (const failure of [{ response: { status: 409, data: { detail: 'Món đã có yêu cầu khác.' } } }, { response: { status: 500 } }, new Error('network')]) {
+    const state = hooks(); let form; let combo; let footer; let action; let reject; let calls = 0; let refreshed = 0; let tracked = 0;
+    const modal = load('../src/components/customer/CreateWithdrawalModal.tsx', {
+      react: state.react,
+      '@/api/earlyWithdrawals': { earlyWithdrawalsApi: { create: () => { calls++; return new Promise((_, fail) => { reject = fail; }); } } },
+      '@/utils/earlyWithdrawals': load('../src/utils/earlyWithdrawals.ts', {}),
+      '@/components/shared': {
+        Modal: props => { form = props.children; footer = props.footer; return React.createElement('div', null, props.children, props.footer); },
+        Combobox: props => { combo = props; return null; }, Input: () => null, Table: () => null,
+        Button: ({ children, disabled }) => React.createElement('button', { disabled }, children),
+        AlertBanner: props => { if (props.action) action = props.action; return React.createElement('aside', null, props.title, props.message); },
+      },
+    }).CreateWithdrawalModal;
+    const render = () => { state.begin(); return renderToStaticMarkup(React.createElement(modal, { items: [eligible], onClose() {}, onCreated() { assert.fail('must not report success'); }, onStale() { refreshed++; }, onTrackRequests() { tracked++; } })); };
+    render(); combo.onChange('personal-use'); render();
+    const sending = form.props.onSubmit({ preventDefault() {} });
+    await form.props.onSubmit({ preventDefault() {} });
+    assert.equal(calls, 1);
+    reject(failure); await sending;
+    const html = render();
+    assert.equal(refreshed, 1);
+    assert.equal(footer.props.children[1].props.disabled, true);
+    await form.props.onSubmit({ preventDefault() {} }); assert.equal(calls, 1);
+    action.onClick(); assert.equal(tracked, 1);
+    if (failure.response?.status === 409) assert.match(html, /Món đã có yêu cầu khác/);
+    else assert.match(html, /Chưa xác định được kết quả gửi/);
+  }
 });
 
 test('product detail navigates to the matching withdrawal product and exposes its fee and progress', async () => {
