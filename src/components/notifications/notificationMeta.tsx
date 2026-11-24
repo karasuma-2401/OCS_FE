@@ -158,11 +158,11 @@ export function resolveNotificationTargetLink(
 
   if (isStaffOrAdmin) {
     if (notification.link && notification.link.startsWith('/shop')) {
-      return notification.link;
+      return notification.link === '/shop/buyout' ? '/shop/buyouts' : notification.link;
     }
     switch (category) {
       case 'Buyout':
-        return '/shop/buyout';
+        return '/shop/buyouts';
       case 'Payment':
         return '/shop/settlement';
       case 'Appointment':
@@ -271,12 +271,24 @@ export function groupNotificationsByTime<T extends Pick<Notification, 'sentAt'>>
     .map(({ key, label }) => ({ key, label, items: buckets[key] }));
 }
 
+export function isNotificationToday(isoDate: string): boolean {
+  if (!isoDate) return false;
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return false;
+  const now = new Date();
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+}
+
 export function extractNotificationHighlights(text: string): string[] {
   if (!text) return [];
   const matches = new Set<string>();
 
-  // Extract contract / appointment / buyout reference codes (e.g. #CN-2026-089, APT-20260101-001)
-  const codeRegex = /#?[A-Z]{2,5}-\d{2,8}(?:-[A-Z0-9]{1,6})?/g;
+  // Match full reference codes (e.g. #CN-2026-089, APT-261117-1320, BO-114b9425fe414969851f911c5e7dc5ba)
+  const codeRegex = /#?[A-Z]{2,5}-(?=[A-Za-z0-9-]*\d)[A-Za-z0-9]{2,36}(?:-[A-Za-z0-9]{1,12}){0,4}(?![A-Za-z0-9-])/g;
   for (const m of text.matchAll(codeRegex)) {
     matches.add(m[0].startsWith('#') ? m[0] : `#${m[0]}`);
     if (matches.size >= 3) break;
@@ -292,5 +304,89 @@ export function extractNotificationHighlights(text: string): string[] {
   }
 
   return Array.from(matches);
+}
+
+export function formatHighlightChip(value: string): {
+  label: string;
+  copyValue: string;
+  isCode: boolean;
+} {
+  const isCode = value.startsWith('#');
+  const raw = isCode ? value.slice(1) : value;
+  if (!isCode || value.length <= 20) {
+    return { label: value, copyValue: raw, isCode };
+  }
+  return {
+    label: `${value.slice(0, 12)}…${value.slice(-4)}`,
+    copyValue: raw,
+    isCode: true,
+  };
+}
+
+export function extractNotificationMetadata(text: string): {
+  codes: string[];
+  amounts: string[];
+} {
+  const highlights = extractNotificationHighlights(text);
+  const codes: string[] = [];
+  const amounts: string[] = [];
+  for (const entry of highlights) {
+    if (entry.startsWith('#')) {
+      codes.push(entry);
+    } else {
+      amounts.push(entry);
+    }
+  }
+  return { codes, amounts };
+}
+
+export function formatNotificationFullDateTime(isoDate: string): string {
+  if (!isoDate) return '';
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return '';
+  const timeStr = date.toLocaleTimeString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const dateStr = date.toLocaleDateString('vi-VN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  return `${timeStr} · ${dateStr}`;
+}
+
+export function getNotificationActionLabel(
+  category: NotificationCategory,
+  isStaffOrAdmin: boolean,
+): string {
+  if (isStaffOrAdmin) {
+    switch (category) {
+      case 'Appointment':
+        return 'Mở quản lý lịch hẹn';
+      case 'Consignment':
+        return 'Mở tiếp nhận ký gửi';
+      case 'Buyout':
+        return 'Mở phiếu thu mua';
+      case 'Payment':
+        return 'Mở đối soát quyết toán';
+      default:
+        return 'Mở trang xử lý';
+    }
+  }
+
+  switch (category) {
+    case 'Appointment':
+      return 'Xem lịch hẹn của tôi';
+    case 'Consignment':
+    case 'Buyout':
+    case 'Payment':
+      return 'Theo dõi ký gửi';
+    case 'Promotion':
+      return 'Khám phá sản phẩm';
+    default:
+      return 'Xem chi tiết';
+  }
 }
 
