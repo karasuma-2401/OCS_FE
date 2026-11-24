@@ -137,7 +137,7 @@ export function Modal({
         aria-describedby={description ? descriptionId : undefined}
         aria-busy={loading || undefined}
         className={twMerge(joinClasses(
-          "my-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col rounded-2xl bg-paper shadow-2xl sm:max-h-[calc(100dvh-2rem)]",
+          "animate-inv-modal-in my-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col rounded-2xl bg-paper shadow-2xl sm:max-h-[calc(100dvh-2rem)]",
           appearance === "default" && "border border-brand-lavender/50",
           className,
         ))}

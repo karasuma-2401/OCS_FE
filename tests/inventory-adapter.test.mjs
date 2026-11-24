@@ -47,3 +47,16 @@ test('editing product details and location sends each change with its current ve
     { method: 'PUT', path: '/inventory/item-1/location', body: { expectedVersion: 'v2', locationId: 'location-2' } },
   ]);
 });
+
+test('summary and bulk inventory endpoints forward filters, versions, and abort signals', async () => {
+  requests.length = 0;
+  const controller = new AbortController();
+  await inventoryApi.summary(controller.signal);
+  await inventoryApi.bulkChangeLocation([{ id: 'p1', expectedVersion: 'v1' }], 'loc-1');
+  await inventoryApi.bulkOffer([{ id: 'p1', expectedVersion: 'v2' }]);
+  assert.deepEqual(requests, [
+    { method: 'GET', path: '/inventory/summary', config: { signal: controller.signal } },
+    { method: 'PUT', path: '/inventory/bulk-location', body: { items: [{ id: 'p1', expectedVersion: 'v1' }], locationId: 'loc-1' } },
+    { method: 'POST', path: '/inventory/bulk-offer', body: { items: [{ id: 'p1', expectedVersion: 'v2' }] } },
+  ]);
+});
