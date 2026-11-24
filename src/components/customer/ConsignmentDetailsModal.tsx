@@ -165,6 +165,7 @@ function CustomerPayouts({ contractId }: { contractId: string }) {
     Approved: ['Đã duyệt', 'info'],
     Transferred: ['Đã chuyển khoản · cần xác nhận', 'payment'],
     Completed: ['Đã hoàn tất', 'success'],
+    Rejected: ['Đã từ chối', 'danger'],
   };
   return <Card title="Lịch sử giải ngân" className="!p-4" actions={<Button variant="ghost" size="sm" onClick={() => setRefresh(value => value + 1)} disabled={loading}>Làm mới</Button>}>
     {error && <AlertBanner variant="error" message={error} className="mb-3" />}

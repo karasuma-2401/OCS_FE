@@ -1,20 +1,42 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
-import { AlertTriangle, Check, ClipboardList, RefreshCw, Search, Send, ShieldCheck, X } from 'lucide-react';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { AlertTriangle, Check, ClipboardList, Plus, RefreshCw, Search, Send, ShieldCheck, X } from 'lucide-react';
 import { incidentsApi, type IncidentProduct, type IncidentReport, type IncidentStatus, type IncidentType } from '@/api/incidents';
 import { parseProblemDetails } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
-import { AlertBanner, Badge, Button, Card, Combobox, EmptyState, Input, PageHeaderCard, SkeletonLoading, type BadgeVariant } from '@/components/shared';
+import { screenPaths } from '@/auth/permissions';
+import { AlertBanner, Badge, Button, Card, Combobox, EmptyState, ErrorState, Input, Modal, PageHeaderCard, Skeleton, SkeletonLoading, Table, TableDetailButton, type BadgeVariant } from '@/components/shared';
+import { DecimalMoneyInput, parseDecimalMoney, toDecimalMoneyInput } from '@/components/shop/ContractMoneyInput';
 
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(value) + ' ₫';
 const dateTime = (value: string | null) => value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(value)) : '—';
 const statusText: Record<IncidentStatus, string> = {
   Pending: 'Chờ quản lý duyệt',
   NeedsRecheck: 'Chờ nhân viên bổ sung',
-  Approved: 'Đã duyệt · chờ quyết toán',
+  Approved: 'Đã duyệt · chờ lập chi',
   Compensated: 'Đã bồi thường',
 };
 const statusVariant: Record<IncidentStatus, BadgeVariant> = {
   Pending: 'warning', NeedsRecheck: 'warning', Approved: 'info', Compensated: 'success',
+};
+const resolveIncidentBadge = (item: IncidentReport): { label: string; variant: BadgeVariant } => {
+  if (item.status === 'Compensated' || (item.status === 'Approved' && (item.payoutStatus === 'Approved' || item.payoutStatus === 'Transferred' || item.payoutStatus === 'Completed'))) {
+    return { label: statusText.Compensated, variant: 'success' };
+  }
+  if (item.status === 'Approved' && item.payoutStatus === 'Pending') {
+    return { label: 'Đã duyệt · chờ duyệt chi', variant: 'info' };
+  }
+  return { label: statusText[item.status], variant: statusVariant[item.status] };
+};
+const payoutStateText: Record<NonNullable<IncidentReport['payoutStatus']>, string> = {
+  Pending: 'Chờ duyệt chi',
+  Approved: 'Đã duyệt chi',
+  Transferred: 'Đã chuyển · chờ XN',
+  Completed: 'Đã giải ngân',
+  Rejected: 'Đã từ chối',
+};
+const payoutStateVariant: Record<NonNullable<IncidentReport['payoutStatus']>, BadgeVariant> = {
+  Pending: 'warning', Approved: 'info', Transferred: 'payment', Completed: 'success', Rejected: 'danger',
 };
 const typeText: Record<IncidentType, string> = { Damaged: 'Hư hỏng', Lost: 'Thất lạc', TagSwapped: 'Nhầm tem' };
 const productStatusText: Record<string, string> = {
@@ -29,8 +51,8 @@ const productStatusText: Record<string, string> = {
   Compensated: 'Đã bồi thường',
   Cancelled: 'Đã hủy',
 };
-const textareaClass = 'mt-1.5 w-full rounded-xl border border-border bg-paper px-3.5 py-2.5 text-sm text-ink outline-none focus:border-brand-pink-focus focus:ring-2 focus:ring-brand-pink/25';
-const fileClass = 'mt-1.5 block w-full rounded-xl border border-border bg-paper px-3 py-2 text-xs text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-brand-pink-surface file:px-3 file:py-1.5 file:font-semibold file:text-brand-ink';
+const textareaClass = 'mt-1.5 w-full rounded-control border border-border bg-white px-3 py-2 text-sm text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight';
+const fileClass = 'mt-1.5 block w-full rounded-control border border-border bg-white px-3 py-2 text-xs text-text-primary file:mr-3 file:rounded-control file:border-0 file:bg-brand-pink-surface file:px-3 file:py-1.5 file:font-semibold file:text-brand-ink';
 const errorText = (error: unknown) => {
   const problem = parseProblemDetails(error);
   const fieldError = Object.values(problem.errors ?? {}).flat().find(message => typeof message === 'string' && message.trim());
@@ -49,8 +71,8 @@ function EvidenceImage({ url }: { url: string }) {
     return () => { active = false; if (current) URL.revokeObjectURL(current); };
   }, [url]);
   return src
-    ? <a href={src} target="_blank" rel="noreferrer"><img src={src} alt="Ảnh chứng cứ sự cố" className="h-24 w-24 rounded-xl border border-border object-cover" /></a>
-    : <span className="grid h-24 w-24 place-items-center rounded-xl bg-surface-subtle text-xs text-muted">Đang tải ảnh…</span>;
+    ? <a href={src} target="_blank" rel="noreferrer"><img src={src} alt="Ảnh chứng cứ sự cố" className="h-24 w-24 rounded-card border border-border object-cover" /></a>
+    : <span className="grid h-24 w-24 place-items-center rounded-card bg-surface-subtle text-xs text-muted">Đang tải ảnh…</span>;
 }
 
 function EvidenceStrip({ urls, onRemove }: { urls: string[]; onRemove?: (index: number) => void }) {
@@ -64,17 +86,27 @@ function EvidenceStrip({ urls, onRemove }: { urls: string[]; onRemove?: (index: 
 
 export function IncidentManagement() {
   const { hasPermission } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isCreatePage = location.pathname === `${screenPaths.incidents}/new`;
+  const linkedBarcode = searchParams.get('barcode')?.trim() ?? '';
+  const selectedId = isCreatePage ? null : searchParams.get('report');
   const canCreate = hasPermission('incidents.create');
   const canReview = hasPermission('incidents.review');
+  const canViewSettlement = hasPermission('settlements.read');
   const [items, setItems] = useState<IncidentReport[]>([]);
   const [selected, setSelected] = useState<IncidentReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  const [detailRefresh, setDetailRefresh] = useState(0);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
-  const [barcode, setBarcode] = useState('');
+  const [barcode, setBarcode] = useState(linkedBarcode);
   const [product, setProduct] = useState<IncidentProduct | null>(null);
   const [type, setType] = useState<IncidentType>('Damaged');
   const [description, setDescription] = useState('');
@@ -90,13 +122,62 @@ export function IncidentManagement() {
     catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   }, [query, status]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (!isCreatePage) void load(); }, [isCreatePage, load]);
 
-  const openDetail = async (id: string) => {
-    setBusy(true); setError(''); setSelected(null);
-    try { const detail = await incidentsApi.detail(id); setSelected(detail); setCompensation(String(detail.agreedPrice)); setResubmissionDescription(detail.description); }
-    catch (cause) { setError(errorText(cause)); }
-    finally { setBusy(false); }
+  useEffect(() => {
+    if (!selectedId) { setSelected(null); return; }
+    let active = true;
+    setSelected(null);
+    setDetailError('');
+    setDetailLoading(true);
+    void incidentsApi.detail(selectedId)
+      .then(report => {
+        if (!active) return;
+        setSelected(report);
+        setCompensation(toDecimalMoneyInput(report.agreedPrice));
+        setResubmissionDescription(report.description);
+        setNewEvidence([]);
+      })
+      .catch(cause => { if (active) setDetailError(errorText(cause)); })
+      .finally(() => { if (active) setDetailLoading(false); });
+    return () => { active = false; };
+  }, [selectedId, detailRefresh]);
+
+  useEffect(() => {
+    if (!isCreatePage || !canCreate || !linkedBarcode) return;
+    let active = true;
+    setBarcode(linkedBarcode);
+    setBusy(true);
+    setError('');
+    setProduct(null);
+    void incidentsApi.findProduct(linkedBarcode)
+      .then(found => {
+        if (!active) return;
+        setProduct(found);
+        setNewEvidence([]);
+        setDescription('');
+      })
+      .catch(cause => { if (active) setError(errorText(cause)); })
+      .finally(() => { if (active) setBusy(false); });
+    return () => { active = false; };
+  }, [isCreatePage, canCreate, linkedBarcode]);
+
+  const openDetail = (id: string) => {
+    setError('');
+    setNotice('');
+    setSearchParams(current => {
+      const next = new URLSearchParams(current);
+      next.set('report', id);
+      return next;
+    });
+  };
+  const closeDetail = () => {
+    setError('');
+    setSearchParams(current => {
+      const next = new URLSearchParams(current);
+      next.delete('report');
+      return next;
+    });
   };
   const refreshSelected = async (id: string, message: string) => {
     const latest = await incidentsApi.detail(id);
@@ -123,8 +204,9 @@ export function IncidentManagement() {
     setBusy(true); setError('');
     try {
       const created = await incidentsApi.create({ productId: product.id, type, description, evidenceUrls: newEvidence });
-      setProduct(null); setBarcode(''); setNotice('Đã gửi biên bản. Sản phẩm được tạm giữ cho tới khi quản lý xử lý.');
-      await load(); await openDetail(created.id);
+      setProduct(null); setBarcode(''); setNewEvidence([]);
+      setNotice('Đã gửi biên bản. Sản phẩm được tạm giữ cho tới khi quản lý xử lý.');
+      navigate(`${screenPaths.incidents}?report=${encodeURIComponent(created.id)}`);
     } catch (cause) {
       setError(errorText(cause));
       if (parseProblemDetails(cause).status === 409) {
@@ -143,8 +225,22 @@ export function IncidentManagement() {
   };
   const approve = async (event: FormEvent) => {
     event.preventDefault(); if (!selected || busy) return;
+    const amount = parseDecimalMoney(compensation);
+    if (amount === null || amount <= 0 || amount > selected.agreedPrice) {
+      setError(`Số tiền bồi thường phải từ 1 ₫ đến tối đa ${money(selected.agreedPrice)}.`);
+      return;
+    }
     setBusy(true); setError('');
-    try { await incidentsApi.approve(selected.id, Number(compensation), reviewNote); setReviewNote(''); await refreshSelected(selected.id, 'Đã duyệt biên bản. Khoản bồi thường sẽ xuất hiện trong quyết toán.'); }
+    try {
+      const updated = await incidentsApi.approve(selected.id, amount, reviewNote);
+      setReviewNote('');
+      await refreshSelected(
+        selected.id,
+        updated.payoutNumber
+          ? `Đã duyệt mức bồi thường và lập lệnh chi ${updated.payoutNumber} (${payoutStateText[updated.payoutStatus ?? 'Pending']}).`
+          : 'Đã duyệt biên bản. Khoản bồi thường sẽ xuất hiện trong quyết toán.',
+      );
+    }
     catch (cause) { setError(errorText(cause)); }
     finally { setBusy(false); }
   };
@@ -156,24 +252,30 @@ export function IncidentManagement() {
     finally { setBusy(false); }
   };
 
+  if (isCreatePage && !canCreate) return <Navigate to="/unauthorized" replace />;
+
   return <section className="space-y-5" aria-labelledby="incidents-heading">
     <PageHeaderCard
       icon={<AlertTriangle size={24} />}
-      title="Sự cố & bồi thường"
+      title={isCreatePage ? 'Lập biên bản sự cố' : 'Danh sách biên bản sự cố'}
       titleId="incidents-heading"
-      description="Lập và tra cứu biên bản sự cố hàng ký gửi; quản lý duyệt mức bồi thường và theo dõi lịch sử."
-      actions={<Button variant="outline" onClick={() => void load()} startIcon={<RefreshCw size={16} />}>Làm mới</Button>}
+      description={isCreatePage ? 'Tra cứu sản phẩm ký gửi đang bán và ghi nhận sự cố.' : 'Tra cứu biên bản, xem chứng cứ và xử lý bồi thường.'}
+      actions={isCreatePage
+        ? <Button variant="outline" onClick={() => navigate(screenPaths.incidents)} startIcon={<ClipboardList size={16} />}>Danh sách biên bản</Button>
+        : <div className="flex flex-wrap gap-2">
+          {canCreate && <Button onClick={() => navigate(`${screenPaths.incidents}/new`)} startIcon={<Plus size={16} />}>Tạo biên bản</Button>}
+          <Button variant="outline" onClick={() => void load()} startIcon={<RefreshCw size={16} />}>Làm mới</Button>
+        </div>}
     />
-    {notice && <AlertBanner variant="success" message={notice} onClose={() => setNotice('')} />}
-    {error && <AlertBanner variant="error" message={error} />}
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,.9fr)]">
-      <div className="space-y-5">
-        {canCreate && <Card title="Lập biên bản sự cố" description="Tra cứu sản phẩm ký gửi đang bán trước khi ghi nhận sự cố.">
+    {notice && !selectedId && <AlertBanner variant="success" message={notice} onClose={() => setNotice('')} />}
+    {error && !selectedId && <AlertBanner variant="error" message={error} />}
+    {isCreatePage ? (
+      <Card title="Lập biên bản sự cố" description="Tra cứu sản phẩm ký gửi đang bán trước khi ghi nhận sự cố.">
           <form onSubmit={lookup} className="flex flex-wrap items-end gap-2">
             <div className="min-w-48 flex-1"><Input label="Barcode sản phẩm" value={barcode} onChange={event => setBarcode(event.target.value)} placeholder="Quét hoặc nhập barcode" /></div>
             <Button type="submit" disabled={busy || !barcode.trim()} startIcon={<Search size={16} />}>Tra cứu</Button>
           </form>
-          {product && <form onSubmit={create} className="mt-4 space-y-4 rounded-xl border border-brand-lavender/40 bg-brand-pink-surface p-4">
+          {product && <form onSubmit={create} className="mt-4 space-y-4 rounded-card border border-brand-lavender/40 bg-brand-pink-surface p-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div><p className="font-bold text-brand-ink">{product.name}</p><p className="text-xs text-muted">{product.barcode} · Hợp đồng {product.contractNumber ?? '—'} · {product.customerName ?? 'Khách ký gửi'}</p><p className="mt-1 text-sm text-ink">Giá thỏa thuận: <strong>{money(product.listedPrice)}</strong></p></div>
               <Badge variant={product.status === 'OnSale' ? 'success' : 'warning'}>{productStatusText[product.status] ?? product.status}</Badge>
@@ -197,10 +299,45 @@ export function IncidentManagement() {
             <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setProduct(null)}>Hủy</Button><Button type="submit" disabled={busy || !description.trim() || !newEvidence.length} startIcon={<Send size={15} />}>Gửi biên bản</Button></div>
             </>}
           </form>}
-        </Card>}
-        <Card title="Danh sách biên bản" description="Chọn một biên bản để xem chứng cứ và xử lý.">
+      </Card>
+    ) : (
+      <>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy={loading}>
+          <Card className="!bg-white !p-4">
+            {loading ? <><Skeleton className="h-4 w-24" /><Skeleton className="mt-2 h-6 w-16" /></> : <>
+              <p className="text-xs font-semibold text-text-secondary">Tổng biên bản hiển thị</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-brand-ink">{items.length}</p>
+            </>}
+          </Card>
+          <Card className="!bg-white !p-4 cursor-pointer transition hover:border-brand-highlight" onClick={() => setStatus('Pending')}>
+            {loading ? <><Skeleton className="h-4 w-24" /><Skeleton className="mt-2 h-6 w-16" /></> : <>
+              <p className="text-xs font-semibold text-text-secondary">Chờ quản lý duyệt</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-state-warning-strong">{items.filter(x => x.status === 'Pending').length}</p>
+            </>}
+          </Card>
+          <Card className="!bg-white !p-4 cursor-pointer transition hover:border-brand-highlight" onClick={() => setStatus('NeedsRecheck')}>
+            {loading ? <><Skeleton className="h-4 w-24" /><Skeleton className="mt-2 h-6 w-16" /></> : <>
+              <p className="text-xs font-semibold text-text-secondary">Chờ nhân viên bổ sung</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-ink">{items.filter(x => x.status === 'NeedsRecheck').length}</p>
+            </>}
+          </Card>
+          <Card
+            className="!bg-white !p-4 cursor-pointer transition hover:border-brand-highlight"
+            onClick={() => setStatus(items.some(x => x.status === 'Compensated') && !items.some(x => x.status === 'Approved') ? 'Compensated' : 'Approved')}
+          >
+            {loading ? <><Skeleton className="h-4 w-24" /><Skeleton className="mt-2 h-6 w-16" /></> : <>
+              <p className="text-xs font-semibold text-text-secondary">Đã duyệt / Bồi thường</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-brand-highlight">{money(items.reduce((sum, x) => sum + (x.compensationAmount || 0), 0))}</p>
+              <p className="text-xs text-muted">
+                {items.filter(x => x.status === 'Compensated').length} đã bồi thường · {items.filter(x => x.status === 'Approved').length} chờ duyệt chi
+              </p>
+            </>}
+          </Card>
+        </div>
+
+        <Card title="Danh sách biên bản" description="Chọn một biên bản để xem chứng cứ, duyệt bồi thường và theo dõi lệnh chi.">
           <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_190px]">
-            <Input aria-label="Tìm biên bản sự cố" value={query} onChange={event => setQuery(event.target.value)} startAdornment={<Search size={17} />} placeholder="Barcode, sản phẩm, hợp đồng, khách hàng" />
+            <Input id="incident-search" aria-label="Tìm biên bản sự cố" value={query} onChange={event => setQuery(event.target.value)} startAdornment={<Search size={17} />} placeholder="Barcode, sản phẩm, hợp đồng, khách hàng" />
             <Combobox
               ariaLabel="Trạng thái biên bản"
               value={status}
@@ -209,28 +346,132 @@ export function IncidentManagement() {
                 { value: 'all', label: 'Tất cả trạng thái' },
                 { value: 'Pending', label: 'Chờ duyệt' },
                 { value: 'NeedsRecheck', label: 'Chờ bổ sung' },
-                { value: 'Approved', label: 'Đã duyệt' },
+                { value: 'Approved', label: 'Đã duyệt · chờ chi' },
                 { value: 'Compensated', label: 'Đã bồi thường' },
               ]}
             />
           </div>
-          {loading ? <SkeletonLoading variant="list" count={3} label="Đang tải biên bản..." /> : items.length === 0 ? <EmptyState title="Chưa có biên bản phù hợp" description="Thử thay đổi bộ lọc hoặc lập biên bản mới." /> : <div className="divide-y divide-border">
-            {items.map(item => <button key={item.id} type="button" onClick={() => void openDetail(item.id)} className={'flex w-full flex-wrap items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-brand-pink-surface ' + (selected?.id === item.id ? 'bg-brand-pink-surface' : '')}>
-              <span><strong className="block text-sm text-ink">{item.productName}</strong><span className="text-xs text-muted">{item.productBarcode} · {typeText[item.type]} · {dateTime(item.createdAt)}</span></span>
-              <Badge variant={statusVariant[item.status]}>{statusText[item.status]}</Badge>
-            </button>)}
-          </div>}
+          {loading ? <SkeletonLoading variant="table" columns={7} count={4} label="Đang tải biên bản..." /> : (
+            <Table
+              className="!bg-white"
+              rowKey="id"
+              data={items}
+              selectedRowKey={selectedId}
+              onRowClick={item => openDetail(item.id)}
+              emptyTitle="Chưa có biên bản phù hợp"
+              emptyMessage="Thử thay đổi bộ lọc hoặc tạo biên bản mới."
+              columns={[
+                {
+                  key: 'product',
+                  header: 'Sản phẩm',
+                  render: item => (
+                    <div>
+                      <p className="font-bold text-brand-ink">{item.productName}</p>
+                      <p className="mt-0.5 text-xs text-muted">{item.productBarcode} · {typeText[item.type]}</p>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'contract',
+                  header: 'Hợp đồng & Khách hàng',
+                  render: item => (
+                    <div>
+                      <p className="font-semibold text-ink">{item.contractNumber ?? '—'}</p>
+                      <p className="text-xs text-muted">{item.customerName ?? 'Khách ký gửi'}</p>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'compensation',
+                  header: 'Bồi thường / Giá TT',
+                  headerClassName: 'text-right',
+                  cellClassName: 'text-right whitespace-nowrap',
+                  render: item => (
+                    <div>
+                      <strong className="tabular-nums text-brand-ink">{item.compensationAmount > 0 ? money(item.compensationAmount) : 'Chưa duyệt'}</strong>
+                      <p className="text-xs text-muted">TT: {money(item.agreedPrice)}</p>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'status',
+                  header: 'Trạng thái sự cố',
+                  render: item => {
+                    const badge = resolveIncidentBadge(item);
+                    return <Badge variant={badge.variant}>{badge.label}</Badge>;
+                  },
+                },
+                {
+                  key: 'payout',
+                  header: 'Lệnh chi',
+                  render: item => item.payoutNumber && item.payoutStatus
+                    ? (
+                      canViewSettlement && item.payoutId
+                        ? (
+                          <button
+                            type="button"
+                            onClick={event => {
+                              event.stopPropagation();
+                              navigate(`${screenPaths.settlement}?payout=${encodeURIComponent(item.payoutId!)}`);
+                            }}
+                            className="text-left group"
+                          >
+                            <Badge variant={payoutStateVariant[item.payoutStatus]}>{payoutStateText[item.payoutStatus]}</Badge>
+                            <p className="mt-1 text-xs font-semibold text-brand-ink group-hover:underline">{item.payoutNumber}</p>
+                          </button>
+                        )
+                        : (
+                          <div>
+                            <Badge variant={payoutStateVariant[item.payoutStatus]}>{payoutStateText[item.payoutStatus]}</Badge>
+                            <p className="mt-1 text-xs text-muted">{item.payoutNumber}</p>
+                          </div>
+                        )
+                    )
+                    : <span className="text-xs text-muted">—</span>,
+                },
+                {
+                  key: 'reviewed',
+                  header: 'Duyệt / Thời gian',
+                  render: item => (
+                    <div className="text-xs">
+                      <p className="font-semibold text-ink">{item.approvedByName || '—'}</p>
+                      <p className="text-muted">{dateTime(item.approvedAt || item.createdAt)}</p>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'action',
+                  header: 'Thao tác',
+                  render: item => <TableDetailButton onClick={() => openDetail(item.id)} />,
+                },
+              ]}
+            />
+          )}
         </Card>
-      </div>
-      <Card title="Chi tiết biên bản" className="min-h-[420px]">
-        {!selected ? <EmptyState loading={busy} title="Chọn một biên bản" description="Chứng cứ, trạng thái và lịch sử xử lý sẽ hiện ở đây." icon={<ClipboardList size={22} />} className="min-h-[330px]" /> : <IncidentDetail report={selected} busy={busy} canCreate={canCreate} canReview={canReview} compensation={compensation} reviewNote={reviewNote} recheckReason={recheckReason} resubmissionDescription={resubmissionDescription} onResubmissionDescription={setResubmissionDescription} onCompensation={setCompensation} onReviewNote={setReviewNote} onRecheckReason={setRecheckReason} onApprove={approve} onRequestRecheck={requestRecheck} onResubmit={resubmit} onUpload={uploadEvidence} evidence={newEvidence} onRemoveEvidence={index => setNewEvidence(current => current.filter((_, i) => i !== index))} />}
-      </Card>
-    </div>
+        <Modal
+          open={Boolean(selectedId)}
+          title="Chi tiết biên bản"
+          description={selected?.id === selectedId ? `${selected.productBarcode} · ${statusText[selected.status]}` : 'Chứng cứ và lịch sử xử lý'}
+          onClose={closeDetail}
+          disabled={busy}
+          error={error || undefined}
+          className="!w-[calc(100vw-2rem)] !max-w-3xl !rounded-card [&>header]:!rounded-t-card"
+          contentClassName="!bg-white"
+        >
+          {notice && <AlertBanner variant="success" message={notice} onClose={() => setNotice('')} className="mb-4" />}
+            {detailLoading || (!detailError && selected?.id !== selectedId) ? <SkeletonLoading variant="list" count={3} label="Đang tải biên bản..." />
+              : detailError ? <ErrorState title="Không thể tải biên bản" description={detailError} onRetry={() => setDetailRefresh(current => current + 1)} />
+              : selected?.id === selectedId ? <IncidentDetail report={selected} busy={busy} canCreate={canCreate} canReview={canReview} canViewSettlement={canViewSettlement} onOpenPayout={payoutId => navigate(`${screenPaths.settlement}?payout=${encodeURIComponent(payoutId)}`)} compensation={compensation} reviewNote={reviewNote} recheckReason={recheckReason} resubmissionDescription={resubmissionDescription} onResubmissionDescription={setResubmissionDescription} onCompensation={setCompensation} onReviewNote={setReviewNote} onRecheckReason={setRecheckReason} onApprove={approve} onRequestRecheck={requestRecheck} onResubmit={resubmit} onUpload={uploadEvidence} evidence={newEvidence} onRemoveEvidence={index => setNewEvidence(current => current.filter((_, i) => i !== index))} />
+              : <EmptyState title="Không tìm thấy biên bản" description="Chọn biên bản khác trong danh sách." icon={<ClipboardList size={22} />} />}
+        </Modal>
+      </>
+    )}
   </section>;
 }
 
 function IncidentDetail(props: {
-  report: IncidentReport; busy: boolean; canCreate: boolean; canReview: boolean; compensation: string; reviewNote: string; recheckReason: string; resubmissionDescription: string;
+  report: IncidentReport; busy: boolean; canCreate: boolean; canReview: boolean; canViewSettlement: boolean; onOpenPayout: (payoutId: string) => void;
+  compensation: string; reviewNote: string; recheckReason: string; resubmissionDescription: string;
   evidence: string[]; onCompensation: (value: string) => void; onReviewNote: (value: string) => void;
   onResubmissionDescription: (value: string) => void; onRecheckReason: (value: string) => void;
   onApprove: (event: FormEvent) => void; onRequestRecheck: (event: FormEvent) => void; onResubmit: (event: FormEvent) => void;
@@ -239,20 +480,38 @@ function IncidentDetail(props: {
   const { report, busy } = props;
   const recheck = report.status === 'NeedsRecheck' && props.canCreate;
   const pending = report.status === 'Pending' && props.canReview;
+  const badge = resolveIncidentBadge(report);
   return <div className="space-y-4">
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div><h3 className="text-lg font-bold text-brand-ink">{report.productName}</h3><p className="text-xs text-muted">{report.productBarcode} · Hợp đồng {report.contractNumber ?? '—'} · {typeText[report.type]}</p></div>
-      <Badge variant={statusVariant[report.status]}>{statusText[report.status]}</Badge>
+      <div><h3 className="text-lg font-bold text-brand-ink">{report.productName}</h3><p className="text-xs text-muted">{report.productBarcode} · Hợp đồng {report.contractNumber ?? '—'} · {report.customerName ?? 'Khách ký gửi'} · {typeText[report.type]}</p></div>
+      <Badge variant={badge.variant}>{badge.label}</Badge>
     </div>
-    <div className="space-y-1 rounded-xl border border-border bg-surface-subtle p-4 text-sm text-ink">
+    <div className="space-y-1 rounded-card border border-border bg-surface-subtle p-4 text-sm text-ink">
       <p><strong>Biên bản:</strong> {report.description}</p>
       <p><strong>Giá thỏa thuận:</strong> {money(report.agreedPrice)}</p>
       {report.compensationAmount > 0 && <p><strong>Mức bồi thường:</strong> {money(report.compensationAmount)}</p>}
-      {report.approvedByEmployeeId && <p><strong>Người duyệt:</strong> {report.approvedByName || report.approvedByEmployeeId}</p>}
+      {report.approvedByEmployeeId && <p><strong>Người duyệt:</strong> {report.approvedByName || report.approvedByEmployeeId} {report.approvedAt ? `· ${dateTime(report.approvedAt)}` : ''}</p>}
       {report.reviewNote && <p><strong>Ghi chú:</strong> {report.reviewNote}</p>}
     </div>
+    {report.payoutNumber && report.payoutStatus && (
+      <AlertBanner
+        variant="info"
+        message={
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Đã gắn với lệnh chi <strong>{report.payoutNumber}</strong> ({payoutStateText[report.payoutStatus]}).
+            </span>
+            {props.canViewSettlement && report.payoutId && (
+              <Button size="sm" variant="outline" onClick={() => props.onOpenPayout(report.payoutId!)}>
+                Xem lệnh chi tại Quyết toán →
+              </Button>
+            )}
+          </div>
+        }
+      />
+    )}
     <div><h4 className="mb-2 text-sm font-bold text-ink">Ảnh chứng cứ</h4><EvidenceStrip urls={report.evidenceUrls} /></div>
-    {recheck && <form onSubmit={props.onResubmit} className="space-y-3 rounded-xl border border-brand-lavender/40 bg-brand-pink-surface p-4">
+    {recheck && <form onSubmit={props.onResubmit} className="space-y-3 rounded-card border border-brand-lavender/40 bg-brand-pink-surface p-4">
       <h4 className="font-bold text-brand-ink">Bổ sung theo yêu cầu quản lý</h4>
       <label className="block text-xs font-bold uppercase tracking-wide text-ink">Mô tả cập nhật<textarea value={props.resubmissionDescription} onChange={event => props.onResubmissionDescription(event.target.value)} maxLength={2000} rows={2} className={textareaClass} /></label>
       <label className="block text-xs font-bold uppercase tracking-wide text-ink">Thêm ảnh chứng cứ<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={props.onUpload} className={fileClass} /></label>
@@ -262,9 +521,23 @@ function IncidentDetail(props: {
     {pending && <div className="space-y-4 border-t border-border pt-4">
       <form onSubmit={props.onApprove} className="space-y-3">
         <h4 className="flex items-center gap-2 font-bold text-brand-ink"><ShieldCheck size={17} /> Duyệt bồi thường</h4>
-        <Input label={'Số tiền (tối đa ' + money(report.agreedPrice) + ')'} type="number" min="1" max={report.agreedPrice} step="1" value={props.compensation || report.agreedPrice} onChange={event => props.onCompensation(event.target.value)} />
+        <DecimalMoneyInput
+          label={'Số tiền (tối đa ' + money(report.agreedPrice) + ')'}
+          value={props.compensation}
+          onChange={props.onCompensation}
+          placeholder="Nhập mức bồi thường"
+          helperText="Tự động thêm dấu chấm ngăn cách; có thể xóa hết để nhập lại."
+          error={(() => {
+            const parsed = parseDecimalMoney(props.compensation);
+            if (!props.compensation) return undefined;
+            if (parsed === null || parsed <= 0 || parsed > report.agreedPrice) {
+              return `Số tiền hợp lệ từ 1 ₫ đến ${money(report.agreedPrice)}.`;
+            }
+            return undefined;
+          })()}
+        />
         <Input label="Lý do nếu bồi thường thấp hơn giá thỏa thuận" value={props.reviewNote} onChange={event => props.onReviewNote(event.target.value)} maxLength={1000} />
-        <Button type="submit" disabled={busy} startIcon={<Check size={15} />}>Duyệt mức bồi thường</Button>
+        <Button type="submit" disabled={busy || !props.compensation} startIcon={<Check size={15} />}>Duyệt mức bồi thường</Button>
       </form>
       <form onSubmit={props.onRequestRecheck} className="space-y-3 border-t border-border pt-4">
         <label className="block text-xs font-bold uppercase tracking-wide text-ink">Yêu cầu kiểm tra lại<textarea value={props.recheckReason} onChange={event => props.onRecheckReason(event.target.value)} maxLength={1000} rows={2} className={textareaClass} placeholder="Nêu thông tin hoặc ảnh cần nhân viên bổ sung" /></label>
@@ -273,7 +546,7 @@ function IncidentDetail(props: {
     </div>}
     {report.history && <div className="border-t border-border pt-4">
       <h4 className="mb-2 text-sm font-bold text-ink">Lịch sử thao tác</h4>
-      <ol className="space-y-2">{report.history.map(event => <li key={event.id} className="rounded-xl border border-border bg-surface-subtle p-3 text-xs">
+      <ol className="space-y-2">{report.history.map(event => <li key={event.id} className="rounded-card border border-border bg-surface-subtle p-3 text-xs">
         <p className="font-semibold text-ink">{event.action} · {dateTime(event.occurredAt)}</p>
         <p className="text-muted">{event.reason || event.actorAccountId || event.actorType}</p>
         <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-[10px] text-text-secondary">{event.changes}</pre>

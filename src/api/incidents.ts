@@ -19,6 +19,8 @@ export interface IncidentReport {
   agreedPrice: number; compensationAmount: number; createdByEmployeeId: string;
   approvedByEmployeeId: string | null; approvedByName: string | null; createdAt: string; approvedAt: string | null;
   reviewNote: string | null; history?: IncidentAuditEvent[];
+  contractId?: string | null; payoutId?: string | null; payoutNumber?: string | null;
+  payoutStatus?: 'Pending' | 'Approved' | 'Transferred' | 'Completed' | 'Rejected' | null;
 }
 
 const prepareEvidence = (urls: string[]) => {

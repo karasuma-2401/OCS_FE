@@ -45,6 +45,7 @@ export const screenByPath: Record<string, ShopNavId> = {
   '/admin/pos': 'pos',
   '/admin/products': 'inventory',
   '/shop/inventory/expiry': 'expiry',
+  '/shop/incidents/new': 'incidents',
   '/admin/buyouts': 'buyout',
   '/admin/contracts': 'consignment',
   '/admin/customers': 'customers',
