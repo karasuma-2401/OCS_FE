@@ -42,6 +42,21 @@ test('withdrawal API separates customer ownership routes from permissioned staff
 });
 
 const helpers = load('../src/utils/earlyWithdrawals.ts');
+test('withdrawal search and summary use server totals and preserve customer scope and filters', async () => {
+  const calls = [];
+  const signal = new AbortController().signal;
+  const expected = { items: [], totalCount: 38, totalPages: 2, page: 2, pageSize: 20 };
+  const api = load('../src/api/earlyWithdrawals.ts', { './client': { apiClient: { get: async (...args) => { calls.push(args); return { data: expected }; } } } }).earlyWithdrawalsApi;
+  const filters = { page: 2, pageSize: 20, q: 'Áo', status: 'Approved', paymentStatus: 'Paid', sort: 'oldest' };
+  assert.deepEqual(await api.search(false, filters, signal), expected);
+  await api.summary(false, signal);
+  await api.search(true, filters, signal);
+  await api.summary(true, signal);
+  assert.deepEqual(calls, [
+    ['/early-withdrawals/search', { params: filters, signal }], ['/early-withdrawals/summary', { signal }],
+    ['/customers/me/early-withdrawals/search', { params: filters, signal }], ['/customers/me/early-withdrawals/summary', { signal }],
+  ]);
+});
 test('fee preview sums server amounts without floating point residue or recalculating rates', () => {
   assert.equal(helpers.withdrawalEstimate([{ penaltyAmount: .1 }, { penaltyAmount: .2 }]), .3);
   assert.equal(helpers.withdrawalEstimate([{ penaltyAmount: 12345.68, listedPrice: 999999, penaltyRate: 90 }, { penaltyAmount: 0 }]), 12345.68);

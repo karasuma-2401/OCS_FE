@@ -16,7 +16,8 @@ const summaryCards = [
 const PAGE_SIZE = 10;
 export function ExpiryProcessingPage() {
   const [rows, setRows] = useState<ExpiryProcessing[]>([]);
-  const [selected, setSelected] = useState<ExpiryProcessing | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ExpiryProcessing | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [draft, setDraft] = useState(initialFilters);
@@ -32,11 +33,11 @@ export function ExpiryProcessingPage() {
   const applyField = (key: keyof typeof filters, value: string) => {
     setDraft(current => ({ ...current, [key]: value }));
     setFilters(current => ({ ...current, [key]: value }));
-    setPage(1); setSelected(null);
+    setPage(1); setSelectedId(null); setDetail(null);
   };
   const resetFilters = (status = '') => {
     const empty = { ...initialFilters, status };
-    setDraft(empty); setFilters(empty); setDateKey(x => x + 1); setPage(1); setSelected(null);
+    setDraft(empty); setFilters(empty); setDateKey(x => x + 1); setPage(1); setSelectedId(null); setDetail(null);
   };
   const chips: ListFilterChip[] = Object.entries(filters).filter(([, value]) => value).map(([key, value]) => ({
     id: key, label: key === 'q' ? `Từ khóa: “${value}”` : key === 'customer' ? `Khách hàng: “${value}”`
@@ -74,7 +75,7 @@ export function ExpiryProcessingPage() {
     { key: 'type', header: 'Hình thức', render: row => <ExpiryTypeBadge type={row.type} /> },
     { key: 'status', header: 'Trạng thái', render: row => <Badge variant={row.status === 'Completed' ? 'success' : 'warning'}>{expiryLabel(row)}</Badge> },
     { key: 'progress', header: 'Sản phẩm', render: row => <div><p className="font-semibold">{row.products.filter(p => p.status !== 'Expired').length}/{row.products.length} đã xử lý</p><p className="mt-1 text-xs text-muted">{row.products.filter(p => p.status === 'Expired').length} món còn chờ</p></div> },
-    { key: 'action', header: 'Thao tác', render: row => <TableDetailButton onClick={() => setSelected(row)} /> },
+    { key: 'action', header: 'Thao tác', render: row => <TableDetailButton onClick={() => { setSelectedId(row.id); setDetail(row); }} /> },
   ];
   return <section className="space-y-5 text-ink">
     <PageHeaderCard icon={<CalendarClock size={24} aria-hidden="true" />} title="Xử lý hàng ký gửi hết hạn" description="Theo dõi hàng cần trả khách hoặc bàn giao quyên góp." />
@@ -86,7 +87,7 @@ export function ExpiryProcessingPage() {
           <div><h2 className="text-base font-bold text-brand-ink">Danh sách hàng hết hạn</h2>{!loading && !error && <p className="mt-0.5 text-xs text-text-secondary">Hiển thị <span className="font-semibold tabular-nums text-brand-ink">{rows.length}</span> / <span className="font-semibold tabular-nums text-brand-ink">{total.toLocaleString('vi-VN')}</span> phiếu{chips.length ? ' phù hợp bộ lọc' : ''}</p>}</div>
           <Button variant="outline" size="sm" aria-label="Làm mới danh sách hàng hết hạn" disabled={loading} onClick={() => setRefresh(x => x + 1)} startIcon={<RefreshCw size={14} aria-hidden="true" className={loading ? 'animate-spin motion-reduce:animate-none' : ''} />}>Làm mới</Button>
         </div>
-        <form className="mt-4 flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setFilters(current => ({ ...current, q: draft.q.trim(), customer: draft.customer.trim() })); setPage(1); setSelected(null); }}>
+        <form className="mt-4 flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setFilters(current => ({ ...current, q: draft.q.trim(), customer: draft.customer.trim() })); setPage(1); setSelectedId(null); setDetail(null); }}>
           <div className="min-w-[220px] flex-1">
             <Input aria-label="Tìm hợp đồng hoặc sản phẩm" placeholder="Mã hợp đồng, tên hoặc barcode sản phẩm…" autoComplete="off" value={draft.q} onChange={e => updateDraft('q', e.target.value)} startAdornment={<Search size={18} aria-hidden="true" />} endAdornment={draft.q ? <button type="button" aria-label="Xóa từ khóa tìm kiếm" onClick={() => applyField('q', '')} className="rounded-md p-1 text-muted hover:bg-surface-dashboard hover:text-brand-ink"><X size={15} aria-hidden="true" /></button> : undefined} />
           </div>
@@ -103,9 +104,9 @@ export function ExpiryProcessingPage() {
         </div>
         <ListFilterChips filters={chips} onReset={() => resetFilters()} />
       </div>
-      {loading ? <SkeletonLoading variant="table" columns={7} count={5} className="p-5" label="Đang tải danh sách hàng hết hạn..." /> : error ? <ErrorState title="Không thể tải danh sách" description={error} onRetry={() => setRefresh(x => x + 1)} /> : !rows.length ? <EmptyState className="border-0 !bg-white" title="Không có phiếu phù hợp" description="Thử thay đổi hoặc xóa bộ lọc." /> : <><p className="px-4 py-2 text-right text-xs text-muted sm:hidden">Vuốt ngang để xem bảng</p><Table className="rounded-none border-0 !bg-white" columns={columns} data={rows} rowKey="id" selectedRowKey={selected?.id} onRowClick={setSelected} />{total > PAGE_SIZE && <div className="border-t border-border p-4"><Pagination page={page} totalPages={Math.ceil(total / PAGE_SIZE)} onPageChange={setPage} /></div>}</>}
+      {loading ? <SkeletonLoading variant="table" columns={7} count={5} className="p-5" label="Đang tải danh sách hàng hết hạn..." /> : error ? <ErrorState title="Không thể tải danh sách" description={error} onRetry={() => setRefresh(x => x + 1)} /> : !rows.length ? <EmptyState className="border-0 !bg-white" title="Không có phiếu phù hợp" description="Thử thay đổi hoặc xóa bộ lọc." /> : <><p className="px-4 py-2 text-right text-xs text-muted sm:hidden">Vuốt ngang để xem bảng</p><Table className="rounded-none border-0 !bg-white" columns={columns} data={rows} rowKey="id" selectedRowKey={selectedId} selectionAppearance="accent" onRowClick={row => setSelectedId(row.id)} />{total > PAGE_SIZE && <div className="border-t border-border p-4"><Pagination page={page} totalPages={Math.ceil(total / PAGE_SIZE)} onPageChange={next => { setPage(next); setSelectedId(null); }} /></div>}</>}
     </Card>
-    {selected && <ExpiryDetailsModal key={selected.id} item={selected} onClose={() => setSelected(null)} onUpdated={() => setRefresh(x => x + 1)} />}
+    {detail && <ExpiryDetailsModal key={detail.id} item={detail} onClose={() => setDetail(null)} onUpdated={() => setRefresh(x => x + 1)} />}
   </section>;
 }
 

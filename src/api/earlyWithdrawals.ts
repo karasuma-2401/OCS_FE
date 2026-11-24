@@ -1,4 +1,8 @@
 import { apiClient } from './client';
+import type { PagedResponse } from './products';
+
+export interface WithdrawalFilters { page: number; pageSize: number; q?: string; status?: string; paymentStatus?: string; sort?: string }
+export interface WithdrawalSummary { totalCount: number; pendingCount: number; approvedCount: number; completedCount: number; rejectedCount: number }
 
 export type WithdrawalStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled' | 'Completed' | 'Legacy';
 export interface WithdrawalItem {
@@ -22,6 +26,12 @@ const customerPath = '/customers/me/early-withdrawals';
 const staffPath = '/early-withdrawals';
 const pathFor = (customer: boolean) => customer ? customerPath : staffPath;
 export const earlyWithdrawalsApi = {
+  async summary(customer: boolean, signal?: AbortSignal) {
+    return (await apiClient.get<WithdrawalSummary>(`${pathFor(customer)}/summary`, { signal })).data;
+  },
+  async search(customer: boolean, params: WithdrawalFilters, signal?: AbortSignal) {
+    return (await apiClient.get<PagedResponse<EarlyWithdrawal>>(`${pathFor(customer)}/search`, { params, signal })).data;
+  },
   async eligible(signal?: AbortSignal) {
     return (await apiClient.get<EligibleWithdrawalProduct[]>(`${customerPath}/eligible-products`, { signal })).data;
   },

@@ -11,7 +11,6 @@ import { Camera, Images } from 'lucide-react';
 import { barcodeApi } from '@/api/barcode';
 import { BarcodeSymbol } from '@/components/shop/BarcodeLabels';
 import { Modal } from '@/components/shared/Modal';
-import { Input } from '@/components/shared/Input';
 import { ContractTermsSection } from '@/components/shop/ContractTermsSection';
 import type { ContractTermsRequest } from '@/api/contractTerms';
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
@@ -61,7 +60,6 @@ export function ContractIntakePage() {
   const [signedAt, setSignedAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [expiryHandling, setExpiryHandling] = useState<'Return' | 'Donate'>('Return');
-  const [earlyWithdrawalFeeRate, setEarlyWithdrawalFeeRate] = useState('');
   const [template, setTemplate] = useState<ContractTemplate | null>(null);
   const [templateChanged, setTemplateChanged] = useState(false);
   const [signature, setSignature] = useState<ContractImage | null>(null);
@@ -92,7 +90,7 @@ export function ContractIntakePage() {
   useEffect(() => {
     if (!agreementInitialized.current) { agreementInitialized.current = true; return; }
     if (signatureRef.current) { setSignature(null); setSignatureNotice('Thông tin hợp đồng đã thay đổi. Hãy xem lại và ký lại.'); }
-  }, [customer, guest, isGuest, saveCustomer, products, signedAt, endsAt, expiryHandling, earlyWithdrawalFeeRate, template?.version, termsRequest?.id]);
+  }, [customer, guest, isGuest, saveCustomer, products, signedAt, endsAt, expiryHandling, template?.version, termsRequest?.id]);
 
   useEffect(() => {
     if (!permitted) { setLoading(false); return; }
@@ -206,8 +204,6 @@ export function ContractIntakePage() {
     if (saving || generatingBarcode || readingImages || readingSignature || updatingCustomer || !termsReady || termsRequest?.status === 'Pending' || (!customer && !isGuest)) return;
     if (!isPreview && termsRequest?.status === 'Approved' && !signature) { setError('Khách cần ký lại sau khi điều khoản riêng được duyệt.'); return; }
     const start = new Date(signedAt), end = new Date(endsAt);
-    const feeRate = earlyWithdrawalFeeRate.trim() === '' ? null : Number(earlyWithdrawalFeeRate);
-    if (feeRate !== null && (!/^\d+(\.\d{1,2})?$/.test(earlyWithdrawalFeeRate) || !Number.isFinite(feeRate) || feeRate < 0 || feeRate > 100)) { setError('Tỷ lệ phí rút sớm phải từ 0 đến 100%, tối đa 2 chữ số thập phân.'); return; }
     if (!signedAt || !endsAt || !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) { setError('Ngày kết thúc phải sau ngày ký.'); return; }
     if (isGuest && !/^0\d{9}$/.test(guest.phoneNumber)) { setError('Số điện thoại phải gồm 10 chữ số bắt đầu bằng 0.'); return; }
     const data = customer || guest;
@@ -216,7 +212,7 @@ export function ContractIntakePage() {
     setError(''); setSaving(true); setPreviewing(isPreview);
     try {
       const customerDetails = customer ? { email: customer.email || '', identityNumber: customer.identityNumber || '', address: customer.address || '', bankCode: customer.bankCode || '', bankAccountNumber: customer.bankAccountNumber || '', bankAccountHolderName: customer.bankAccountHolderName || '' } : undefined;
-      const request = { ...(appointmentId ? { appointmentId } : customer ? { customerId: customer.id, requestId } : { guest: { ...guest, email: guest.email || '' }, saveCustomer, requestId }), customerDetails, signedAt: start.toISOString(), endsAt: end.toISOString(), expiryHandling, earlyWithdrawalFeeRate: feeRate, products, templateVersion: template?.version, termsRequestId: termsRequest?.status === 'Approved' ? termsRequest.id : undefined, signature: signature || undefined };
+      const request = { ...(appointmentId ? { appointmentId } : customer ? { customerId: customer.id, requestId } : { guest: { ...guest, email: guest.email || '' }, saveCustomer, requestId }), customerDetails, signedAt: start.toISOString(), endsAt: end.toISOString(), expiryHandling, products, templateVersion: template?.version, termsRequestId: termsRequest?.status === 'Approved' ? termsRequest.id : undefined, signature: signature || undefined };
       if (isPreview) {
         const terms = await previewContractWeb(request);
         if (mounted.current) setPreviewTerms(terms);
@@ -270,7 +266,7 @@ export function ContractIntakePage() {
             <p className="mt-3 text-xs text-gray-600">Sản phẩm mới ở trạng thái chờ xử lý, chưa tự đưa lên bán.</p>
           </section>
           <section><h2 className="text-lg font-bold">Thời hạn hợp đồng</h2><div className="mt-3 grid gap-4 sm:grid-cols-2"><label className="text-sm font-semibold">Ngày và giờ ký *<input required type="datetime-local" className={control} value={signedAt} onChange={e => setSignedAt(e.target.value)} /></label><label className="text-sm font-semibold">Ngày và giờ kết thúc *<input required type="datetime-local" className={control} value={endsAt} onChange={e => setEndsAt(e.target.value)} /></label><label className="text-sm font-semibold">Xử lý khi hết hạn *<select className={control} value={expiryHandling} onChange={e => setExpiryHandling(e.target.value as 'Return' | 'Donate')}><option value="Return">Trả lại khách hàng</option><option value="Donate">Quyên góp</option></select></label></div></section>
-          <Input label="Tỷ lệ phí rút hàng sớm (%)" type="number" min={0} max={100} step="0.01" value={earlyWithdrawalFeeRate} onChange={e => setEarlyWithdrawalFeeRate(e.target.value)} helperText="0 là miễn phí. Để trống nếu chưa thỏa thuận; khách chưa thể gửi yêu cầu rút sớm trên hợp đồng này." />
+          <p className="text-sm text-muted">Phí rút hàng sớm bằng giá niêm yết nhân với tỷ lệ hoa hồng đã thỏa thuận của từng sản phẩm trên hợp đồng.</p>
           <ContractTermsSection draftKey={appointmentId || requestId} customerPhone={(customer ? customer.phoneNumber : guest.phoneNumber) || ''} onChange={(item, ready) => { setTermsRequest(item); setTermsReady(ready); if (item?.status === 'Approved' && lastApprovedTerms.current !== item.id) { lastApprovedTerms.current = item.id; if (signatureRef.current) setSignatureNotice('Điều khoản đã thay đổi. Hãy xem lại và ký lại.'); setSignature(null); } }} />
           {templateChanged && <button type="button" className="mt-2 text-sm font-semibold text-pink-700 underline" onClick={() => { void getIntakeTemplate().then(next => { setTemplate(next); setTemplateChanged(false); setError('Đã tải mẫu mới, hãy xem lại hợp đồng trước khi tạo.'); }).catch(() => setError('Không thể tải mẫu mới.')); }}>Tải mẫu mới</button>}
           <ContractSignature value={signature} onChange={value => { setSignature(value); if (value) setSignatureNotice(''); }} disabled={saving || readingSignature} onReadingChange={setReadingSignature} />

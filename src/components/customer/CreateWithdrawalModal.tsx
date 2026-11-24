@@ -28,7 +28,7 @@ export function CreateWithdrawalModal({ items, onClose, onCreated, onStale }: {
       if (status === 409 || status === 404) { setStale(true); onStale(); }
     } finally { guard.current = false; setBusy(false); }
   }
-  return <Modal open onClose={onClose} disabled={busy} title="Xác nhận yêu cầu rút hàng" description={`${items.length} món đã chọn · Phí theo từng hợp đồng`} className="max-w-2xl"
+  return <Modal open onClose={onClose} disabled={busy} title="Xác nhận yêu cầu rút hàng" description={`${items.length} món đã chọn · Phí theo tỷ lệ hoa hồng từng món trên hợp đồng`} className="max-w-2xl"
     footer={<><Button variant="outline" onClick={onClose} disabled={busy}>{stale ? 'Đóng và chọn lại' : 'Quay lại'}</Button><Button type="submit" form={formId} loading={busy} disabled={stale || !reason.trim() || items.length === 0 || items.length > 100}>Gửi yêu cầu</Button></>}>
     <form id={formId} onSubmit={submit} className="space-y-4">
       {error && <AlertBanner variant="error" title="Chưa gửi được yêu cầu" message={error} />}

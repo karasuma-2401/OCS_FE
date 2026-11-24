@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CalendarDays, Download, FileText, Package, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, CalendarDays, Download, FileText, Package, PackageMinus, Search } from 'lucide-react';
 import { getConsignmentDocument, getConsignmentProductDetail, getConsignmentProductImage, type Consignment, type ConsignmentProduct, type ConsignmentProductDetail } from '@/api/consignments';
 import { ProductImageGallery, type ProductGalleryImage } from '@/components/customer/ProductImageGallery';
+import { ConsignmentProductStatus } from '@/components/customer/ConsignmentProductStatus';
 import { Badge, Button, ErrorState, Input, Loading, Modal, Pagination, Skeleton, Table, TableDetailButton, type BadgeVariant, type TableColumn } from '@/components/shared';
 
 const PRODUCTS_PER_PAGE = 5;
-const productStatuses: Record<string, [string, BadgeVariant]> = {
-  PendingProcessing: ['Chờ xử lý', 'warning'], OnSale: ['Đang bán', 'info'], Sold: ['Đã bán', 'success'],
-  Expired: ['Hết hạn, chờ xử lý', 'warning'], Donated: ['Đã quyên góp', 'neutral'], Returned: ['Đã trả lại', 'neutral'],
-  EarlyWithdrawn: ['Đã rút trước hạn', 'neutral'], Compensated: ['Đã bồi thường', 'success'], Cancelled: ['Đã hủy', 'danger'],
-};
 const contractStatuses: Record<string, [string, BadgeVariant]> = {
   Active: ['Đang hiệu lực', 'success'], Completed: ['Đã hoàn tất', 'info'], Cancelled: ['Đã hủy', 'danger'],
 };
@@ -35,13 +32,14 @@ function ProductDetailSkeleton() {
 
 const productColumns: TableColumn<ConsignmentProduct>[] = [
   { key: 'name', header: 'Sản phẩm', render: product => <div><p className="font-bold text-brand-ink">{product.name}</p><p className="mt-0.5 text-xs text-muted">{product.barcode}</p></div> },
-  { key: 'status', header: 'Trạng thái', render: product => <div><Status value={product.status} labels={productStatuses} />{product.handledAt && <p className="mt-1 text-xs text-muted">Xử lý: {date(product.handledAt)}</p>}</div> },
+  { key: 'status', header: 'Trạng thái', render: product => <div><ConsignmentProductStatus product={product} />{product.handledAt && <p className="mt-1 text-xs text-muted">Xử lý: {date(product.handledAt)}</p>}</div> },
   { key: 'listedPrice', header: 'Giá niêm yết', render: product => money(product.listedPrice), cellClassName: 'whitespace-nowrap' },
   { key: 'commission', header: 'Hoa hồng', render: product => product.agreedCommissionRate == null ? 'Chưa có thông tin' : `${product.agreedCommissionRate}%` },
   { key: 'estimatedPayout', header: 'Dự kiến nhận', render: product => <strong className="whitespace-nowrap text-brand-highlight">{money(product.estimatedPayout)}</strong> },
 ];
 
 export function ConsignmentDetailsModal({ item, onClose }: { item: Consignment | null; onClose: () => void }) {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<'details' | 'document' | 'product'>('details');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [productDetail, setProductDetail] = useState<ConsignmentProductDetail | null>(null);
@@ -117,9 +115,17 @@ export function ConsignmentDetailsModal({ item, onClose }: { item: Consignment |
       {mode === 'document' ? documentLoading ? <Loading label="Đang tải tệp hợp đồng..." className="min-h-48" /> : documentError ? <ErrorState title="Không thể mở hợp đồng" description="Vui lòng thử lại. Nếu lỗi tiếp diễn, hãy liên hệ OCS." onRetry={() => setRetryKey(key => key + 1)} /> : documentUrl && document ? document.contentType.startsWith('image/') ? <img src={documentUrl} alt={`Ảnh hợp đồng ${item.contractNumber}`} className="mx-auto max-h-[65vh] object-contain" /> : document.contentType === 'application/pdf' ? <iframe src={documentUrl} title={`PDF hợp đồng ${item.contractNumber}`} className="h-[65vh] w-full rounded-xl border border-border bg-white" /> : <div className="rounded-xl border border-border bg-paper p-5 text-sm text-text-secondary">Hợp đồng ở định dạng Word. Chọn <strong>Tải xuống</strong> để mở tệp trên thiết bị.</div> : null : mode === 'product' && selectedProduct ? <div className="space-y-5">
         <Button variant="ghost" size="sm" startIcon={<ArrowLeft size={16} />} onClick={() => setMode('details')}>Trở về hợp đồng</Button>
         {productLoading ? <ProductDetailSkeleton /> : productError ? <ErrorState title="Không thể tải chi tiết sản phẩm" description="Vui lòng thử lại." onRetry={() => { setProductLoading(true); setProductRetryKey(key => key + 1); }} /> : productDetail ? <>
-        <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-brand-pink-surface p-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-muted">Sản phẩm ký gửi</p><h3 className="mt-1 text-xl font-bold text-brand-ink">{productDetail?.name ?? selectedProduct.name}</h3><p className="mt-1 text-sm text-text-secondary">Mã sản phẩm: {selectedProduct.barcode}</p></div><Status value={productDetail?.status ?? selectedProduct.status} labels={productStatuses} /></div>
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-brand-pink-surface p-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-muted">Sản phẩm ký gửi</p><h3 className="mt-1 text-xl font-bold text-brand-ink">{productDetail.name}</h3><p className="mt-1 text-sm text-text-secondary">Mã sản phẩm: {selectedProduct.barcode}</p></div><ConsignmentProductStatus product={productDetail} /></div>
         <div className="grid gap-3 sm:grid-cols-3"><div className="rounded-xl border border-border bg-paper p-4"><p className="text-xs text-muted">Giá niêm yết</p><p className="mt-1 text-lg font-bold text-ink">{money(productDetail?.listedPrice ?? selectedProduct.listedPrice)}</p></div><div className="rounded-xl border border-border bg-paper p-4"><p className="text-xs text-muted">Hoa hồng thỏa thuận</p><p className="mt-1 text-lg font-bold text-ink">{(productDetail ?? selectedProduct).agreedCommissionRate == null ? 'Chưa có thông tin' : `${(productDetail ?? selectedProduct).agreedCommissionRate}%`}</p></div><div className="rounded-xl border border-brand-lavender/50 bg-brand-pink-surface p-4"><p className="text-xs text-muted">Dự kiến nhận</p><p className="mt-1 text-lg font-bold text-brand-highlight">{money((productDetail ?? selectedProduct).estimatedPayout)}</p></div></div>
         <p className="text-xs text-muted">Tiền dự kiến được tính theo giá niêm yết và tỷ lệ hoa hồng; không phải khoản quyết toán thực tế của riêng sản phẩm.</p>
+        <section aria-label="Rút hàng sớm" className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand-lavender/40 bg-brand-pink-surface p-4">
+          <div className="min-w-0 flex-1"><h4 className="font-bold text-brand-ink">Rút hàng sớm</h4>
+            {productDetail.canWithdrawEarly ? <><p className="mt-1 text-sm text-text-secondary">Phí dự kiến <strong className="text-brand-highlight">{money(productDetail.earlyWithdrawalFee ?? null)}</strong></p><p className="mt-1 text-xs text-muted">Giá niêm yết × {productDetail.agreedCommissionRate}% hoa hồng đã thỏa thuận trên hợp đồng.</p></>
+              : <p className="mt-1 text-sm text-text-secondary">{productDetail.withdrawal?.status === 'Pending' ? 'Món này đang chờ cửa hàng duyệt yêu cầu rút.' : productDetail.withdrawal?.status === 'Approved' ? 'Cửa hàng đang xử lý phí và bàn giao món này.' : productDetail.status === 'EarlyWithdrawn' ? 'Món này đã được bàn giao cho bạn.' : 'Món này hiện không đủ điều kiện rút sớm. Chỉ rút được hàng còn bán, hợp đồng còn hiệu lực và có tỷ lệ hoa hồng đã thỏa thuận.'}</p>}
+          </div>
+          {productDetail.canWithdrawEarly && <Button startIcon={<PackageMinus size={16} />} onClick={() => { onClose(); navigate(`/my-withdrawals?${new URLSearchParams({ tab: 'withdraw', contractId: item.contractId, productId: productDetail.id })}`); }}>Rút hàng sớm</Button>}
+          {productDetail.withdrawal && <Button variant="outline" onClick={() => { onClose(); navigate(`/my-withdrawals?${new URLSearchParams({ tab: 'requests', requestId: productDetail.withdrawal!.id })}`); }}>Theo dõi yêu cầu</Button>}
+        </section>
         <section aria-label="Thông tin bổ sung" className="rounded-xl border border-border bg-paper p-4"><h4 className="font-bold text-brand-ink">Thông tin sản phẩm</h4><dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-xs text-muted">Thương hiệu</dt><dd className="mt-1 font-semibold text-ink">{productDetail.brandName || 'Chưa có thông tin'}</dd></div><div><dt className="text-xs text-muted">Danh mục</dt><dd className="mt-1 font-semibold text-ink">{productDetail.categoryName || 'Chưa có thông tin'}</dd></div><div><dt className="text-xs text-muted">Kích cỡ</dt><dd className="mt-1 font-semibold text-ink">{productDetail.size || 'Chưa có thông tin'}</dd></div><div><dt className="text-xs text-muted">Tình trạng</dt><dd className="mt-1 font-semibold text-ink">{productDetail.condition || 'Chưa có thông tin'}</dd></div></dl>{productDetail.description && <p className="mt-4 text-sm leading-relaxed text-text-secondary">{productDetail.description}</p>}<div className="mt-5 border-t border-border pt-4"><h4 className="mb-3 font-bold text-brand-ink">Ảnh sản phẩm</h4>{productDetail.imageUrls.length === 0 ? <p className="rounded-xl bg-surface p-4 text-sm text-muted">Sản phẩm này chưa có ảnh để xem.</p> : imagesError ? <ErrorState title="Không thể tải ảnh sản phẩm" description="Vui lòng thử lại." onRetry={() => { setProductLoading(true); setProductRetryKey(key => key + 1); }} /> : galleryImages.length > 0 && <ProductImageGallery key={selectedProduct.id} productName={productDetail.name} images={galleryImages} />}</div></section>
         </> : null}
       </div> : <div className="space-y-6">
