@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Package, RotateCcw, Search } from 'lucide-react';
 import { searchMyConsignments, type Consignment, type ConsignmentSearchResponse } from '@/api/consignments';
 import { ConsignmentDetailsModal } from '@/components/customer/ConsignmentDetailsModal';
@@ -39,6 +39,7 @@ function ConsignmentPageSkeleton() {
 }
 
 export function ConsignmentTrackingPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<ConsignmentSearchResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<number | null>(null);
@@ -102,7 +103,7 @@ export function ConsignmentTrackingPage() {
         icon={<Package size={22} aria-hidden="true" />}
         title="Theo dõi ký gửi"
         description="Theo dõi hợp đồng và tình trạng sản phẩm ký gửi của bạn."
-        actions={<Button variant="outline" onClick={() => setRefreshKey(key => key + 1)} disabled={loading} startIcon={<RotateCcw size={18} />}>Làm mới</Button>}
+        actions={<><Button onClick={() => navigate('/my-withdrawals')}>Rút hàng sớm</Button><Button variant="outline" onClick={() => setRefreshKey(key => key + 1)} disabled={loading} startIcon={<RotateCcw size={18} />}>Làm mới</Button></>}
       />
     </div>
     {!data ? loading ? <ConsignmentPageSkeleton /> : <ErrorState title={error === 403 ? 'Bạn không có quyền truy cập' : 'Không thể tải các đợt ký gửi'} description={error === 403 ? 'Tài khoản hoặc hồ sơ khách hàng của bạn không đủ điều kiện truy cập.' : 'Vui lòng kiểm tra kết nối và thử lại.'} onRetry={error === 403 ? undefined : () => setRefreshKey(key => key + 1)} /> : data.overview.totalContracts === 0 && !loading && error === null ? <EmptyState title="Chưa có đợt ký gửi nào" description="Các hợp đồng ký gửi của bạn sẽ xuất hiện tại đây khi được tạo." action={<Link to="/consign" className="inline-flex rounded-xl bg-brand-pink px-4 py-2 text-sm font-semibold text-brand-ink">Tìm hiểu ký gửi</Link>} /> : <>

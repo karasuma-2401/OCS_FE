@@ -11,6 +11,7 @@ const links = [
   { to: '/consign', label: 'Cách ký gửi', end: false },
   { to: '/appointments', label: 'Lịch hẹn', end: false },
   { to: '/my-consignments', label: 'Theo dõi ký gửi', end: false },
+  { to: '/my-withdrawals', label: 'Rút hàng sớm', end: false },
 ];
 
 export function Navbar() {
@@ -18,7 +19,7 @@ export function Navbar() {
   const isCustomer = isAuthenticated && hasRole('Customer');
   const managementPath = isAuthenticated && (hasRole('Admin') || hasRole('Manager') || hasRole('Staff'))
     ? firstAllowedScreen(user?.permissions ?? []) : null;
-  const visibleLinks = links.filter(link => link.to === '/my-consignments' ? isCustomer : link.to !== '/appointments' || (isCustomer
+  const visibleLinks = links.filter(link => link.to === '/my-consignments' || link.to === '/my-withdrawals' ? isCustomer : link.to !== '/appointments' || (isCustomer
     && (hasPermission('appointments.create') || hasPermission('appointments.own.read'))));
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);

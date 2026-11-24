@@ -12,6 +12,7 @@ export interface CreateContractRequest {
   signedAt: string;
   endsAt: string;
   expiryHandling: 'Return' | 'Donate';
+  earlyWithdrawalFeeRate?: number | null;
   terms?: string;
   templateVersion?: string;
   termsRequestId?: string;

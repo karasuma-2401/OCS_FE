@@ -9,6 +9,7 @@ import { AccountManagement } from '@/components/shop/AccountManagement';
 import { FunctionPermissions } from '@/components/shop/FunctionPermissions';
 import { InventoryManagement } from '@/components/shop/InventoryManagement';
 import { ExpiryProcessingPage } from '@/pages/ExpiryProcessingPage';
+import { StaffEarlyWithdrawalsPage } from '@/pages/EarlyWithdrawalsPage';
 import { BuyoutManagement } from '@/components/shop/BuyoutManagement';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { PosPage } from '@/components/shop/pos/PosPage';
@@ -19,6 +20,7 @@ interface ShopDashboardPageProps {
 }
 
 const tabTitles: Record<ShopNavId, { title: string; desc: string }> = {
+  withdrawals: { title: 'Rút Hàng Sớm', desc: 'Duyệt yêu cầu, thu phí và bàn giao hàng rút sớm.' },
   pos: {
     title: 'POS Bán Hàng Trực Tiếp',
     desc: 'Tạo đơn hàng nhanh chóng, quét mã vạch sản phẩm và in hóa đơn bán lẻ tại quầy.',
@@ -127,7 +129,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         {activeTab !== 'consignment' && <h1 className="sr-only">{currentTabInfo.title}</h1>}
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
-        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'expiry' ? <ExpiryProcessingPage /> : activeTab === 'buyout' ? <BuyoutManagement /> : activeTab === 'pos' ? <PosPage /> : activeTab === 'settings' ? <FunctionPermissions /> : <>
+        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'withdrawals' ? <StaffEarlyWithdrawalsPage /> : activeTab === 'expiry' ? <ExpiryProcessingPage /> : activeTab === 'buyout' ? <BuyoutManagement /> : activeTab === 'pos' ? <PosPage /> : activeTab === 'settings' ? <FunctionPermissions /> : <>
           <PageHeaderCard
             icon={activeTab === 'customers' ? <Users size={24} aria-hidden="true" /> : activeTab === 'settlement' ? <Receipt size={24} aria-hidden="true" /> : <BarChart3 size={24} aria-hidden="true" />}
             title={currentTabInfo.title}
