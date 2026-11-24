@@ -25,6 +25,16 @@ export const storageApi = {
     return key.replace(/^\//, '');
   },
 
+  privateInspectionPath(urlOrKey: string): string | null {
+    const key = this.extractKey(urlOrKey);
+    if (!key.toLowerCase().startsWith('inspections/') || key.split('/').some(part => !part || part === '.' || part === '..')) return null;
+    return `/api/storage/${key}`;
+  },
+
+  privateInspectionRequestPath(urlOrKey: string): string | null {
+    return this.privateInspectionPath(urlOrKey)?.replace(/^\/api/, '') ?? null;
+  },
+
   async uploadImage(
     file: File,
     folder: 'products' | 'inspections' = 'products',

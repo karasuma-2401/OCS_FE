@@ -47,6 +47,7 @@ const fieldLabel = "block text-sm font-medium text-text-primary";
 const statusLabels: Record<string, string> = {
   PendingProcessing: "Chờ xử lý",
   OnSale: "Đang bán",
+  IncidentPending: "Tạm giữ · chờ xác minh sự cố",
   Sold: "Đã bán",
   Expired: "Hết hạn",
   Donated: "Đã quyên góp",
@@ -61,6 +62,7 @@ const statusLabels: Record<string, string> = {
 const saleStatuses = [
   "PendingProcessing",
   "OnSale",
+  "IncidentPending",
   "Sold",
   "Expired",
   "Returned",

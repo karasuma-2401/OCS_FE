@@ -1,4 +1,4 @@
-import axios, { type AxiosRequestConfig } from 'axios';
+import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
 import type { CsrfTokenResponse } from '@/types';
 
 try {
@@ -108,12 +108,19 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
 }
 
 let isHandling401 = false;
+type CsrfRetryConfig = InternalAxiosRequestConfig & { _csrfRetried?: boolean };
 
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 403 && error.response?.data?.code === 'AUTH.CSRF_INVALID') {
       clearCsrfToken();
+      const request = error.config as CsrfRetryConfig | undefined;
+      if (request && !request._csrfRetried) {
+        request._csrfRetried = true;
+        request.headers.delete('X-XSRF-TOKEN');
+        return apiClient.request(request);
+      }
     }
     if (error.response?.status === 401) {
       const requestUrl = (error.config as AxiosRequestConfig)?.url || '';
