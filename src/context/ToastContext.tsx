@@ -68,6 +68,8 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [toasts, setToasts] = useState<ActiveToastItem[]>([]);
   const [isDeckExpanded, setIsDeckExpanded] = useState(false);
   const [isDeckPaused, setIsDeckPaused] = useState(false);
+  const isPausedRef = useRef(false);
+  const manuallyCollapsedRef = useRef(false);
   const timersRef = useRef<Map<string, { timerId: number; remaining: number; startedAt: number }>>(
     new Map(),
   );
@@ -75,7 +77,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const clearTimer = useCallback((id: string) => {
     const entry = timersRef.current.get(id);
     if (entry) {
-      window.clearTimeout(entry.timerId);
+      if (entry.timerId) window.clearTimeout(entry.timerId);
       timersRef.current.delete(id);
     }
   }, []);
@@ -87,6 +89,11 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const next = prev.filter((item) => item.id !== id);
         if (next.length <= 1) {
           setIsDeckExpanded(false);
+          manuallyCollapsedRef.current = false;
+        }
+        if (next.length === 0) {
+          isPausedRef.current = false;
+          setIsDeckPaused(false);
         }
         return next;
       });
@@ -99,6 +106,10 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (durationMs <= 0 || typeof window === "undefined") return;
       clearTimer(id);
       const startedAt = Date.now();
+      if (isPausedRef.current) {
+        timersRef.current.set(id, { timerId: 0, remaining: durationMs, startedAt });
+        return;
+      }
       const timerId = window.setTimeout(() => {
         dismiss(id);
       }, durationMs);
@@ -108,17 +119,21 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   );
 
   const pauseAllTimers = useCallback(() => {
+    if (isPausedRef.current) return;
+    isPausedRef.current = true;
     setIsDeckPaused(true);
     const now = Date.now();
     timersRef.current.forEach((entry, id) => {
-      window.clearTimeout(entry.timerId);
+      if (entry.timerId) window.clearTimeout(entry.timerId);
       const elapsed = now - entry.startedAt;
       const remaining = Math.max(800, entry.remaining - elapsed);
-      timersRef.current.set(id, { ...entry, remaining });
+      timersRef.current.set(id, { timerId: 0, remaining, startedAt: now });
     });
   }, []);
 
   const resumeAllTimers = useCallback(() => {
+    if (!isPausedRef.current) return;
+    isPausedRef.current = false;
     setIsDeckPaused(false);
     timersRef.current.forEach((entry, id) => {
       if (entry.remaining > 0) {
@@ -202,8 +217,12 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   );
 
   const clear = useCallback(() => {
-    timersRef.current.forEach((entry) => window.clearTimeout(entry.timerId));
+    timersRef.current.forEach((entry) => {
+      if (entry.timerId) window.clearTimeout(entry.timerId);
+    });
     timersRef.current.clear();
+    isPausedRef.current = false;
+    manuallyCollapsedRef.current = false;
     setToasts([]);
     setIsDeckExpanded(false);
     setIsDeckPaused(false);
@@ -255,32 +274,31 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           role="region"
           aria-label="Thông báo nhanh"
           onMouseEnter={() => {
-            if (toasts.length > 1) setIsDeckExpanded(true);
+            if (toasts.length > 1 && !manuallyCollapsedRef.current) {
+              setIsDeckExpanded(true);
+            }
             pauseAllTimers();
           }}
           onMouseLeave={() => {
+            manuallyCollapsedRef.current = false;
             setIsDeckExpanded(false);
             resumeAllTimers();
           }}
-          onFocus={() => {
-            if (toasts.length > 1) setIsDeckExpanded(true);
-            pauseAllTimers();
-          }}
-          onBlur={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-              setIsDeckExpanded(false);
-              resumeAllTimers();
-            }
-          }}
-          className="pointer-events-auto fixed inset-x-3 top-3 z-[200] flex flex-col items-center pt-[env(safe-area-inset-top)] sm:inset-x-auto sm:top-18 sm:right-4 sm:w-full sm:max-w-[23.5rem] sm:items-end print:hidden"
+          className="pointer-events-auto fixed inset-x-3 top-3 z-[200] flex flex-col items-center pt-[env(safe-area-inset-top)] sm:inset-x-auto sm:top-4 sm:right-4 sm:w-full sm:max-w-[23.5rem] sm:items-end print:hidden"
         >
           {/* Compact Deck Toolbar when 2+ toasts are active */}
           {toasts.length > 1 && (
             <div className="mb-2 flex w-full items-center justify-between gap-2 rounded-full border border-black/[0.08] bg-white/95 px-3 py-1 text-xs shadow-xs backdrop-blur-xs">
               <button
                 type="button"
-                onClick={() => setIsDeckExpanded((prev) => !prev)}
-                className="inline-flex items-center gap-1 font-medium text-ink hover:text-brand-highlight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight"
+                onClick={() => {
+                  setIsDeckExpanded((prev) => {
+                    const next = !prev;
+                    manuallyCollapsedRef.current = !next;
+                    return next;
+                  });
+                }}
+                className="inline-flex cursor-pointer items-center gap-1 font-medium text-ink hover:text-brand-highlight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight"
               >
                 {isDeckExpanded ? (
                   <ChevronUp size={14} aria-hidden="true" />
@@ -289,13 +307,13 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 )}
                 <span>
                   {toasts.length} thông báo
-                  {!isDeckExpanded ? " · Mở rộng" : ""}
+                  {isDeckExpanded ? " · Thu gọn" : " · Mở rộng"}
                 </span>
               </button>
               <button
                 type="button"
                 onClick={clear}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-muted transition hover:bg-black/[0.04] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight"
+                className="inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 font-medium text-muted transition hover:bg-black/[0.04] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight"
               >
                 <X size={12} aria-hidden="true" />
                 <span>Đóng hết</span>
@@ -310,10 +328,10 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 ? index === 0
                   ? "relative z-40 mt-0 scale-100 opacity-100"
                   : index === 1
-                    ? "relative z-30 -mt-11 h-13 scale-[0.96] overflow-hidden opacity-100 [&>div]:h-13 [&>div]:bg-white [&>div]:border-black/[0.08] [&>div>*]:invisible"
+                    ? "pointer-events-none relative z-30 -mt-11 h-13 scale-[0.96] overflow-hidden opacity-100 [&>div]:h-13 [&>div]:bg-white [&>div]:border-black/[0.08] [&>div>*]:invisible"
                     : index === 2
-                      ? "relative z-20 -mt-11 h-13 scale-[0.92] overflow-hidden opacity-90 [&>div]:h-13 [&>div]:bg-neutral-50 [&>div]:border-black/[0.08] [&>div>*]:invisible"
-                      : "relative z-10 -mt-11 h-13 scale-[0.88] overflow-hidden opacity-75 [&>div]:h-13 [&>div]:bg-neutral-100 [&>div]:border-black/[0.08] [&>div>*]:invisible"
+                      ? "pointer-events-none relative z-20 -mt-11 h-13 scale-[0.92] overflow-hidden opacity-90 [&>div]:h-13 [&>div]:bg-neutral-50 [&>div]:border-black/[0.08] [&>div>*]:invisible"
+                      : "pointer-events-none relative z-10 -mt-11 h-13 scale-[0.88] overflow-hidden opacity-75 [&>div]:h-13 [&>div]:bg-neutral-100 [&>div]:border-black/[0.08] [&>div>*]:invisible"
                 : index === 0
                   ? "relative z-40 mt-0 scale-100 opacity-100"
                   : "relative z-30 mt-2.5 scale-100 opacity-100";

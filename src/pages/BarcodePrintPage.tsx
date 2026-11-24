@@ -1,115 +1,194 @@
-import { useEffect, useState, useMemo, type FormEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import {
-  Printer,
-  Search,
-  RotateCcw,
-  Tag,
+  Camera,
   Check,
-  Minus,
   CheckCircle2,
-  SlidersHorizontal,
-  ChevronLeft,
-  ChevronRight,
+  Copy,
   FileCog,
+  MapPin,
+  Minus,
+  Plus,
+  Printer,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
+  Tag,
+  X,
 } from 'lucide-react';
 import { ContractPageLayout } from '@/components/shop/ContractPageLayout';
-import { inventoryApi, type InventoryProduct } from '@/api/inventory';
+import { inventoryApi, type InventoryLocation, type InventoryProduct } from '@/api/inventory';
+import { barcodeApi, type BarcodeLabelProduct, type BarcodeLabelTemplate } from '@/api/barcode';
 import { formatVndPrice, type PagedResponse } from '@/api/products';
-import { BarcodePrintDialog } from '@/components/shop/BarcodeLabels';
+import { BarcodePrintDialog, DEFAULT_BARCODE_TEMPLATE } from '@/components/shop/BarcodeLabels';
 import { BarcodeTemplateModal } from '@/components/shop/BarcodeTemplateModal';
-import type { BarcodeLabelProduct } from '@/api/barcode';
-import { Badge, Button, Card, ErrorState, SkeletonLoading } from '@/components/shared';
+import { clampBarcodeCopies, estimateA4BarcodeLayout } from '@/components/shop/barcodeGeometry';
+import { InventoryCheckbox } from '@/components/shop/inventory/InventoryCheckbox';
+import {
+  UNASSIGNED_LOCATION_VALUE,
+  approvalStatuses,
+  inventoryErrorText,
+  saleStatuses,
+  statusBadgeVariant,
+  statusLabel,
+} from '@/components/shop/inventory/inventoryHelpers';
+import { PosBarcodeScannerModal } from '@/components/shop/pos/PosBarcodeScannerModal';
+import {
+  Badge,
+  Button,
+  Card,
+  Combobox,
+  EmptyState,
+  ErrorState,
+  Input,
+  Pagination,
+  SkeletonLoading,
+  type ComboboxOption,
+} from '@/components/shared';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
-const statusLabels: Record<string, string> = {
-  PendingProcessing: 'Chờ xử lý',
-  OnSale: 'Đang bán',
-  Sold: 'Đã bán',
-  Returned: 'Đã trả',
-  Disposed: 'Đã hủy',
-};
+const ALL_APPROVAL_OPTIONS = [...approvalStatuses, 'Rejected'] as const;
 
-const statusBadgeVariant = (val: string): 'success' | 'warning' | 'danger' | 'neutral' => {
-  if (val === 'OnSale') return 'success';
-  if (val === 'PendingProcessing') return 'warning';
-  if (val === 'Disposed' || val === 'Cancelled') return 'danger';
-  return 'neutral';
-};
-
-interface CustomCheckboxProps {
-  checked: boolean;
-  indeterminate?: boolean;
-  onChange: (checked: boolean) => void;
-  ariaLabel?: string;
-  disabled?: boolean;
+function toBarcodeLabelProduct(product: InventoryProduct): BarcodeLabelProduct {
+  return {
+    id: product.id,
+    name: product.name,
+    barcode: product.barcode,
+    listedPrice: product.listedPrice,
+    size: product.size || undefined,
+    brand: product.brand || undefined,
+    condition: product.conditionPercentage ? `${product.conditionPercentage}%` : undefined,
+  };
 }
 
-function CustomCheckbox({
-  checked,
-  indeterminate = false,
+function CopyStepControl({
+  value,
+  itemName,
   onChange,
-  ariaLabel,
-  disabled = false,
-}: CustomCheckboxProps) {
+}: {
+  value: number;
+  itemName: string;
+  onChange: (next: number) => void;
+}) {
   return (
-    <label
-      className={`group relative inline-flex h-4.5 w-4.5 cursor-pointer items-center justify-center rounded-[6px] border transition-all select-none ${
-        disabled
-          ? 'cursor-not-allowed opacity-40'
-          : checked || indeterminate
-          ? 'border-brand-highlight bg-brand-highlight text-white shadow-sm ring-2 ring-brand-pink-light'
-          : 'border-border bg-white hover:border-brand-highlight hover:bg-brand-pink-surface'
-      }`}
+    <div
+      className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-1 py-0.5"
+      onClick={e => e.stopPropagation()}
+      onDoubleClick={e => e.stopPropagation()}
     >
-      <input
-        type="checkbox"
-        className="sr-only"
-        checked={checked}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        onChange={e => onChange(e.target.checked)}
-      />
-      {checked && <Check size={13} strokeWidth={3} className="text-white animate-in zoom-in-75 duration-150" />}
-      {indeterminate && !checked && (
-        <Minus size={13} strokeWidth={3} className="text-white animate-in zoom-in-75 duration-150" />
-      )}
-    </label>
+      <button
+        type="button"
+        onClick={() => onChange(value - 1)}
+        disabled={value <= 1}
+        aria-label={`Giảm số bản in cho ${itemName}`}
+        className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface-subtle hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Minus size={12} aria-hidden="true" />
+      </button>
+      <span
+        className="min-w-6 text-center text-xs font-bold tabular-nums text-ink"
+        title="Số bản sao tem sẽ in"
+      >
+        {value}
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange(value + 1)}
+        disabled={value >= 50}
+        aria-label={`Tăng số bản in cho ${itemName}`}
+        className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface-subtle hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Plus size={12} aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 
 export function BarcodePrintPage() {
   const { hasRole } = useAuth();
+  const toast = useToast();
   const canManageTemplate = hasRole('Admin') || hasRole('Manager');
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const initialQuery = searchParams.get('q') || '';
+  const preselectedProducts = (location.state as { preselectedProducts?: InventoryProduct[] } | null)?.preselectedProducts;
 
-  // Bộ lọc
+  // Bộ lọc & phân trang
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState(initialQuery);
   const [searchInput, setSearchInput] = useState(initialQuery);
   const [status, setStatus] = useState('');
   const [approval, setApproval] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
 
-  // Dữ liệu
+  // Dữ liệu danh sách, vị trí kho & mẫu tem hiện hành
   const [data, setData] = useState<PagedResponse<InventoryProduct> | null>(null);
+  const [locations, setLocations] = useState<InventoryLocation[]>([]);
+  const [activeTemplate, setActiveTemplate] = useState<BarcodeLabelTemplate>(DEFAULT_BARCODE_TEMPLATE);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
-  // Chọn sản phẩm để in
-  const [selectedMap, setSelectedMap] = useState<Record<string, InventoryProduct>>({});
+  // Chọn sản phẩm & số lượng bản sao cho từng sản phẩm
+  const [selectedMap, setSelectedMap] = useState<Record<string, InventoryProduct>>(() => {
+    if (!Array.isArray(preselectedProducts)) return {};
+    return Object.fromEntries(preselectedProducts.map(item => [item.id, item]));
+  });
+  const [copiesMap, setCopiesMap] = useState<Record<string, number>>(() => {
+    if (!Array.isArray(preselectedProducts)) return {};
+    return Object.fromEntries(preselectedProducts.map(item => [item.id, 1]));
+  });
   const [selectingAllMatching, setSelectingAllMatching] = useState(false);
   const [selectAllLoading, setSelectAllLoading] = useState(false);
 
-  // Dialog in & Mẫu barcode
+  // Tương tác phụ: copy mã, quét camera, dialog in & modal mẫu
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [printItems, setPrintItems] = useState<BarcodeLabelProduct[] | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
 
-  // Tải sản phẩm theo bộ lọc & phân trang (không lọc theo vị trí kho)
+  // Tải danh sách vị trí kho 1 lần khi vào trang
+  useEffect(() => {
+    const controller = new AbortController();
+    inventoryApi.locations(controller.signal)
+      .then(res => setLocations(res))
+      .catch(() => {
+        if (!controller.signal.aborted) setLocations([]);
+      });
+    return () => controller.abort();
+  }, []);
+
+  // Tải mẫu tem barcode hiện hành (đồng thời làm mới sau khi đóng modal cấu hình mẫu)
+  useEffect(() => {
+    if (templateOpen) return;
+    let active = true;
+    barcodeApi.getTemplate()
+      .then(res => {
+        if (active) setActiveTemplate(res);
+      })
+      .catch(() => {
+        // Giữ mẫu mặc định nếu chưa tải được
+      });
+    return () => { active = false; };
+  }, [templateOpen]);
+
+  // Cleanup timer copy
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
+  // Tải sản phẩm theo bộ lọc & phân trang
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError('');
+
+    const unassignedLocation = locationFilter === UNASSIGNED_LOCATION_VALUE ? true : undefined;
+    const locationId = locationFilter && !unassignedLocation ? locationFilter : undefined;
 
     inventoryApi.list(
       {
@@ -118,6 +197,8 @@ export function BarcodePrintPage() {
         q: query || undefined,
         status: status || undefined,
         approval: approval || undefined,
+        locationId,
+        unassignedLocation,
       },
       controller.signal,
     )
@@ -126,8 +207,7 @@ export function BarcodePrintPage() {
       })
       .catch((err: unknown) => {
         if (!controller.signal.aborted) {
-          const msg = err instanceof Error ? err.message : 'Không thể tải danh sách sản phẩm.';
-          setError(msg);
+          setError(inventoryErrorText(err));
         }
       })
       .finally(() => {
@@ -135,28 +215,63 @@ export function BarcodePrintPage() {
       });
 
     return () => controller.abort();
-  }, [page, query, status, approval]);
+  }, [page, query, status, approval, locationFilter, reloadKey]);
 
-  const itemsOnCurrentPage = data?.items || [];
-  const selectedCount = Object.keys(selectedMap).length;
+  const statusOptions = useMemo<ComboboxOption[]>(
+    () => [
+      { value: '', label: 'Tất cả trạng thái' },
+      ...saleStatuses.map(code => ({ value: code, label: statusLabel(code) })),
+    ],
+    [],
+  );
 
-  // Tính trạng thái checkbox header cho trang hiện tại
-  const allCurrentPageSelected = useMemo(() => {
-    return (
-      itemsOnCurrentPage.length > 0 &&
-      itemsOnCurrentPage.every(item => Boolean(selectedMap[item.id]))
-    );
-  }, [itemsOnCurrentPage, selectedMap]);
+  const approvalOptions = useMemo<ComboboxOption[]>(
+    () => [
+      { value: '', label: 'Tất cả duyệt' },
+      ...ALL_APPROVAL_OPTIONS.map(code => ({ value: code, label: statusLabel(code) })),
+    ],
+    [],
+  );
 
-  const someCurrentPageSelected = useMemo(() => {
-    return (
-      itemsOnCurrentPage.some(item => Boolean(selectedMap[item.id])) &&
-      !allCurrentPageSelected
-    );
-  }, [itemsOnCurrentPage, selectedMap, allCurrentPageSelected]);
+  const locationOptions = useMemo<ComboboxOption[]>(
+    () => [
+      { value: '', label: 'Tất cả vị trí kho' },
+      { value: UNASSIGNED_LOCATION_VALUE, label: 'Chưa xếp vị trí' },
+      ...locations.map(loc => ({ value: loc.id, label: `${loc.code} — ${loc.name}` })),
+    ],
+    [locations],
+  );
 
-  // Chọn / bỏ chọn 1 sản phẩm
-  const toggleItem = (item: InventoryProduct) => {
+  const itemsOnCurrentPage = useMemo(() => data?.items || [], [data]);
+  const selectedProducts = useMemo(() => Object.values(selectedMap), [selectedMap]);
+  const selectedCount = selectedProducts.length;
+
+  const totalSelectedLabels = useMemo(
+    () => selectedProducts.reduce((sum, item) => sum + clampBarcodeCopies(copiesMap[item.id] ?? 1), 0),
+    [selectedProducts, copiesMap],
+  );
+
+  const selectedLayoutEstimate = useMemo(
+    () => estimateA4BarcodeLayout(totalSelectedLabels, activeTemplate),
+    [totalSelectedLabels, activeTemplate],
+  );
+
+  const allCurrentPageSelected = useMemo(
+    () => itemsOnCurrentPage.length > 0 && itemsOnCurrentPage.every(item => Boolean(selectedMap[item.id])),
+    [itemsOnCurrentPage, selectedMap],
+  );
+
+  const someCurrentPageSelected = useMemo(
+    () => itemsOnCurrentPage.some(item => Boolean(selectedMap[item.id])) && !allCurrentPageSelected,
+    [itemsOnCurrentPage, selectedMap, allCurrentPageSelected],
+  );
+
+  const updateCopies = useCallback((productId: string, nextValue: number) => {
+    const clamped = clampBarcodeCopies(nextValue);
+    setCopiesMap(prev => ({ ...prev, [productId]: clamped }));
+  }, []);
+
+  const toggleItem = useCallback((item: InventoryProduct) => {
     setSelectedMap(prev => {
       const next = { ...prev };
       if (next[item.id]) {
@@ -166,10 +281,10 @@ export function BarcodePrintPage() {
       }
       return next;
     });
+    setCopiesMap(prev => (prev[item.id] ? prev : { ...prev, [item.id]: 1 }));
     setSelectingAllMatching(false);
-  };
+  }, []);
 
-  // Chọn / bỏ chọn tất cả trên trang hiện tại
   const toggleSelectAllCurrentPage = () => {
     if (allCurrentPageSelected) {
       setSelectedMap(prev => {
@@ -188,13 +303,22 @@ export function BarcodePrintPage() {
         });
         return next;
       });
+      setCopiesMap(prev => {
+        const next = { ...prev };
+        itemsOnCurrentPage.forEach(item => {
+          if (!next[item.id]) next[item.id] = 1;
+        });
+        return next;
+      });
     }
   };
 
-  // Chọn tất cả sản phẩm trong toàn bộ kết quả lọc
   const handleSelectAllMatching = async () => {
     if (!data || data.totalCount === 0 || selectAllLoading) return;
     setSelectAllLoading(true);
+    const unassignedLocation = locationFilter === UNASSIGNED_LOCATION_VALUE ? true : undefined;
+    const locationId = locationFilter && !unassignedLocation ? locationFilter : undefined;
+
     try {
       const allMatching = await inventoryApi.list({
         page: 1,
@@ -202,50 +326,63 @@ export function BarcodePrintPage() {
         q: query || undefined,
         status: status || undefined,
         approval: approval || undefined,
+        locationId,
+        unassignedLocation,
       });
 
       const next: Record<string, InventoryProduct> = { ...selectedMap };
+      const nextCopies: Record<string, number> = { ...copiesMap };
       allMatching.items.forEach(p => {
         next[p.id] = p;
+        if (!nextCopies[p.id]) nextCopies[p.id] = 1;
       });
       setSelectedMap(next);
+      setCopiesMap(nextCopies);
       setSelectingAllMatching(true);
-    } catch {
-      // Giữ nguyên lựa chọn nếu lỗi
+    } catch (err) {
+      toast.error(inventoryErrorText(err));
     } finally {
       setSelectAllLoading(false);
     }
   };
 
-  // Bỏ chọn tất cả
   const handleClearSelection = () => {
     setSelectedMap({});
     setSelectingAllMatching(false);
   };
 
-  // Mở modal in ấn cho các sản phẩm đã chọn
   const handleOpenPrint = (targetItems?: InventoryProduct[]) => {
-    const list = targetItems || Object.values(selectedMap);
+    const list = targetItems || selectedProducts;
     if (list.length === 0) return;
-
-    setPrintItems(
-      list.map(p => ({
-        id: p.id,
-        name: p.name,
-        barcode: p.barcode,
-        listedPrice: p.listedPrice,
-        size: p.size || undefined,
-        brand: p.brand || undefined,
-        condition: p.conditionPercentage ? `${p.conditionPercentage}%` : undefined,
-      })),
-    );
+    setPrintItems(list.map(toBarcodeLabelProduct));
   };
 
-  // Tìm kiếm
+  const handleCopyBarcode = async (item: InventoryProduct) => {
+    if (!item.barcode) return;
+    try {
+      await navigator.clipboard?.writeText(item.barcode);
+      setCopiedId(item.id);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedId(null), 1500);
+      toast.success(`Đã sao chép mã ${item.barcode}`);
+    } catch {
+      toast.error('Không thể sao chép mã barcode vào clipboard.');
+    }
+  };
+
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
     setQuery(searchInput.trim());
     setPage(1);
+  };
+
+  const handleScanSuccess = (scannedBarcode: string) => {
+    const normalized = scannedBarcode.trim();
+    if (!normalized) return;
+    setSearchInput(normalized);
+    setQuery(normalized);
+    setPage(1);
+    toast.success(`Đã quét mã: ${normalized}`);
   };
 
   const handleResetFilters = () => {
@@ -253,21 +390,23 @@ export function BarcodePrintPage() {
     setQuery('');
     setStatus('');
     setApproval('');
+    setLocationFilter('');
     setPage(1);
   };
 
-  const hasActiveFilters = Boolean(query || status || approval);
+  const hasActiveFilters = Boolean(query || status || approval || locationFilter);
+  const selectedLocationLabel = locationOptions.find(opt => opt.value === locationFilter)?.label;
 
   return (
     <ContractPageLayout
       activeItem="inventory"
       title="In tem barcode"
-      description="Lọc và chọn sản phẩm để in nhãn mã vạch chuẩn kích thước theo mẫu."
+      description="Lọc và chọn sản phẩm, chỉnh số bản sao để in nhãn mã vạch Code 128 chuẩn khổ A4."
       icon={<Printer size={22} aria-hidden="true" />}
-      backTo="/admin/products"
-      backLabel="Quản lý sản phẩm"
+      backTo="/shop/inventory"
+      backLabel="Quản lý kho"
       headerActions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -285,85 +424,187 @@ export function BarcodePrintPage() {
             startIcon={<Printer size={15} aria-hidden="true" />}
             className="whitespace-nowrap shrink-0"
           >
-            In đã chọn ({selectedCount})
+            {selectedCount > 0 ? `In ${totalSelectedLabels} tem (${selectedCount} SP)` : 'In đã chọn (0)'}
           </Button>
         </div>
       }
     >
       <div className="space-y-4">
-        {/* Bộ lọc sản phẩm gọn gàng */}
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border/60">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted">
-              <SlidersHorizontal size={14} className="shrink-0" /> Bộ lọc sản phẩm
+        {/* Bộ lọc sản phẩm */}
+        <Card className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+            <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-muted uppercase">
+              <SlidersHorizontal size={14} className="shrink-0" aria-hidden="true" />
+              <span>Bộ lọc sản phẩm</span>
             </div>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-brand-highlight hover:underline whitespace-nowrap"
-              >
-                <RotateCcw size={12} className="shrink-0" /> Đặt lại bộ lọc
-              </button>
-            )}
+            <div className="flex items-center gap-3 text-xs text-muted">
+              <span className="hidden sm:inline">
+                Mẫu hiện hành: <strong className="text-ink">{activeTemplate.widthMm}×{activeTemplate.heightMm}mm</strong> ({activeTemplate.columns} cột)
+              </span>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="inline-flex items-center gap-1 font-semibold text-brand-highlight hover:underline whitespace-nowrap"
+                >
+                  <RotateCcw size={12} className="shrink-0" aria-hidden="true" /> Đặt lại bộ lọc
+                </button>
+              )}
+            </div>
           </div>
 
-          <form onSubmit={handleSearchSubmit} className="mt-3 flex flex-wrap items-center gap-3">
-            <div className="relative min-w-[220px] flex-1">
-              <input
-                type="text"
-                placeholder="Tìm tên sản phẩm, mã barcode..."
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-                className="w-full rounded-xl border border-border bg-white py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-muted focus:border-brand-highlight focus:outline-none focus:ring-1 focus:ring-brand-highlight"
-              />
-              <Search size={15} className="absolute left-3 top-2.5 text-muted pointer-events-none shrink-0" />
+          <form onSubmit={handleSearchSubmit} className="mt-3 grid grid-cols-1 gap-2.5 lg:grid-cols-12 lg:items-center">
+            <div className="flex items-center gap-2 lg:col-span-5">
+              <div className="flex-1">
+                <Input
+                  type="text"
+                  aria-label="Tìm tên sản phẩm hoặc mã barcode"
+                  placeholder="Tìm tên sản phẩm, mã barcode..."
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                  startAdornment={<Search size={15} aria-hidden="true" />}
+                  endAdornment={
+                    searchInput ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchInput('');
+                          if (query) {
+                            setQuery('');
+                            setPage(1);
+                          }
+                        }}
+                        aria-label="Xóa từ khóa tìm kiếm"
+                        className="rounded p-0.5 text-muted transition hover:bg-surface-subtle hover:text-ink"
+                      >
+                        <X size={14} aria-hidden="true" />
+                      </button>
+                    ) : undefined
+                  }
+                />
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setScannerOpen(true)}
+                startIcon={<Camera size={15} aria-hidden="true" />}
+                className="shrink-0 whitespace-nowrap"
+                title="Quét mã vạch bằng camera"
+              >
+                Quét mã
+              </Button>
             </div>
 
-            <div className="w-44 shrink-0">
-              <select
+            <div className="lg:col-span-2">
+              <Combobox
+                ariaLabel="Lọc theo trạng thái bán"
+                options={statusOptions}
                 value={status}
-                onChange={e => { setStatus(e.target.value); setPage(1); }}
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-brand-highlight focus:outline-none focus:ring-1 focus:ring-brand-highlight"
-              >
-                <option value="">Tất cả trạng thái</option>
-                <option value="PendingProcessing">Chờ xử lý</option>
-                <option value="OnSale">Đang bán</option>
-                <option value="Sold">Đã bán</option>
-                <option value="Returned">Đã trả</option>
-                <option value="Disposed">Đã hủy</option>
-              </select>
+                onChange={val => {
+                  setStatus(val);
+                  setPage(1);
+                }}
+              />
             </div>
 
-            <div className="w-40 shrink-0">
-              <select
+            <div className="lg:col-span-2">
+              <Combobox
+                ariaLabel="Lọc theo trạng thái duyệt"
+                options={approvalOptions}
                 value={approval}
-                onChange={e => { setApproval(e.target.value); setPage(1); }}
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-brand-highlight focus:outline-none focus:ring-1 focus:ring-brand-highlight"
-              >
-                <option value="">Tất cả duyệt</option>
-                <option value="Approved">Đã duyệt</option>
-                <option value="PendingReview">Chờ duyệt</option>
-                <option value="Rejected">Từ chối</option>
-              </select>
+                onChange={val => {
+                  setApproval(val);
+                  setPage(1);
+                }}
+              />
             </div>
 
-            <Button
-              type="submit"
-              size="sm"
-              variant="outline"
-              className="whitespace-nowrap shrink-0"
-            >
-              Tìm kiếm
-            </Button>
+            <div className="lg:col-span-2">
+              <Combobox
+                ariaLabel="Lọc theo vị trí kho"
+                options={locationOptions}
+                value={locationFilter}
+                onChange={val => {
+                  setLocationFilter(val);
+                  setPage(1);
+                }}
+              />
+            </div>
+
+            <div className="lg:col-span-1">
+              <Button
+                type="submit"
+                variant="outline"
+                className="w-full whitespace-nowrap"
+              >
+                Tìm
+              </Button>
+            </div>
           </form>
+
+          {/* Chip hiển thị bộ lọc đang bật */}
+          {hasActiveFilters && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/50 pt-2.5 text-xs">
+              <span className="text-muted">Đang lọc:</span>
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput('');
+                    setQuery('');
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-subtle px-2.5 py-0.5 font-medium text-ink transition hover:border-brand-highlight"
+                >
+                  Từ khóa: “{query}” <X size={12} aria-hidden="true" />
+                </button>
+              )}
+              {status && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatus('');
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-subtle px-2.5 py-0.5 font-medium text-ink transition hover:border-brand-highlight"
+                >
+                  Trạng thái: {statusLabel(status)} <X size={12} aria-hidden="true" />
+                </button>
+              )}
+              {approval && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApproval('');
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-subtle px-2.5 py-0.5 font-medium text-ink transition hover:border-brand-highlight"
+                >
+                  Duyệt: {statusLabel(approval)} <X size={12} aria-hidden="true" />
+                </button>
+              )}
+              {locationFilter && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocationFilter('');
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-subtle px-2.5 py-0.5 font-medium text-ink transition hover:border-brand-highlight"
+                >
+                  Vị trí: {selectedLocationLabel || locationFilter} <X size={12} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          )}
         </Card>
 
         {/* Banner thông minh khi chọn tất cả trên trang */}
         {allCurrentPageSelected && data && data.totalCount > itemsOnCurrentPage.length && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-lavender/60 bg-brand-pink-surface px-4 py-2.5 text-xs text-brand-ink animate-in fade-in duration-200">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-lavender/60 bg-brand-pink-surface px-4 py-2.5 text-xs text-brand-ink">
             <div className="flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-brand-highlight shrink-0" />
+              <CheckCircle2 size={16} className="shrink-0 text-brand-highlight" aria-hidden="true" />
               <span>
                 Đã chọn tất cả <strong>{itemsOnCurrentPage.length}</strong> sản phẩm trên trang này.
               </span>
@@ -387,164 +628,342 @@ export function BarcodePrintPage() {
           </div>
         )}
 
-        {/* Bảng danh sách sản phẩm: gọn gàng, không hiện vị trí kho */}
+        {/* Bảng Desktop & Danh sách Card Mobile */}
         <Card className="overflow-hidden p-0">
-          {loading ? (
+          {/* Thanh tiến trình mảnh khi đang chuyển trang / lọc để giữ danh sách không giật */}
+          <div className="h-0.5 w-full overflow-hidden bg-transparent" aria-hidden="true">
+            {loading && data && (
+              <div className="animate-inv-progress-indeterminate h-full w-1/3 bg-brand-highlight" />
+            )}
+          </div>
+
+          {loading && !data ? (
             <div className="p-6">
               <SkeletonLoading variant="list" count={5} />
             </div>
-          ) : error ? (
+          ) : error && !data ? (
             <div className="p-6">
-              <ErrorState description={error} />
+              <ErrorState
+                description={error}
+                onRetry={() => setReloadKey(prev => prev + 1)}
+              />
             </div>
           ) : !data || data.items.length === 0 ? (
-            <div className="py-16 text-center text-muted">
-              <Tag size={36} className="mx-auto mb-2 text-muted" />
-              <p className="font-bold text-text-primary">Không có sản phẩm nào phù hợp</p>
-              <p className="mt-1 text-xs text-muted">Hãy thử thay đổi từ khóa hoặc bộ lọc phía trên.</p>
+            <div className="p-6">
+              <EmptyState
+                icon={<Tag size={22} aria-hidden="true" />}
+                title="Không có sản phẩm nào phù hợp"
+                description="Hãy thử thay đổi từ khóa, trạng thái hoặc vị trí kho để tìm sản phẩm cần in tem."
+                action={
+                  hasActiveFilters ? (
+                    <Button variant="outline" size="sm" onClick={handleResetFilters}>
+                      Đặt lại bộ lọc
+                    </Button>
+                  ) : undefined
+                }
+              />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] text-left text-sm">
-                <thead className="bg-surface-dashboard/70 text-xs font-semibold text-text-secondary select-none">
-                  <tr>
-                    <th scope="col" className="w-11 px-3 py-3 text-center">
-                      <CustomCheckbox
-                        checked={allCurrentPageSelected}
-                        indeterminate={someCurrentPageSelected}
-                        onChange={toggleSelectAllCurrentPage}
-                        ariaLabel="Chọn tất cả sản phẩm trên trang"
-                      />
-                    </th>
-                    <th scope="col" className="w-40 px-3 py-3 font-semibold">Mã Barcode</th>
-                    <th scope="col" className="px-4 py-3 font-semibold">Sản phẩm</th>
-                    <th scope="col" className="w-32 px-3 py-3 text-right font-semibold whitespace-nowrap">Giá niêm yết</th>
-                    <th scope="col" className="w-28 px-3 py-3 text-center font-semibold whitespace-nowrap">Trạng thái</th>
-                    <th scope="col" className="w-24 px-3 py-3 text-right font-semibold whitespace-nowrap">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {data.items.map(item => {
-                    const isSelected = Boolean(selectedMap[item.id]);
-                    return (
-                      <tr
-                        key={item.id}
-                        onClick={() => toggleItem(item)}
-                        className={`cursor-pointer transition-colors border-t border-border/60 ${
-                          isSelected
-                            ? 'bg-brand-pink-surface'
-                            : 'hover:bg-surface-active'
-                        }`}
-                      >
-                        {/* Checkbox */}
-                        <td
-                          className="px-3 py-3 text-center"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <CustomCheckbox
+            <div className={loading ? 'opacity-60 transition-opacity duration-150' : 'transition-opacity duration-150'}>
+              {error && (
+                <div className="border-b border-border/60 p-4">
+                  <ErrorState
+                    description={error}
+                    onRetry={() => setReloadKey(prev => prev + 1)}
+                  />
+                </div>
+              )}
+
+              {/* Mobile header bar cho Chọn tất cả */}
+              <div className="flex items-center justify-between border-b border-border/60 bg-surface-subtle/60 px-4 py-2.5 md:hidden">
+                <div className="flex items-center gap-2.5">
+                  <InventoryCheckbox
+                    checked={allCurrentPageSelected}
+                    indeterminate={someCurrentPageSelected}
+                    onChange={toggleSelectAllCurrentPage}
+                    ariaLabel="Chọn tất cả sản phẩm trên trang"
+                  />
+                  <span className="text-xs font-semibold text-ink">
+                    Chọn tất cả trên trang ({itemsOnCurrentPage.length})
+                  </span>
+                </div>
+                <span className="text-xs text-muted">Chạm 1 lần để chọn</span>
+              </div>
+
+              {/* Mobile Cards View (< md) */}
+              <div className="divide-y divide-border/60 md:hidden">
+                {data.items.map(item => {
+                  const isSelected = Boolean(selectedMap[item.id]);
+                  const qty = clampBarcodeCopies(copiesMap[item.id] ?? 1);
+                  const isCopied = copiedId === item.id;
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => toggleItem(item)}
+                      onDoubleClick={() => handleOpenPrint([item])}
+                      className={`relative cursor-pointer border-l-[3px] p-4 transition-colors ${
+                        isSelected
+                          ? 'border-l-brand-highlight bg-brand-pink-surface'
+                          : 'border-l-transparent bg-paper hover:bg-surface-subtle/60'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="pt-0.5" onClick={e => e.stopPropagation()}>
+                          <InventoryCheckbox
                             checked={isSelected}
                             onChange={() => toggleItem(item)}
                             ariaLabel={`Chọn in tem cho ${item.name}`}
                           />
-                        </td>
+                        </div>
 
-                        {/* Mã Barcode */}
-                        <td className="px-3 py-3 font-mono font-bold text-xs text-text-primary tracking-wider whitespace-nowrap">
-                          {item.barcode}
-                        </td>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="line-clamp-2 text-sm font-semibold text-brand-ink">
+                                {item.name}
+                              </p>
+                              <p className="mt-0.5 text-xs text-muted">
+                                {item.category}
+                                {item.brand ? ` · ${item.brand}` : ''}
+                                {item.size ? ` · Size ${item.size}` : ''}
+                                {item.conditionPercentage ? ` · Mới ${item.conditionPercentage}%` : ''}
+                              </p>
+                            </div>
+                            <Badge variant={statusBadgeVariant(item.status)} className="shrink-0 whitespace-nowrap">
+                              {statusLabel(item.status)}
+                            </Badge>
+                          </div>
 
-                        {/* Tên sản phẩm & Phân loại */}
-                        <td className="px-4 py-3">
-                          <p className="line-clamp-1 font-semibold text-brand-ink text-sm" title={item.name}>
-                            {item.name}
-                          </p>
-                          <p className="text-xs text-text-secondary mt-0.5">
-                            {item.category}{item.brand ? ` · ${item.brand}` : ''}{item.size ? ` · Size ${item.size}` : ''}{item.conditionPercentage ? ` · Mới ${item.conditionPercentage}%` : ''}
-                          </p>
-                        </td>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleCopyBarcode(item);
+                              }}
+                              title="Nhấn để sao chép mã barcode"
+                              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-white px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-ink transition hover:border-brand-highlight"
+                            >
+                              <span>{item.barcode}</span>
+                              {isCopied ? (
+                                <Check size={12} className="text-state-success" aria-hidden="true" />
+                              ) : (
+                                <Copy size={12} className="text-muted" aria-hidden="true" />
+                              )}
+                            </button>
 
-                        {/* Giá niêm yết */}
-                        <td className="px-3 py-3 text-right font-bold text-text-primary tabular-nums whitespace-nowrap">
-                          {formatVndPrice(item.listedPrice)}
-                        </td>
+                            <span className="text-sm font-bold tabular-nums text-ink">
+                              {formatVndPrice(item.listedPrice)}
+                            </span>
+                          </div>
 
-                        {/* Trạng thái */}
-                        <td className="px-3 py-3 text-center">
-                          <Badge variant={statusBadgeVariant(item.status)} className="whitespace-nowrap">
-                            {statusLabels[item.status] || item.status}
-                          </Badge>
-                        </td>
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                            {item.location ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-muted">
+                                <MapPin size={12} className="shrink-0 text-brand-highlight" aria-hidden="true" />
+                                {item.location.code}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted">Chưa xếp vị trí</span>
+                            )}
 
-                        {/* Nút in nhanh 1 tem */}
-                        <td
-                          className="px-3 py-3 text-right"
-                          onClick={e => e.stopPropagation()}
+                            <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                              {isSelected && (
+                                <CopyStepControl
+                                  value={qty}
+                                  itemName={item.name}
+                                  onChange={next => updateCopies(item.id, next)}
+                                />
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenPrint([item])}
+                                startIcon={<Printer size={13} aria-hidden="true" />}
+                                className="whitespace-nowrap shrink-0"
+                              >
+                                In tem
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Table View (>= md) */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-surface-dashboard/70 text-xs font-semibold text-text-secondary select-none">
+                    <tr>
+                      <th scope="col" className="w-12 px-3 py-3 text-center">
+                        <InventoryCheckbox
+                          checked={allCurrentPageSelected}
+                          indeterminate={someCurrentPageSelected}
+                          onChange={toggleSelectAllCurrentPage}
+                          ariaLabel="Chọn tất cả sản phẩm trên trang"
+                        />
+                      </th>
+                      <th scope="col" className="w-48 px-3 py-3 font-semibold">Mã Barcode</th>
+                      <th scope="col" className="px-4 py-3 font-semibold">Sản phẩm</th>
+                      <th scope="col" className="w-32 px-3 py-3 text-right font-semibold whitespace-nowrap">Giá niêm yết</th>
+                      <th scope="col" className="w-32 px-3 py-3 text-center font-semibold whitespace-nowrap">Trạng thái</th>
+                      <th scope="col" className="w-52 px-3 py-3 text-right font-semibold whitespace-nowrap">Bản sao & In</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {data.items.map(item => {
+                      const isSelected = Boolean(selectedMap[item.id]);
+                      const qty = clampBarcodeCopies(copiesMap[item.id] ?? 1);
+                      const isCopied = copiedId === item.id;
+
+                      return (
+                        <tr
+                          key={item.id}
+                          onClick={() => toggleItem(item)}
+                          onDoubleClick={() => handleOpenPrint([item])}
+                          title="Nhấp để chọn in · Nhấp đúp để xem bản in nhanh"
+                          className={`cursor-pointer border-t border-border/60 transition-colors ${
+                            isSelected
+                              ? 'bg-brand-pink-surface'
+                              : 'hover:bg-surface-active'
+                          }`}
                         >
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenPrint([item])}
-                            startIcon={<Printer size={13} aria-hidden="true" />}
-                            className="whitespace-nowrap shrink-0 !py-1 !px-2.5 text-xs"
+                          {/* Checkbox với chỉ báo cạnh trái phẳng khi được chọn */}
+                          <td
+                            className={`relative px-3 py-3 text-center ${
+                              isSelected ? 'shadow-[inset_3px_0_0_0_var(--color-brand-highlight)]' : ''
+                            }`}
+                            onClick={e => e.stopPropagation()}
+                            onDoubleClick={e => e.stopPropagation()}
                           >
-                            In tem
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            <InventoryCheckbox
+                              checked={isSelected}
+                              onChange={() => toggleItem(item)}
+                              ariaLabel={`Chọn in tem cho ${item.name}`}
+                            />
+                          </td>
+
+                          {/* Mã Barcode 1-click copy */}
+                          <td
+                            className="px-3 py-3 whitespace-nowrap"
+                            onClick={e => e.stopPropagation()}
+                            onDoubleClick={e => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleCopyBarcode(item)}
+                              title="Nhấn để sao chép mã barcode"
+                              className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-white px-2 py-1 font-mono text-xs font-bold tracking-wider text-ink transition hover:border-brand-highlight"
+                            >
+                              <span>{item.barcode}</span>
+                              {isCopied ? (
+                                <Check size={12} className="text-state-success" aria-hidden="true" />
+                              ) : (
+                                <Copy size={12} className="text-muted" aria-hidden="true" />
+                              )}
+                            </button>
+                          </td>
+
+                          {/* Tên sản phẩm, thuộc tính & vị trí kho */}
+                          <td className="px-4 py-3">
+                            <p className="line-clamp-1 text-sm font-semibold text-brand-ink" title={item.name}>
+                              {item.name}
+                            </p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+                              <span>
+                                {item.category}
+                                {item.brand ? ` · ${item.brand}` : ''}
+                                {item.size ? ` · Size ${item.size}` : ''}
+                                {item.conditionPercentage ? ` · Mới ${item.conditionPercentage}%` : ''}
+                              </span>
+                              {item.location && (
+                                <span className="inline-flex items-center gap-1 rounded bg-surface-subtle px-1.5 py-0.5 text-[11px] font-medium text-ink">
+                                  <MapPin size={10} className="text-brand-highlight" aria-hidden="true" />
+                                  {item.location.code}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Giá niêm yết */}
+                          <td className="px-3 py-3 text-right font-bold tabular-nums text-ink whitespace-nowrap">
+                            {formatVndPrice(item.listedPrice)}
+                          </td>
+
+                          {/* Trạng thái */}
+                          <td className="px-3 py-3 text-center">
+                            <Badge variant={statusBadgeVariant(item.status)} className="whitespace-nowrap">
+                              {statusLabel(item.status)}
+                            </Badge>
+                          </td>
+
+                          {/* Số lượng bản sao + Nút in nhanh */}
+                          <td
+                            className="px-3 py-3 text-right"
+                            onClick={e => e.stopPropagation()}
+                            onDoubleClick={e => e.stopPropagation()}
+                          >
+                            <div className="inline-flex items-center justify-end gap-2">
+                              {isSelected && (
+                                <CopyStepControl
+                                  value={qty}
+                                  itemName={item.name}
+                                  onChange={next => updateCopies(item.id, next)}
+                                />
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenPrint([item])}
+                                startIcon={<Printer size={13} aria-hidden="true" />}
+                                className="whitespace-nowrap shrink-0"
+                              >
+                                In tem
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
-          {/* Phân trang */}
+          {/* Phân trang chuẩn OCS */}
           {data && data.totalPages > 1 && (
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-4 py-3 text-xs text-muted">
               <span>
-                Hiển thị trang {data.page} / {data.totalPages} ({data.totalCount} sản phẩm)
+                Trang {data.page} / {data.totalPages} · Tổng {data.totalCount.toLocaleString('vi-VN')} sản phẩm
               </span>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1 || loading}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  startIcon={<ChevronLeft size={14} aria-hidden="true" />}
-                  className="whitespace-nowrap shrink-0"
-                >
-                  Trước
-                </Button>
-                <span className="font-semibold text-text-primary whitespace-nowrap">Trang {page}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= data.totalPages || loading}
-                  onClick={() => setPage(p => p + 1)}
-                  endIcon={<ChevronRight size={14} aria-hidden="true" />}
-                  className="whitespace-nowrap shrink-0"
-                >
-                  Sau
-                </Button>
-              </div>
+              <Pagination
+                page={data.page}
+                totalPages={data.totalPages}
+                onPageChange={setPage}
+                loading={loading}
+              />
             </div>
           )}
         </Card>
 
-        {/* Thanh tác vụ nổi (Sticky Bottom Bar) khi đã chọn sản phẩm */}
+        {/* Thanh tác vụ nổi (Sticky Bottom Bar) phẳng theo chuẩn OCS */}
         {selectedCount > 0 && (
-          <div className="sticky bottom-4 z-30 mx-auto flex max-w-xl items-center justify-between gap-4 rounded-2xl border border-brand-lavender bg-white/95 p-3 shadow-xl backdrop-blur-md animate-in slide-in-from-bottom-3 duration-200">
+          <div className="sticky bottom-4 z-30 mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-highlight/60 bg-paper/95 p-3 shadow-md backdrop-blur-sm">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-highlight text-white font-extrabold text-xs">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-highlight text-xs font-extrabold text-white">
                 {selectedCount}
               </div>
               <div>
-                <p className="text-xs font-bold text-text-primary">
-                  Đã chọn {selectedCount} sản phẩm
+                <p className="text-xs font-bold text-ink">
+                  Đã chọn {selectedCount} sản phẩm · {totalSelectedLabels} tem nhãn
                 </p>
                 <p className="text-[11px] text-muted">
-                  Sẵn sàng in tem barcode Code 128
+                  Ước tính {selectedLayoutEstimate.estimatedPages} trang A4 ({selectedLayoutEstimate.labelsPerPage} tem/trang · mẫu {activeTemplate.widthMm}×{activeTemplate.heightMm}mm)
                 </p>
               </div>
             </div>
@@ -554,7 +973,7 @@ export function BarcodePrintPage() {
                 variant="ghost"
                 size="sm"
                 onClick={handleClearSelection}
-                className="text-xs text-text-muted hover:text-text-primary whitespace-nowrap shrink-0"
+                className="text-xs text-muted hover:text-ink whitespace-nowrap shrink-0"
               >
                 Bỏ chọn
               </Button>
@@ -565,16 +984,26 @@ export function BarcodePrintPage() {
                 startIcon={<Printer size={14} aria-hidden="true" />}
                 className="whitespace-nowrap shrink-0"
               >
-                In {selectedCount} tem
+                In {totalSelectedLabels} tem
               </Button>
             </div>
           </div>
         )}
 
+        {/* Modal quét mã vạch bằng camera */}
+        <PosBarcodeScannerModal
+          open={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onScanSuccess={handleScanSuccess}
+        />
+
         {/* Modal in tem barcode */}
         <BarcodePrintDialog
           open={printItems !== null}
           items={printItems || []}
+          copiesMap={copiesMap}
+          onCopiesChange={updateCopies}
+          templateOverride={activeTemplate}
           onClose={() => setPrintItems(null)}
         />
 
@@ -587,5 +1016,3 @@ export function BarcodePrintPage() {
     </ContractPageLayout>
   );
 }
-
-export default BarcodePrintPage;

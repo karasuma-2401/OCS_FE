@@ -1,9 +1,21 @@
-import { useEffect, useState } from 'react';
-import { Button, ErrorState, Input, Modal, SkeletonLoading } from '@/components/shared';
-import { barcodeApi, type BarcodeLabelProduct, type BarcodeLabelTemplate } from '@/api/barcode';
+import { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, RotateCcw, ScanBarcode, ShieldAlert } from 'lucide-react';
+import {
+  AlertBanner,
+  Button,
+  Input,
+  Modal,
+  SkeletonLoading,
+} from '@/components/shared';
+import {
+  barcodeApi,
+  type BarcodeLabelProduct,
+  type BarcodeLabelTemplate,
+} from '@/api/barcode';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { BarcodeLabel } from './BarcodeLabels';
-import { ShieldAlert, CheckCircle2, RotateCcw } from 'lucide-react';
+import { barcodeModuleWidthMm } from './barcodeGeometry';
 
 const DEMO_PRODUCT: BarcodeLabelProduct = {
   id: 'demo-sample-1',
@@ -24,39 +36,59 @@ const DEFAULT_TEMPLATE: BarcodeLabelTemplate = {
   updatedAt: null,
 };
 
-export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+const TEMPLATE_PRESETS = [
+  { id: 'small-3col', label: 'Nhãn nhỏ · 3 cột', widthMm: 60, heightMm: 35, columns: 3, fontSizePt: 8 },
+  { id: 'medium-2col', label: 'Nhãn vừa · 2 cột', widthMm: 75, heightMm: 40, columns: 2, fontSizePt: 9 },
+  { id: 'large-2col', label: 'Nhãn lớn · 2 cột', widthMm: 90, heightMm: 50, columns: 2, fontSizePt: 10 },
+] as const;
+
+export function BarcodeTemplateModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   const { hasRole } = useAuth();
+  const toast = useToast();
   const canEdit = hasRole('Admin') || hasRole('Manager');
 
   const [template, setTemplate] = useState<BarcodeLabelTemplate>(DEFAULT_TEMPLATE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (!open) return;
     let active = true;
     setLoading(true);
     setError('');
-    setSuccess('');
 
-    barcodeApi.getTemplate()
-      .then(data => {
+    barcodeApi
+      .getTemplate()
+      .then((data) => {
         if (active) setTemplate(data);
       })
       .catch(() => {
-        if (active) {
-          // If template endpoint fails or not yet initialized, fallback to default template
-          setTemplate(DEFAULT_TEMPLATE);
-        }
+        if (active) setTemplate(DEFAULT_TEMPLATE);
       })
       .finally(() => {
         if (active) setLoading(false);
       });
 
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [open]);
+
+  const moduleWidthMm = useMemo(
+    () => barcodeModuleWidthMm(DEMO_PRODUCT.barcode, template.widthMm),
+    [template.widthMm],
+  );
+  const isSharpEnough = moduleWidthMm >= 0.254;
+  const totalWidthMm =
+    template.columns * template.widthMm + (template.columns - 1) * 3;
+  const exceedsA4 = totalWidthMm > 198;
 
   const validate = (): string | null => {
     if (template.widthMm < 40 || template.widthMm > 90) {
@@ -71,8 +103,7 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
     if (template.fontSizePt < 6 || template.fontSizePt > 12) {
       return 'Cỡ chữ phải từ 6 pt đến 12 pt.';
     }
-    const totalWidthMm = template.columns * template.widthMm + (template.columns - 1) * 3;
-    if (totalWidthMm > 198) {
+    if (exceedsA4) {
       return `Tổng chiều rộng các cột (${totalWidthMm} mm) vượt quá khổ in A4 (tối đa 198 mm). Vui lòng giảm số cột hoặc chiều rộng nhãn.`;
     }
     return null;
@@ -80,7 +111,7 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canEdit) return;
+    if (!canEdit || saving) return;
 
     const validationError = validate();
     if (validationError) {
@@ -90,14 +121,16 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
 
     setSaving(true);
     setError('');
-    setSuccess('');
 
     try {
       const saved = await barcodeApi.saveTemplate(template);
       setTemplate(saved);
-      setSuccess('Đã lưu cấu hình mẫu in barcode thành công!');
+      toast.success('Đã lưu cấu hình mẫu in barcode.');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Không thể lưu cấu hình mẫu in barcode.';
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'Không thể lưu cấu hình mẫu in barcode.';
       setError(msg);
     } finally {
       setSaving(false);
@@ -105,15 +138,14 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
   };
 
   const handleResetDefault = () => {
-    setTemplate(prev => ({
+    setTemplate((prev) => ({
       ...prev,
-      widthMm: 65,
-      heightMm: 35,
-      columns: 2,
-      fontSizePt: 8,
+      widthMm: DEFAULT_TEMPLATE.widthMm,
+      heightMm: DEFAULT_TEMPLATE.heightMm,
+      columns: DEFAULT_TEMPLATE.columns,
+      fontSizePt: DEFAULT_TEMPLATE.fontSizePt,
     }));
     setError('');
-    setSuccess('');
   };
 
   return (
@@ -121,10 +153,12 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
       open={open}
       onClose={onClose}
       title="Cấu hình mẫu in barcode & thông tin sản phẩm"
-      description="Tùy chỉnh kích thước, cỡ chữ và số cột nhãn barcode dùng trong toàn hệ thống."
+      description="Tùy chỉnh kích thước, cỡ chữ và số cột nhãn barcode khổ A4 dùng trong toàn hệ thống."
+      error={error}
+      disabled={saving}
       className="max-w-4xl"
       footer={
-        <div className="flex w-full items-center justify-between">
+        <div className="flex w-full items-center justify-between gap-2">
           <div>
             {canEdit && (
               <Button
@@ -133,9 +167,9 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
                 size="sm"
                 onClick={handleResetDefault}
                 disabled={saving || loading}
-                className="gap-1.5 text-xs text-muted"
+                startIcon={<RotateCcw size={14} aria-hidden="true" />}
               >
-                <RotateCcw size={14} /> Khôi phục mặc định
+                Khôi phục mặc định
               </Button>
             )}
           </div>
@@ -145,10 +179,11 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
             </Button>
             {canEdit && (
               <Button
+                type="submit"
+                form="barcode-template-form"
                 variant="primary"
-                onClick={handleSave}
                 loading={saving}
-                disabled={loading}
+                disabled={loading || exceedsA4}
               >
                 Lưu cấu hình
               </Button>
@@ -158,32 +193,69 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
       }
     >
       {loading ? (
-        <SkeletonLoading variant="list" count={2} />
+        <SkeletonLoading variant="list" count={2} label="Đang tải cấu hình mẫu…" />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {!canEdit && (
-            <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <ShieldAlert className="shrink-0 text-amber-600" size={20} />
-              <div>
-                <p className="font-bold">Chế độ xem chỉ đọc</p>
-                <p className="text-xs text-amber-700">
-                  Chỉ người quản lý (Manager / Admin) mới có quyền chỉnh sửa cấu hình mẫu in barcode. Nhân viên chỉ xem các thông số hiện tại.
-                </p>
-              </div>
-            </div>
+            <AlertBanner
+              variant="warning"
+              icon={<ShieldAlert size={18} aria-hidden="true" />}
+              title="Chế độ xem chỉ đọc"
+              description="Chỉ người quản lý (Manager / Admin) mới có quyền chỉnh sửa cấu hình mẫu in barcode. Nhân viên chỉ xem các thông số hiện tại."
+            />
           )}
 
-          {error && <ErrorState description={error} />}
-          {success && (
-            <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
-              <CheckCircle2 size={18} className="text-emerald-600" />
-              <span>{success}</span>
+          {canEdit && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                Mẫu nhanh chuẩn A4
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {TEMPLATE_PRESETS.map((preset) => {
+                  const active =
+                    template.widthMm === preset.widthMm &&
+                    template.heightMm === preset.heightMm &&
+                    template.columns === preset.columns &&
+                    template.fontSizePt === preset.fontSizePt;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      disabled={saving}
+                      onClick={() => {
+                        setTemplate((prev) => ({
+                          ...prev,
+                          widthMm: preset.widthMm,
+                          heightMm: preset.heightMm,
+                          columns: preset.columns,
+                          fontSizePt: preset.fontSizePt,
+                        }));
+                        setError('');
+                      }}
+                      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition active:scale-[0.98] ${
+                        active
+                          ? 'border-brand-highlight/60 bg-brand-pink-surface text-brand-highlight'
+                          : 'border-border bg-white text-brand-ink hover:border-brand-lavender hover:bg-surface-active'
+                      }`}
+                    >
+                      <span>{preset.label}</span>
+                      <span className="text-[11px] text-muted">
+                        ({preset.widthMm}×{preset.heightMm}mm)
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
           <div className="grid gap-6 md:grid-cols-2">
             {/* Cấu hình thông số */}
-            <form onSubmit={handleSave} className="space-y-4 rounded-2xl border border-border bg-paper p-5">
+            <form
+              id="barcode-template-form"
+              onSubmit={(e) => void handleSave(e)}
+              className="space-y-4 rounded-2xl border border-border bg-paper p-5"
+            >
               <h3 className="text-sm font-extrabold uppercase tracking-wide text-ink">
                 Thông số nhãn in
               </h3>
@@ -197,7 +269,9 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
                   step={1}
                   disabled={!canEdit || saving}
                   value={template.widthMm}
-                  onChange={e => setTemplate({ ...template, widthMm: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setTemplate({ ...template, widthMm: Number(e.target.value) })
+                  }
                   helperText="Chuẩn: 40 - 90 mm"
                 />
 
@@ -209,7 +283,9 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
                   step={1}
                   disabled={!canEdit || saving}
                   value={template.heightMm}
-                  onChange={e => setTemplate({ ...template, heightMm: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setTemplate({ ...template, heightMm: Number(e.target.value) })
+                  }
                   helperText="Chuẩn: 25 - 60 mm"
                 />
               </div>
@@ -223,7 +299,9 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
                   step={1}
                   disabled={!canEdit || saving}
                   value={template.columns}
-                  onChange={e => setTemplate({ ...template, columns: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setTemplate({ ...template, columns: Number(e.target.value) })
+                  }
                   helperText="1 - 4 cột trên khổ A4"
                 />
 
@@ -235,22 +313,35 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
                   step={1}
                   disabled={!canEdit || saving}
                   value={template.fontSizePt}
-                  onChange={e => setTemplate({ ...template, fontSizePt: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setTemplate({
+                      ...template,
+                      fontSizePt: Number(e.target.value),
+                    })
+                  }
                   helperText="Chuẩn: 6 - 12 pt"
                 />
               </div>
 
-              <div className="rounded-xl bg-surface-subtle p-3 text-xs text-muted">
+              <div
+                className={`rounded-xl border p-3 text-xs ${
+                  exceedsA4
+                    ? 'border-state-danger-border bg-state-danger-soft text-state-danger-strong'
+                    : 'border-border bg-surface-subtle text-muted'
+                }`}
+              >
                 <p>
-                  <strong>Quy tắc khổ giấy A4:</strong> Tổng chiều rộng {template.columns} cột là{' '}
-                  <span className="font-bold text-ink">
-                    {template.columns * template.widthMm + (template.columns - 1) * 3} mm
+                  <strong>Quy tắc khổ giấy A4:</strong> Tổng chiều rộng{' '}
+                  {template.columns} cột là{' '}
+                  <span className="font-bold tabular-nums text-ink">
+                    {totalWidthMm} mm
                   </span>{' '}
                   (tối đa 198 mm, trừ lề in).
                 </p>
                 {template.updatedAt && (
-                  <p className="mt-1 text-[11px] text-muted">
-                    Lần cập nhật cuối: {new Date(template.updatedAt).toLocaleString('vi-VN')}
+                  <p className="mt-1 text-[11px] opacity-80">
+                    Cập nhật lần cuối:{' '}
+                    {new Date(template.updatedAt).toLocaleString('vi-VN')}
                   </p>
                 )}
               </div>
@@ -263,18 +354,34 @@ export function BarcodeTemplateModal({ open, onClose }: { open: boolean; onClose
                   Bản xem trước trực quan (Tỉ lệ thực tế)
                 </span>
                 <p className="text-[11px] text-muted">
-                  {template.widthMm}mm × {template.heightMm}mm · Cỡ chữ {template.fontSizePt}pt · {template.columns} cột/trang
+                  {template.widthMm}mm × {template.heightMm}mm · Cỡ chữ{' '}
+                  {template.fontSizePt}pt · {template.columns} cột/trang
                 </p>
               </div>
 
-              {/* Tem mẫu: Đồng bộ 100% với BarcodeLabel khi in thực tế */}
-              <div className="shadow-lg rounded-lg overflow-hidden transition-all bg-white">
+              <div className="overflow-hidden rounded-lg bg-white shadow-md transition-all duration-200">
                 <BarcodeLabel item={DEMO_PRODUCT} template={template} />
               </div>
 
-              <p className="mt-4 text-center text-xs text-muted italic">
-                * Bản in web thuần túy, mã vạch Code 128 rõ nét và không kèm ảnh sản phẩm.
-              </p>
+              {/* Chỉ báo độ nét Code 128 */}
+              <div
+                className={`mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                  isSharpEnough
+                    ? 'bg-state-success-soft text-state-success-strong'
+                    : 'bg-state-warning-soft text-state-warning-strong'
+                }`}
+              >
+                {isSharpEnough ? (
+                  <CheckCircle2 size={14} aria-hidden="true" />
+                ) : (
+                  <ScanBarcode size={14} aria-hidden="true" />
+                )}
+                <span>
+                  {isSharpEnough
+                    ? `Độ nét Code 128 tốt (${moduleWidthMm.toFixed(2)} mm/vạch)`
+                    : `Vạch hơi mảnh (${moduleWidthMm.toFixed(2)} mm/vạch) — nên tăng bề rộng nhãn`}
+                </span>
+              </div>
             </div>
           </div>
         </div>

@@ -22,11 +22,13 @@ export function InventoryEditModal({ product, locations, canEditDetails, canEdit
   const [stale, setStale] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [confirmAction, setConfirmAction] = useState<'discard' | 'offer' | null>(null);
   const detailsChanged = name.trim() !== current.name || size.trim() !== current.size || description.trim() !== (current.description ?? '') || Number(condition) !== current.conditionPercentage;
   const locationChanged = Boolean(location && location !== current.location?.id);
   const closeEditor = () => {
     if ((canEditDetails && detailsChanged) || (canEditLocation && locationChanged)) {
-      if (!window.confirm('Bạn còn thay đổi chưa lưu. Đóng hộp thoại và bỏ các thay đổi này?')) return;
+      setConfirmAction('discard');
+      return;
     }
     onClose();
   };
@@ -79,10 +81,41 @@ export function InventoryEditModal({ product, locations, canEditDetails, canEdit
       <section className="space-y-3 border-t border-border pt-5">
         <h3 className="font-semibold text-brand-ink">Trạng thái bán</h3>
         <p className="text-sm text-text-secondary">Hiện tại: {current.status === 'PendingProcessing' ? 'Chờ xử lý' : current.status === 'OnSale' ? 'Đang bán' : current.status} · {current.approvalStatus === 'Approved' ? 'Đã duyệt' : 'Chưa duyệt'}</p>
-        {current.status === 'PendingProcessing' && current.approvalStatus === 'Approved' && canOffer && <Button variant="outline" disabled={stale || !current.location} loading={busy} onClick={() => { if (window.confirm('Đưa sản phẩm này lên bán?')) void save(() => inventoryApi.offer(current.id, current.version), 'Sản phẩm đã được đưa lên bán.'); }}>Đưa lên bán</Button>}
+        {current.status === 'PendingProcessing' && current.approvalStatus === 'Approved' && canOffer && <Button variant="outline" disabled={stale || !current.location} loading={busy} onClick={() => setConfirmAction('offer')}>Đưa lên bán</Button>}
         <p className="text-xs leading-5 text-text-secondary">Cần duyệt và xếp vị trí trước khi đưa lên bán. Trạng thái đã bán hoặc đã trả được cập nhật qua nghiệp vụ tương ứng.</p>
       </section>
       {current.sourceType === 'Consignment' && <p className="text-xs leading-5 text-text-secondary">Giá ký gửi vẫn theo thỏa thuận. Hợp đồng đã tạo không tự thay đổi khi sửa thông tin trong kho.</p>}
     </div>
+    <Modal
+      open={confirmAction !== null}
+      onClose={() => setConfirmAction(null)}
+      disabled={busy}
+      className="max-w-md"
+      title={confirmAction === 'discard' ? 'Bỏ thay đổi chưa lưu?' : 'Xác nhận đưa lên bán'}
+      footer={<>
+        <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={busy}>Quay lại</Button>
+        <Button
+          variant={confirmAction === 'discard' ? 'danger' : 'primary'}
+          loading={busy}
+          onClick={() => {
+            if (confirmAction === 'discard') {
+              setConfirmAction(null);
+              onClose();
+            } else {
+              setConfirmAction(null);
+              void save(() => inventoryApi.offer(current.id, current.version), 'Sản phẩm đã được đưa lên bán.');
+            }
+          }}
+        >
+          {confirmAction === 'discard' ? 'Bỏ thay đổi' : 'Đưa lên bán'}
+        </Button>
+      </>}
+    >
+      <p className="text-sm text-text-secondary">
+        {confirmAction === 'discard'
+          ? 'Bạn có thay đổi thông tin hoặc vị trí chưa lưu. Đóng hộp thoại sẽ hủy các thay đổi này.'
+          : `Đưa sản phẩm "${current.name}" (${current.barcode}) lên bán tại quầy?`}
+      </p>
+    </Modal>
   </Modal>;
 }

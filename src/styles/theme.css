@@ -134,6 +134,70 @@
     to { transform: scaleY(1); }
   }
 
+  @keyframes inv-panel-in {
+    from { opacity: 0; transform: translate3d(28px, 0, 0) scale(0.985); }
+    to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+
+  @keyframes inv-panel-out {
+    from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    to { opacity: 0; transform: translate3d(28px, 0, 0) scale(0.985); }
+  }
+
+  @keyframes inv-slide-from-right {
+    from { opacity: 0; transform: translate3d(24px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+
+  @keyframes inv-slide-from-left {
+    from { opacity: 0; transform: translate3d(-24px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+
+  @keyframes inv-progress-indeterminate {
+    0% { transform: translate3d(-100%, 0, 0) scaleX(0.35); }
+    50% { transform: translate3d(60%, 0, 0) scaleX(0.6); }
+    100% { transform: translate3d(220%, 0, 0) scaleX(0.35); }
+  }
+
+  @keyframes inv-bar-up {
+    from { opacity: 0; transform: translateY(28px) scale(0.94); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes inv-modal-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes inv-pop {
+    0% { opacity: 0.4; transform: scale(0.5); }
+    60% { opacity: 1; transform: scale(1.2); }
+    82% { transform: scale(0.95); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes inv-fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes inv-grow-y {
+    from { opacity: 0; transform: scaleY(0.2); }
+    to { opacity: 1; transform: scaleY(1); }
+  }
+
+  @keyframes inv-row-flash {
+    0% {
+      background-color: var(--color-brand-pink-light);
+      box-shadow: inset 3px 0 0 var(--color-brand-highlight);
+    }
+    100% {
+      background-color: transparent;
+      box-shadow: inset 0 0 0 transparent;
+    }
+  }
+
   --breakpoint-xs: 30rem;
   --breakpoint-sm: 40rem;
   --breakpoint-md: 48rem;
@@ -152,9 +216,59 @@
   }
 }
 
+.animate-inv-panel-in {
+  animation: inv-panel-in 300ms cubic-bezier(.16, 1, .3, 1) both;
+  will-change: transform, opacity;
+}
+.animate-inv-panel-out {
+  animation: inv-panel-out 190ms cubic-bezier(.4, 0, 1, 1) both;
+  will-change: transform, opacity;
+}
+.animate-inv-slide-from-right {
+  animation: inv-slide-from-right 240ms cubic-bezier(.16, 1, .3, 1) both;
+  will-change: transform, opacity;
+}
+.animate-inv-slide-from-left {
+  animation: inv-slide-from-left 240ms cubic-bezier(.16, 1, .3, 1) both;
+  will-change: transform, opacity;
+}
+.animate-inv-progress-indeterminate {
+  animation: inv-progress-indeterminate 1.1s ease-in-out infinite;
+  will-change: transform;
+}
+.animate-inv-bar-up {
+  animation: inv-bar-up 340ms cubic-bezier(.22, 1.25, .36, 1) both;
+}
+.animate-inv-modal-in {
+  animation: inv-modal-in 260ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.animate-inv-pop {
+  animation: inv-pop 300ms cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.animate-inv-fade-in {
+  animation: inv-fade-in 280ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.animate-inv-grow-y {
+  animation: inv-grow-y 240ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.animate-inv-row-flash {
+  animation: inv-row-flash 1.8s ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-toast-enter,
-  .animate-bell-swing {
+  .animate-bell-swing,
+  .animate-inv-panel-in,
+  .animate-inv-panel-out,
+  .animate-inv-slide-from-right,
+  .animate-inv-slide-from-left,
+  .animate-inv-progress-indeterminate,
+  .animate-inv-bar-up,
+  .animate-inv-modal-in,
+  .animate-inv-pop,
+  .animate-inv-fade-in,
+  .animate-inv-grow-y,
+  .animate-inv-row-flash {
     animation: none !important;
   }
 }

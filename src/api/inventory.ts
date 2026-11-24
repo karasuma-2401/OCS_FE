@@ -1,7 +1,15 @@
 import { apiClient, resolveApiAssetUrl } from './client';
 import type { PagedResponse } from './products';
 
-export interface InventoryLocation { id: string; code: string; name: string }
+export interface InventoryLocation { id: string; code: string; name: string; productCount?: number }
+export interface InventorySummary {
+  totalCount: number;
+  pendingApprovalCount: number;
+  readyToOfferCount: number;
+  unassignedLocationCount: number;
+  onSaleCount: number;
+  expiredCount: number;
+}
 export interface InventoryProduct {
   id: string; barcode: string; name: string; size: string; description: string | null;
   conditionPercentage: number; brand: string; category: string; listedPrice: number;
@@ -12,15 +20,23 @@ export interface InventoryDetail {
   product: InventoryProduct; agreementEvidence: string | null; agreedListedPrice: number | null;
   purchasePrice: number | null;
   images: { id: string; url: string; imageType: string; sortOrder: number }[];
-  history: { action: string; previousValue: string | null; newValue: string | null; reason: string | null; actorAccountId: string | null; occurredAt: string }[];
+  history: { action: string; previousValue: string | null; newValue: string | null; reason: string | null; actorAccountId: string | null; actorName?: string | null; occurredAt: string }[];
 }
-export interface InventoryFilters { page: number; pageSize: number; q?: string; status?: string; approval?: string; locationId?: string }
+export interface InventoryFilters {
+  page: number; pageSize: number; q?: string; status?: string; approval?: string;
+  locationId?: string; unassignedLocation?: boolean; sourceType?: string; sort?: string;
+}
+export interface BulkInventoryItemVersion { id: string; expectedVersion: string }
+export interface BulkInventoryResult { succeededCount: number; failures: { id: string; message: string }[] }
 
 export const inventoryApi = {
   async list(params: InventoryFilters, signal?: AbortSignal) {
     const data = (await apiClient.get<PagedResponse<InventoryProduct>>('/inventory', { params, signal })).data;
     if (Array.isArray(data.items)) data.items = data.items.map(item => ({ ...item, coverImageUrl: resolveApiAssetUrl(item.coverImageUrl) }));
     return data;
+  },
+  async summary(signal?: AbortSignal) {
+    return (await apiClient.get<InventorySummary>('/inventory/summary', { signal })).data;
   },
   async detail(id: string, signal?: AbortSignal) {
     const data = (await apiClient.get<InventoryDetail>(`/inventory/${encodeURIComponent(id)}`, { signal })).data;
@@ -45,6 +61,12 @@ export const inventoryApi = {
   },
   async changeLocation(id: string, expectedVersion: string, locationId: string) {
     return (await apiClient.put<InventoryProduct>(`/inventory/${encodeURIComponent(id)}/location`, { expectedVersion, locationId })).data;
+  },
+  async bulkChangeLocation(items: BulkInventoryItemVersion[], locationId: string) {
+    return (await apiClient.put<BulkInventoryResult>('/inventory/bulk-location', { items, locationId })).data;
+  },
+  async bulkOffer(items: BulkInventoryItemVersion[]) {
+    return (await apiClient.post<BulkInventoryResult>('/inventory/bulk-offer', { items })).data;
   },
   async changePrice(id: string, expectedVersion: string, price: number, reason: string) {
     return (await apiClient.put<InventoryProduct>(`/inventory/${encodeURIComponent(id)}/price`, { expectedVersion, price, reason })).data;
