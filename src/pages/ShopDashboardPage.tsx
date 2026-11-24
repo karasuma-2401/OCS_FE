@@ -129,7 +129,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         }}
       />
 
-      <main className={`mx-auto w-full max-w-7xl min-w-0 flex-1 text-text-primary ${activeTab === 'pos' ? 'p-3 sm:px-5 sm:py-3' : 'p-6'}`}>
+      <main className={`mx-auto w-full max-w-7xl min-w-0 flex-1 text-text-primary ${activeTab === 'pos' ? 'p-3 sm:px-5 sm:py-3' : 'p-4 sm:p-6'}`}>
         {activeTab !== 'consignment' && <h1 className="sr-only">{currentTabInfo.title}</h1>}
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}

@@ -84,6 +84,7 @@ export function Toast({
   variant = "info",
   title,
   message,
+  tag,
   action,
   onClose,
   disabled = false,
@@ -122,6 +123,11 @@ export function Toast({
       </span>
 
       <div className="min-w-0 flex-1 break-words">
+        {tag && (
+          <span className="mb-1 inline-flex items-center rounded-md bg-brand-pink-surface px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-brand-highlight uppercase">
+            {tag}
+          </span>
+        )}
         {title && (
           <p className="text-[13.5px] font-semibold leading-snug tracking-[-0.01em] text-ink">
             {title}
@@ -145,7 +151,7 @@ export function Toast({
                 onClose?.();
               }}
               className={joinClasses(
-                "group/action inline-flex min-h-7 items-center gap-1 rounded-sm text-xs font-semibold underline underline-offset-4 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight",
+                "group/action relative z-10 inline-flex min-h-7 cursor-pointer items-center gap-1 rounded-sm text-xs font-semibold underline underline-offset-4 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight",
                 selected.actionClass,
               )}
             >
@@ -167,7 +173,7 @@ export function Toast({
           onClick={onClose}
           disabled={disabled || loading}
           aria-label="Đóng thông báo"
-          className="-mr-1 -mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-black/[0.04] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight disabled:cursor-not-allowed"
+          className="relative z-10 -mr-1 -mt-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted transition hover:bg-black/[0.04] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight disabled:cursor-not-allowed"
         >
           <X size={15} strokeWidth={1.9} aria-hidden="true" />
         </button>
@@ -177,7 +183,7 @@ export function Toast({
         <span
           aria-hidden="true"
           className={joinClasses(
-            "absolute inset-x-0 bottom-0 h-[2px] origin-left motion-reduce:hidden",
+            "pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-left motion-reduce:hidden",
             selected.progressClass,
           )}
           style={{

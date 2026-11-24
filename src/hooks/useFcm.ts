@@ -43,6 +43,7 @@ export function useFcm(options: UseFcmOptions = {}) {
   const requestPermissionAndRegister = useCallback((): Promise<string | null> => {
     if (!enabled || !userId) return Promise.resolve(null);
     if (pendingRef.current?.userId === userId) return pendingRef.current.promise;
+    localStorage.removeItem(`ocs_fcm_opted_out_${userId}`);
 
     const promise = Promise.resolve().then(async () => {
       try {
@@ -92,14 +93,27 @@ export function useFcm(options: UseFcmOptions = {}) {
 
   const unregister = useCallback(async () => {
     const token = registration?.token || localStorage.getItem('ocs_active_fcm_token');
+    if (userId) {
+      localStorage.setItem(`ocs_fcm_opted_out_${userId}`, '1');
+    }
+    setLoading(true);
+    setError(null);
     try {
       if (token) await notificationApi.unregisterFcmToken(token);
+    } catch (err: unknown) {
+      if (currentUserRef.current === userId) {
+        setError(err instanceof Error ? err.message : 'Không thể tắt thông báo đẩy trên thiết bị.');
+      }
+      throw err;
     } finally {
       await clearFirebaseRegistration();
-      setRegistration(null);
+      if (currentUserRef.current === userId) {
+        setRegistration(null);
+        setLoading(false);
+      }
       await refreshStatus();
     }
-  }, [registration, refreshStatus]);
+  }, [registration, refreshStatus, userId]);
 
   const sendTestNotification = useCallback(async () => {
     const noti = await notificationApi.sendTestNotification();
@@ -133,7 +147,8 @@ export function useFcm(options: UseFcmOptions = {}) {
     if (!enabled || !userId) return;
     localStorage.removeItem('ocs_dev_fcm_token');
     const synchronize = () => {
-      if (isFirebaseClientConfigured && 'Notification' in window && Notification.permission === 'granted') {
+      const optedOut = localStorage.getItem(`ocs_fcm_opted_out_${userId}`) === '1';
+      if (!optedOut && isFirebaseClientConfigured && 'Notification' in window && Notification.permission === 'granted') {
         void requestPermissionAndRegister();
       } else {
         if ('Notification' in window) setPermission(Notification.permission);

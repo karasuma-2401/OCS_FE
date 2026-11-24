@@ -33,7 +33,7 @@ export interface ShopNavItem {
 }
 
 export interface ShopNavBarProps {
-  activeItem?: ShopNavId;
+  activeItem?: ShopNavId | null;
   initialActive?: ShopNavId;
   profileName?: string;
   onNavigate?: (item: ShopNavItem) => void;
@@ -139,7 +139,7 @@ export default function ShopNavBar({
     };
   }, [accountOpen]);
 
-  const currentActive = activeItem ?? selected;
+  const currentActive = activeItem === undefined ? selected : activeItem;
 
   useEffect(() => {
     const navigationElement = navigationRef.current;

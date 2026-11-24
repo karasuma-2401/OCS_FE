@@ -1,10 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import JsBarcode from 'jsbarcode';
 import { Button, ErrorState, Modal, SkeletonLoading } from '@/components/shared';
 import { barcodeApi, type BarcodeLabelProduct, type BarcodeLabelTemplate } from '@/api/barcode';
 import { formatVndPrice } from '@/api/products';
-import { barcodeOptions, canEncodeBarcode } from './barcodeGeometry';
-import { Printer, Tag } from 'lucide-react';
+import {
+  BARCODE_GRID_GAP_MM,
+  barcodeOptions,
+  canEncodeBarcode,
+  chunkBarcodePages,
+  clampBarcodeCopies,
+  estimateA4BarcodeLayout,
+  expandBarcodeItems,
+} from './barcodeGeometry';
+import { Minus, Plus, Printer, Tag } from 'lucide-react';
 
 function drawBarcode(svg: SVGSVGElement, value: string) {
   JsBarcode(svg, value, barcodeOptions);
@@ -91,7 +100,7 @@ export function BarcodeLabel({ item, template }: { item: BarcodeLabelProduct; te
   );
 }
 
-const DEFAULT_TEMPLATE: BarcodeLabelTemplate = {
+export const DEFAULT_BARCODE_TEMPLATE: BarcodeLabelTemplate = {
   widthMm: 60,
   heightMm: 35,
   columns: 3,
@@ -100,10 +109,36 @@ const DEFAULT_TEMPLATE: BarcodeLabelTemplate = {
   updatedAt: null,
 };
 
-export function BarcodePrintDialog({ open, onClose, items }: { open: boolean; onClose: () => void; items: BarcodeLabelProduct[] }) {
-  const [template, setTemplate] = useState<BarcodeLabelTemplate>(DEFAULT_TEMPLATE);
+export interface BarcodePrintDialogProps {
+  open: boolean;
+  onClose: () => void;
+  items: BarcodeLabelProduct[];
+  copiesMap?: Record<string, number>;
+  onCopiesChange?: (productId: string, copies: number) => void;
+  templateOverride?: BarcodeLabelTemplate | null;
+}
+
+export function BarcodePrintDialog({
+  open,
+  onClose,
+  items,
+  copiesMap,
+  onCopiesChange,
+  templateOverride,
+}: BarcodePrintDialogProps) {
+  const [template, setTemplate] = useState<BarcodeLabelTemplate>(templateOverride || DEFAULT_BARCODE_TEMPLATE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [localCopies, setLocalCopies] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!open) return;
+    const initial: Record<string, number> = {};
+    for (const item of items) {
+      initial[item.id] = clampBarcodeCopies(copiesMap?.[item.id] ?? 1);
+    }
+    setLocalCopies(initial);
+  }, [open, items, copiesMap]);
 
   useEffect(() => {
     if (open) {
@@ -116,6 +151,13 @@ export function BarcodePrintDialog({ open, onClose, items }: { open: boolean; on
 
   useEffect(() => {
     if (!open) return;
+    if (templateOverride) {
+      setTemplate(templateOverride);
+      setLoading(false);
+      setError('');
+      return;
+    }
+
     let active = true;
     setLoading(true);
     setError('');
@@ -125,143 +167,244 @@ export function BarcodePrintDialog({ open, onClose, items }: { open: boolean; on
         if (active) setTemplate(data);
       })
       .catch(() => {
-        if (active) setTemplate(DEFAULT_TEMPLATE);
+        if (active) setTemplate(DEFAULT_BARCODE_TEMPLATE);
       })
       .finally(() => {
         if (active) setLoading(false);
       });
 
     return () => { active = false; };
-  }, [open]);
+  }, [open, templateOverride]);
+
+  const updateItemCopies = (productId: string, nextValue: number) => {
+    const clamped = clampBarcodeCopies(nextValue);
+    setLocalCopies(prev => ({ ...prev, [productId]: clamped }));
+    onCopiesChange?.(productId, clamped);
+  };
+
+  const expandedLabels = useMemo(
+    () => expandBarcodeItems(items, localCopies),
+    [items, localCopies],
+  );
+
+  const layout = useMemo(
+    () => estimateA4BarcodeLayout(expandedLabels.length, template),
+    [expandedLabels.length, template],
+  );
+
+  const a4Pages = useMemo(
+    () => chunkBarcodePages(expandedLabels, layout.labelsPerPage),
+    [expandedLabels, layout.labelsPerPage],
+  );
 
   const handlePrint = () => {
     window.print();
   };
 
+  const descriptionText = items.length > 0
+    ? `${items.length} sản phẩm · ${expandedLabels.length} tem nhãn · Ước tính ${layout.estimatedPages} trang A4`
+    : 'In trực tiếp qua giao diện web chuẩn khổ giấy A4';
+
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="In tem nhãn & Barcode sản phẩm"
-      description={`${items.length} sản phẩm · In trực tiếp qua giao diện web chuẩn khổ giấy A4`}
-      className="max-w-6xl"
-      footer={
-        <div className="flex w-full items-center justify-between">
-          <p className="text-xs text-muted">
-            Khổ tem: {template.widthMm}mm × {template.heightMm}mm · {template.columns} tem/hàng · Khổ A4
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Đóng
-            </Button>
-            {items.length > 0 && (
-              <Button
-                variant="primary"
-                onClick={handlePrint}
-                disabled={loading}
-                className="gap-2"
-              >
-                <Printer size={16} /> In tem barcode (Web)
-              </Button>
-            )}
-          </div>
-        </div>
-      }
-    >
-      {/* CSS @media print chuyên dụng cho tem barcode */}
-      <style>{`
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 8mm;
+    <>
+      {/* CSS @media print chuyên dụng cho tem barcode: đặt ngoài Modal để luôn áp dụng, ghi đè visibility:hidden từ các print CSS khác */}
+      {open && (
+        <style>{`
+          #barcode-print-root {
+            display: none;
           }
-          body {
-            background: white !important;
-            color: black !important;
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 8mm;
+            }
+            html:has(body[data-print-mode="barcode"]),
+            body[data-print-mode="barcode"] {
+              background: white !important;
+              color: black !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow: visible !important;
+              height: auto !important;
+            }
+            body[data-print-mode="barcode"] > *:not(#barcode-print-root) {
+              display: none !important;
+            }
+            body[data-print-mode="barcode"] #barcode-print-root,
+            body[data-print-mode="barcode"] #barcode-print-root * {
+              visibility: visible !important;
+            }
+            body[data-print-mode="barcode"] #barcode-print-root {
+              display: block !important;
+              position: static !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
+            }
+            .barcode-print-sheet {
+              display: grid !important;
+              grid-template-columns: repeat(${template.columns}, ${template.widthMm}mm) !important;
+              justify-content: center !important;
+              gap: ${BARCODE_GRID_GAP_MM}mm !important;
+              break-after: page;
+              page-break-after: always;
+            }
+            .barcode-print-sheet:last-child {
+              break-after: auto;
+              page-break-after: auto;
+            }
+            .barcode-print-item {
+              width: ${template.widthMm}mm !important;
+              height: ${template.heightMm}mm !important;
+              font-size: ${template.fontSizePt}pt !important;
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+              box-sizing: border-box !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
           }
-          body * {
-            visibility: hidden !important;
-          }
-          #contract-printable-sheet,
-          #contract-printable-sheet *,
-          .unified-contract-sheet-wrapper,
-          .unified-contract-sheet-wrapper * {
-            display: none !important;
-            visibility: hidden !important;
-            position: absolute !important;
-            left: -99999px !important;
-            top: -99999px !important;
-            width: 0 !important;
-            height: 0 !important;
-            overflow: hidden !important;
-          }
-          #barcode-printable-area, #barcode-printable-area * {
-            visibility: visible !important;
-          }
-          #barcode-printable-area {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            border: none !important;
-            box-shadow: none !important;
-            overflow: visible !important;
-            display: grid !important;
-            grid-template-columns: repeat(${template.columns}, ${template.widthMm}mm) !important;
-            justify-content: center !important;
-            gap: 3mm !important;
-          }
-          .barcode-print-item {
-            width: ${template.widthMm}mm !important;
-            height: ${template.heightMm}mm !important;
-            font-size: ${template.fontSizePt}pt !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-            box-sizing: border-box !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-        }
-      `}</style>
-
-      {loading ? (
-        <SkeletonLoading variant="list" count={3} />
-      ) : error ? (
-        <ErrorState description={error} />
-      ) : items.length === 0 ? (
-        <div className="py-12 text-center text-muted">
-          <Tag className="mx-auto mb-2 text-muted" size={32} />
-          <p className="font-semibold">Chưa có sản phẩm nào được chọn để in nhãn.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-subtle px-4 py-2 text-xs text-muted">
-            <span>
-              Xem trước bố cục in web ({template.columns} cột trên trang A4).
-            </span>
-            <span className="font-semibold text-brand-ink">
-              Tổng cộng: {items.length} nhãn in
-            </span>
-          </div>
-
-          <div
-            id="barcode-printable-area"
-            className="grid max-h-[60vh] gap-3 overflow-y-auto rounded-xl border border-border bg-slate-50 p-4 print:max-h-none print:border-none print:bg-white print:p-0"
-            style={{
-              gridTemplateColumns: `repeat(${template.columns}, ${template.widthMm}mm)`,
-              justifyContent: 'center',
-            }}
-          >
-            {items.map((item, idx) => (
-              <BarcodeLabel key={item.id || idx} item={item} template={template} />
-            ))}
-          </div>
-        </div>
+        `}</style>
       )}
-    </Modal>
+
+      <Modal
+        open={open}
+        onClose={onClose}
+        title="In tem nhãn & Barcode sản phẩm"
+        description={descriptionText}
+        className="max-w-6xl"
+        footerClassName="print:hidden"
+        footer={
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted">
+              Khổ tem: {template.widthMm}mm × {template.heightMm}mm · {template.columns} tem/hàng · Tối đa {layout.labelsPerPage} tem/trang A4
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Đóng
+              </Button>
+              {expandedLabels.length > 0 && (
+                <Button
+                  variant="primary"
+                  onClick={handlePrint}
+                  disabled={loading}
+                  startIcon={<Printer size={16} aria-hidden="true" />}
+                >
+                  In {expandedLabels.length} tem ({layout.estimatedPages} trang A4)
+                </Button>
+              )}
+            </div>
+          </div>
+        }
+      >
+
+        {loading ? (
+          <SkeletonLoading variant="list" count={3} />
+        ) : error ? (
+          <ErrorState description={error} />
+        ) : items.length === 0 ? (
+          <div className="py-12 text-center text-muted">
+            <Tag className="mx-auto mb-2 text-muted" size={32} aria-hidden="true" />
+            <p className="font-semibold">Chưa có sản phẩm nào được chọn để in nhãn.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Thanh điều chỉnh nhanh số lượng bản sao cho từng sản phẩm */}
+            <div className="rounded-xl border border-border bg-surface-subtle p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-semibold text-ink">
+                  Số lượng tem cho từng sản phẩm ({items.length} sản phẩm)
+                </span>
+                <span className="font-semibold text-brand-ink">
+                  Tổng: {expandedLabels.length} tem · {layout.estimatedPages} trang A4
+                </span>
+              </div>
+              <div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto pr-1">
+                {items.map(item => {
+                  const qty = clampBarcodeCopies(localCopies[item.id] ?? 1);
+                  return (
+                    <div
+                      key={item.id}
+                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-2.5 py-1 text-xs"
+                    >
+                      <span className="max-w-[160px] truncate font-medium text-ink" title={item.name}>
+                        {item.name}
+                      </span>
+                      <div className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-surface-subtle px-1 py-0.5">
+                        <button
+                          type="button"
+                          onClick={() => updateItemCopies(item.id, qty - 1)}
+                          disabled={qty <= 1}
+                          aria-label={`Giảm số bản in cho ${item.name}`}
+                          className="rounded p-0.5 text-muted transition hover:bg-white hover:text-ink disabled:opacity-40"
+                        >
+                          <Minus size={12} aria-hidden="true" />
+                        </button>
+                        <span className="min-w-4 text-center font-bold tabular-nums text-ink">{qty}</span>
+                        <button
+                          type="button"
+                          onClick={() => updateItemCopies(item.id, qty + 1)}
+                          disabled={qty >= 50}
+                          aria-label={`Tăng số bản in cho ${item.name}`}
+                          className="rounded p-0.5 text-muted transition hover:bg-white hover:text-ink disabled:opacity-40"
+                        >
+                          <Plus size={12} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Khung xem trước từng trang A4 mô phỏng thực tế */}
+            <div
+              id="barcode-printable-area"
+              className="max-h-[54vh] space-y-5 overflow-auto rounded-xl border border-border bg-slate-100/80 p-4"
+            >
+              {a4Pages.map((pageItems, pageIdx) => (
+                <div key={pageIdx} className="mx-auto w-fit">
+                  <div className="mb-1.5 flex items-center justify-between text-[11px] font-medium text-muted">
+                    <span>Trang {pageIdx + 1} / {a4Pages.length} (Khổ A4 · lề 8mm)</span>
+                    <span>{pageItems.length} / {layout.labelsPerPage} tem</span>
+                  </div>
+                  <div
+                    className="rounded-lg border border-border bg-white shadow-sm"
+                    style={{ padding: '8mm' }}
+                  >
+                    <div
+                      className="grid"
+                      style={{
+                        gridTemplateColumns: `repeat(${template.columns}, ${template.widthMm}mm)`,
+                        justifyContent: 'center',
+                        gap: `${BARCODE_GRID_GAP_MM}mm`,
+                      }}
+                    >
+                      {pageItems.map((item, idx) => (
+                        <BarcodeLabel key={`${item.id}-${pageIdx}-${idx}`} item={item} template={template} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {open && expandedLabels.length > 0 && createPortal(
+        <div id="barcode-print-root" aria-hidden="true">
+          {a4Pages.map((pageItems, pageIdx) => (
+            <div key={pageIdx} className="barcode-print-sheet">
+              {pageItems.map((item, idx) => (
+                <BarcodeLabel key={`print-${item.id}-${pageIdx}-${idx}`} item={item} template={template} />
+              ))}
+            </div>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }

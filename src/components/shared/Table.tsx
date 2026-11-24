@@ -16,7 +16,7 @@ export interface TableColumn<T> {
 }
 
 export function SelectedRowAccent() {
-  return <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-r bg-brand-pink" />;
+  return <span aria-hidden="true" className="animate-inv-grow-y pointer-events-none absolute inset-y-0 left-0 w-1 origin-center rounded-r bg-brand-pink" />;
 }
 
 export function TableDetailButton({ onClick }: { onClick: () => void }) {

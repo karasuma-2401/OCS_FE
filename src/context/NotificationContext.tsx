@@ -24,7 +24,10 @@ export interface NotificationCenterContextValue {
   unreadCount: number;
   loading: boolean;
   error: string | null;
+  currentLimit: number;
+  canLoadMore: boolean;
   fetchNotifications: (limit?: number) => Promise<void>;
+  loadMore: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   fcm: {
@@ -52,21 +55,54 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [currentLimit, setCurrentLimit] = useState(50);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const notificationsRef = React.useRef<Notification[]>(notifications);
   notificationsRef.current = notifications;
+  const limitRef = React.useRef(50);
+  const toastRef = React.useRef(toast);
+  toastRef.current = toast;
+
+  const markAsRead = useCallback(
+    async (id: string) => {
+      const wasUnread = notificationsRef.current.some(
+        (n) => n.id === id && !n.isRead,
+      );
+      if (wasUnread) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+        );
+        setUnreadCount((count) => Math.max(0, count - 1));
+      }
+      try {
+        await notificationApi.markAsRead(id);
+      } catch {
+        if (wasUnread) {
+          setNotifications((prev) =>
+            prev.map((n) => (n.id === id ? { ...n, isRead: false } : n)),
+          );
+          setUnreadCount((count) => count + 1);
+        }
+        toastRef.current.error('Không thể cập nhật thông báo. Vui lòng thử lại.');
+      }
+    },
+    [],
+  );
 
   const fetchNotifications = useCallback(
-    async (limit = 50) => {
+    async (limit?: number) => {
       if (!user?.id) {
         setNotifications([]);
         setUnreadCount(0);
         return;
       }
+      const nextLimit = limit !== undefined ? Math.min(200, Math.max(1, limit)) : limitRef.current;
+      limitRef.current = nextLimit;
+      setCurrentLimit(nextLimit);
       try {
         setLoading(true);
-        const res = await notificationApi.getMyNotifications(limit);
+        const res = await notificationApi.getMyNotifications(nextLimit);
         setNotifications(res.data);
         setUnreadCount(res.unreadCount);
         setError(null);
@@ -79,10 +115,17 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     [user?.id],
   );
 
+  const loadMore = useCallback(async () => {
+    const nextLimit = Math.min(200, limitRef.current + 50);
+    if (nextLimit <= limitRef.current) return;
+    await fetchNotifications(nextLimit);
+  }, [fetchNotifications]);
+
   const handleForegroundMessage = useCallback(
     (payload: MessagePayload) => {
       void fetchNotifications();
 
+      const notificationId = payload.data?.notificationId;
       const title =
         payload.notification?.title ||
         payload.data?.title ||
@@ -112,20 +155,36 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         isStaffOrAdmin,
       );
 
-      toast.show({
+      const isSamePage =
+        typeof window !== 'undefined' && window.location.pathname === targetLink;
+
+      toastRef.current.show({
+        id: notificationId ? `ocs-noti-${notificationId}` : undefined,
         variant: meta.toastVariant,
+        tag: meta.label,
         title,
         description: content,
         duration: 5500,
-        action: targetLink
-          ? {
-              label: 'Xem ngay',
-              onClick: () => navigate(targetLink),
-            }
-          : undefined,
+        action:
+          targetLink && !isSamePage
+            ? {
+                label: 'Xem ngay',
+                onClick: () => {
+                  if (notificationId) void markAsRead(notificationId);
+                  navigate(targetLink);
+                },
+              }
+            : notificationId
+              ? {
+                  label: 'Đánh dấu đã đọc',
+                  onClick: () => {
+                    void markAsRead(notificationId);
+                  },
+                }
+              : undefined,
       });
     },
-    [fetchNotifications, isStaffOrAdmin, navigate, toast],
+    [fetchNotifications, isStaffOrAdmin, markAsRead, navigate],
   );
 
   const fcmHook = useFcm({
@@ -172,36 +231,18 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     };
   }, [user?.id, fetchNotifications]);
 
-  const markAsRead = useCallback(
-    async (id: string) => {
-      const wasUnread = notificationsRef.current.some(
-        (n) => n.id === id && !n.isRead,
-      );
-      try {
-        await notificationApi.markAsRead(id);
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-        );
-        if (wasUnread) {
-          setUnreadCount((count) => Math.max(0, count - 1));
-        }
-      } catch {
-        toast.error('Không thể cập nhật thông báo. Vui lòng thử lại.');
-      }
-    },
-    [toast],
-  );
-
   const markAllAsRead = useCallback(async () => {
     try {
       await notificationApi.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-      toast.success('Đã đánh dấu đọc tất cả thông báo.');
+      toastRef.current.success('Đã đánh dấu đọc tất cả thông báo.');
     } catch {
-      toast.error('Không thể cập nhật thông báo. Vui lòng thử lại.');
+      toastRef.current.error('Không thể cập nhật thông báo. Vui lòng thử lại.');
     }
-  }, [toast]);
+  }, []);
+
+  const canLoadMore = notifications.length >= currentLimit && currentLimit < 200;
 
   const value = useMemo<NotificationCenterContextValue>(
     () => ({
@@ -209,7 +250,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       unreadCount,
       loading,
       error,
+      currentLimit,
+      canLoadMore,
       fetchNotifications,
+      loadMore,
       markAsRead,
       markAllAsRead,
       fcm: {
@@ -232,7 +276,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       unreadCount,
       loading,
       error,
+      currentLimit,
+      canLoadMore,
       fetchNotifications,
+      loadMore,
       markAsRead,
       markAllAsRead,
       fcmHook,
