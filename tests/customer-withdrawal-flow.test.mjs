@@ -101,6 +101,11 @@ test('product detail navigates to the matching withdrawal product and exposes it
   assert.equal(capture.buttons.some(b => b.children === 'Rút hàng sớm'), false);
   capture.buttons.find(b => b.children === 'Theo dõi yêu cầu').onClick();
   assert.equal(new URL(routes[1], 'http://localhost').searchParams.get('requestId'), 'r1');
+  product.status = 'PendingProcessing'; product.withdrawal = null;
+  product.earlyWithdrawalBlockReason = 'Món này đang Chờ xử lý, chưa được đưa lên bán.';
+  html = render();
+  assert.match(html, /Chờ xử lý, chưa được đưa lên bán/);
+  assert.equal(capture.buttons.some(b => b.children === 'Rút hàng sớm'), false);
 });
 
 test('tracking status displays rejection reasons and every product lifecycle state', () => {

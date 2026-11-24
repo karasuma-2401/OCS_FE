@@ -6,6 +6,7 @@ export interface ConsignmentProduct {
   detailAvailable: boolean;
   handledAt: string | null;
   canWithdrawEarly?: boolean;
+  earlyWithdrawalBlockReason?: string | null;
   earlyWithdrawalFee?: number | null;
   withdrawal?: ConsignmentWithdrawalInfo | null;
 }
