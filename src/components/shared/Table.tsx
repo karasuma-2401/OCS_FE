@@ -41,6 +41,7 @@ export interface TableProps<T> extends Omit<
   emptyMessage?: ReactNode;
   onRowClick?: (row: T) => void;
   selectedRowKey?: string | number | null;
+  selectionAppearance?: 'highlight' | 'accent';
 }
 
 export function Table<T>({
@@ -54,6 +55,7 @@ export function Table<T>({
   emptyMessage = "Chưa có mục nào để hiển thị.",
   onRowClick,
   selectedRowKey,
+  selectionAppearance = 'highlight',
   className,
   ...props
 }: TableProps<T>) {
@@ -126,7 +128,7 @@ export function Table<T>({
                       onRowClick(row);
                     }
                   } : undefined}
-                  className={joinClasses("transition-colors hover:bg-surface-active", onRowClick && "cursor-pointer focus-visible:outline-2 focus-visible:outline-brand-pink-focus", selected && "bg-brand-pink-surface")}
+                  className={joinClasses("transition-colors hover:bg-surface-active", onRowClick && "cursor-pointer focus-visible:outline-2 focus-visible:outline-brand-pink-focus", selected && selectionAppearance === 'highlight' && "bg-brand-pink-surface")}
                 >
                   {columns.map((column, columnIndex) => {
                     const value = column.accessor

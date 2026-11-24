@@ -12,6 +12,8 @@ export interface CreateContractRequest {
   signedAt: string;
   endsAt: string;
   expiryHandling: 'Return' | 'Donate';
+  /** Legacy metadata. Withdrawal fees use each product's agreedCommissionRate. */
+  earlyWithdrawalFeeRate?: number | null;
   terms?: string;
   templateVersion?: string;
   termsRequestId?: string;
