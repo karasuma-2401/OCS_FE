@@ -2,6 +2,7 @@ import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type 
 import {
   Banknote,
   BarChart3,
+  AlertTriangle,
   Boxes,
   CalendarClock,
   ChevronDown,
@@ -69,6 +70,7 @@ const navigation: ShopNavItem[] = [
     label: "Khách Hàng",
     href: screenPaths.customers,
   },
+  { id: "incidents", label: "Sự cố & bồi thường", href: screenPaths.incidents },
   {
     id: "settlement",
     label: "Quyết Toán",
@@ -87,6 +89,7 @@ const navigationIcons: Record<ShopNavId, LucideIcon> = {
   buyout: ShoppingBag,
   consignment: Handshake,
   customers: UsersRound,
+  incidents: AlertTriangle,
   settlement: Banknote,
   reports: BarChart3,
   settings: Settings,

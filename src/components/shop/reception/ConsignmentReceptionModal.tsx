@@ -1250,10 +1250,10 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
               />
               <ContractMoneyInput
                 label="Giá niêm yết (đ) *"
-                value={itemForm.listedPrice}
+                value={itemForm.listedPrice || null}
                 error={itemFormErrors.listedPrice}
                 onChange={val => {
-                  setItemForm(prev => ({ ...prev, listedPrice: val || 0 }));
+                  setItemForm(prev => ({ ...prev, listedPrice: val ?? 0 }));
                   clearItemFormError('listedPrice');
                 }}
               />

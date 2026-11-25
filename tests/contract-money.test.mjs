@@ -9,7 +9,26 @@ const source = readFileSync(new URL('../src/components/shop/ContractMoneyInput.t
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
 const module = { exports: {} };
 new Function('require', 'module', 'exports', compiled)(require, module, module.exports);
-const { ContractMoneyInput, validReceptionPrice } = module.exports;
+const {
+  ContractMoneyInput,
+  validReceptionPrice,
+  normalizeDecimalMoney,
+  formatDecimalMoney,
+  parseDecimalMoney,
+  toDecimalMoneyInput,
+} = module.exports;
+
+test('decimal money helper groups with dots, supports decimals, and allows clearing completely', () => {
+  assert.equal(normalizeDecimalMoney(''), '');
+  assert.equal(normalizeDecimalMoney('0'), '0');
+  assert.equal(normalizeDecimalMoney('050000'), '50000');
+  assert.equal(formatDecimalMoney('50000'), '50.000');
+  assert.equal(formatDecimalMoney(normalizeDecimalMoney('1.250.000,5')), '1.250.000,5');
+  assert.equal(parseDecimalMoney('1250000,5'), 1250000.5);
+  assert.equal(parseDecimalMoney(''), null);
+  assert.equal(toDecimalMoneyInput(650000), '650000');
+  assert.equal(toDecimalMoneyInput(null), '');
+});
 
 test('reception price respects the API limit before signing', () => {
   assert.equal(validReceptionPrice(1), true);

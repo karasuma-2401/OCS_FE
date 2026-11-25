@@ -1539,6 +1539,9 @@ export function InventoryManagement() {
             canOffer={canOffer}
             canEditLocation={canEditLocation}
             canUpdatePrice={hasPermission("products.price.update")}
+            canReportIncident={
+              hasPermission("incidents.read") && hasPermission("incidents.create")
+            }
             panelClassName={
               panelClosing ? "animate-inv-panel-out" : "animate-inv-panel-in"
             }

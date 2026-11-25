@@ -5,6 +5,7 @@ export const UNASSIGNED_LOCATION_VALUE = "__unassigned__";
 export const statusLabels: Record<string, string> = {
   PendingProcessing: "Chờ xử lý",
   OnSale: "Đang bán",
+  IncidentPending: "Tạm giữ · chờ xác minh sự cố",
   Sold: "Đã bán",
   Expired: "Hết hạn",
   Donated: "Đã quyên góp",
@@ -20,6 +21,7 @@ export const statusLabels: Record<string, string> = {
 export const saleStatuses = [
   "PendingProcessing",
   "OnSale",
+  "IncidentPending",
   "Sold",
   "Expired",
   "Returned",
@@ -46,7 +48,7 @@ export function statusLabel(value: string | null | undefined): string {
 export function statusBadgeVariant(value: string): BadgeVariant {
   if (value === "Approved" || value === "OnSale") return "success";
   if (value === "Sold") return "payment";
-  if (value === "Pending" || value === "PendingProcessing") return "warning";
+  if (value === "Pending" || value === "PendingProcessing" || value === "IncidentPending") return "warning";
   if (value === "Rejected" || value === "Cancelled" || value === "Expired")
     return "danger";
   if (value === "Donated" || value === "Compensated") return "info";

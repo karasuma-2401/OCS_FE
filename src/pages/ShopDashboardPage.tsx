@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { BarChart3, Receipt, Users } from 'lucide-react';
+import { BarChart3, Users } from 'lucide-react';
 import ShopNavBar, { type ShopNavItem } from '@/components/layout/shop/ShopNavBar';
 import { useAuth } from '@/context/AuthContext';
 import { Card, PageHeaderCard } from '@/components/shared';
@@ -11,6 +11,8 @@ import { InventoryManagement } from '@/components/shop/InventoryManagement';
 import { ExpiryProcessingPage } from '@/pages/ExpiryProcessingPage';
 import { StaffEarlyWithdrawalsPage } from '@/pages/EarlyWithdrawalsPage';
 import { BuyoutManagement } from '@/components/shop/BuyoutManagement';
+import { IncidentManagement } from '@/components/shop/IncidentManagement';
+import { SettlementManagement } from '@/components/shop/SettlementManagement';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { PosPage } from '@/components/shop/pos/PosPage';
 import { screenByPath, screenOrder, screenPaths, screenPermissions, screenRequirements, type ShopNavId } from '@/auth/permissions';
@@ -44,6 +46,10 @@ const tabTitles: Record<ShopNavId, { title: string; desc: string }> = {
   customers: {
     title: 'Danh Sách Khách Hàng & Người Ký Gửi',
     desc: 'Tra cứu thông tin hồ sơ khách hàng, lịch sử mua sắm và các hợp đồng ký gửi liên quan.',
+  },
+  incidents: {
+    title: 'Sự cố & bồi thường',
+    desc: 'Lập, tra cứu biên bản sự cố hàng ký gửi và theo dõi phê duyệt, bồi thường.',
   },
   settlement: {
     title: 'Quyết Toán Tiền Ký Gửi',
@@ -129,9 +135,9 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         {activeTab !== 'consignment' && <h1 className="sr-only">{currentTabInfo.title}</h1>}
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
-        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'withdrawals' ? <StaffEarlyWithdrawalsPage /> : activeTab === 'expiry' ? <ExpiryProcessingPage /> : activeTab === 'buyout' ? <BuyoutManagement /> : activeTab === 'pos' ? <PosPage /> : activeTab === 'settings' ? <FunctionPermissions /> : <>
+        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'withdrawals' ? <StaffEarlyWithdrawalsPage /> : activeTab === 'expiry' ? <ExpiryProcessingPage /> : activeTab === 'buyout' ? <BuyoutManagement /> : activeTab === 'pos' ? <PosPage /> : activeTab === 'settings' ? <FunctionPermissions /> : activeTab === 'incidents' ? <IncidentManagement /> : activeTab === 'settlement' ? <SettlementManagement /> : <>
           <PageHeaderCard
-            icon={activeTab === 'customers' ? <Users size={24} aria-hidden="true" /> : activeTab === 'settlement' ? <Receipt size={24} aria-hidden="true" /> : <BarChart3 size={24} aria-hidden="true" />}
+            icon={activeTab === 'customers' ? <Users size={24} aria-hidden="true" /> : <BarChart3 size={24} aria-hidden="true" />}
             title={currentTabInfo.title}
             description={currentTabInfo.desc}
           />

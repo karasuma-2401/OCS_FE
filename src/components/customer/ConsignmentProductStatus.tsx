@@ -2,7 +2,7 @@ import type { ConsignmentProduct } from '@/api/consignments';
 import { Badge, type BadgeVariant } from '@/components/shared';
 
 export const consignmentProductStatuses: Record<string, [string, BadgeVariant]> = {
-  PendingProcessing: ['Chờ xử lý', 'warning'], OnSale: ['Đang bán', 'info'], Sold: ['Đã bán', 'success'],
+  PendingProcessing: ['Chờ xử lý', 'warning'], OnSale: ['Đang bán', 'info'], Sold: ['Đã bán', 'success'], IncidentPending: ['Đang xác minh sự cố', 'warning'],
   Expired: ['Hết hạn, chờ xử lý', 'warning'], Donated: ['Đã quyên góp', 'neutral'], Returned: ['Đã trả lại', 'neutral'],
   EarlyWithdrawn: ['Đã rút trước hạn', 'neutral'], Compensated: ['Đã bồi thường', 'success'], Cancelled: ['Đã hủy', 'danger'],
 };

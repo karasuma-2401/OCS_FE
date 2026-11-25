@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type RefObject } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  AlertTriangle,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -21,6 +22,7 @@ import {
   type InventoryProduct,
 } from "@/api/inventory";
 import { formatVndPrice } from "@/api/products";
+import { screenPaths } from "@/auth/permissions";
 import {
   Badge,
   Button,
@@ -54,6 +56,7 @@ interface InventoryDetailPanelProps {
   canOffer: boolean;
   canEditLocation: boolean;
   canUpdatePrice: boolean;
+  canReportIncident: boolean;
   panelClassName?: string;
   onClose: () => void;
   onRetry: () => void;
@@ -78,6 +81,7 @@ export function InventoryDetailPanel({
   canOffer,
   canEditLocation,
   canUpdatePrice,
+  canReportIncident,
   panelClassName = "animate-inv-panel-in",
   onClose,
   onRetry,
@@ -245,6 +249,20 @@ export function InventoryDetailPanel({
                 >
                   In barcode
                 </Button>
+                {product.status === "OnSale" && canReportIncident && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    startIcon={<AlertTriangle size={15} aria-hidden="true" />}
+                    onClick={() =>
+                      navigate(
+                        `${screenPaths.incidents}/new?barcode=${encodeURIComponent(product.barcode)}`,
+                      )
+                    }
+                  >
+                    Báo cáo sự cố
+                  </Button>
+                )}
                 {canEditActive && (canCreate || canEditLocation) && (
                   <Button
                     variant="outline"

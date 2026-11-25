@@ -154,6 +154,7 @@ test('product detail navigates to the matching withdrawal product and exposes it
   const modal = load('../src/components/customer/ConsignmentDetailsModal.tsx', {
     react: state.react, 'lucide-react': icons, 'react-router-dom': { useNavigate: () => route => routes.push(route) },
     '@/api/consignments': { getConsignmentProductDetail: async () => product, getConsignmentProductImage: async () => new Blob() },
+    '@/api/settlements': { settlementsApi: { customerPayouts: async () => [], confirmReceived: async () => ({}), readProof: async () => new Blob() } },
     '@/components/shared': shared(capture), '@/components/customer/ConsignmentProductStatus': status,
     '@/components/customer/ProductImageGallery': { ProductImageGallery: () => null },
   }).ConsignmentDetailsModal;
