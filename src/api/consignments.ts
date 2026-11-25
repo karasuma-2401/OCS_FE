@@ -5,6 +5,13 @@ export interface ConsignmentProduct {
   agreedCommissionRate: number | null; estimatedPayout: number | null;
   detailAvailable: boolean;
   handledAt: string | null;
+  canWithdrawEarly?: boolean;
+  earlyWithdrawalBlockReason?: string | null;
+  earlyWithdrawalFee?: number | null;
+  withdrawal?: ConsignmentWithdrawalInfo | null;
+}
+export interface ConsignmentWithdrawalInfo {
+  id: string; status: string; paymentStatus: string; decisionNote: string | null; requestedAt: string;
 }
 export interface ConsignmentProductDetail extends ConsignmentProduct {
   description: string | null;

@@ -24,6 +24,8 @@ new Function('require', 'module', 'exports', compiled)(name => {
   if (name === 'react-router-dom') return { Link: wrapper, useNavigate: () => path => { navigatedTo = path; }, useSearchParams: () => [new URLSearchParams(query), () => {}] };
   if (name === './buyout/BuyoutCreateForm') return { BuyoutCreateForm: wrapper };
   if (name === './buyout/BuyoutApprovalConfigModal') return { BuyoutApprovalConfigModal: () => null };
+  if (name === './ShopSummaryStrip') return { ShopSummaryStrip: () => null };
+  if (name === './ListFilterChips') return { ListFilterChips: () => null };
   if (name.startsWith('@/api/')) return {};
   return require(name);
 }, moduleObject, moduleObject.exports);

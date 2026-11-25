@@ -58,6 +58,7 @@ const navigation: ShopNavItem[] = [
   { id: "pos", label: "POS Bán Hàng", href: screenPaths.pos },
   { id: "inventory", label: "Quản Lý Kho", href: screenPaths.inventory },
   { id: "expiry", label: "Xử Lý Hàng Hết Hạn", href: screenPaths.expiry },
+  { id: "withdrawals", label: "Rút Hàng Sớm", href: screenPaths.withdrawals },
   { id: "buyout", label: "Thu Mua Đứt", href: screenPaths.buyout },
   {
     id: "consignment",
@@ -84,6 +85,7 @@ const navigationIcons: Record<ShopNavId, LucideIcon> = {
   pos: ShoppingCart,
   inventory: Boxes,
   expiry: CalendarClock,
+  withdrawals: Handshake,
   buyout: ShoppingBag,
   consignment: Handshake,
   customers: UsersRound,

@@ -18,6 +18,7 @@ import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { ConsignmentTrackingPage } from './pages/ConsignmentTrackingPage';
+import { CustomerEarlyWithdrawalsPage } from './pages/EarlyWithdrawalsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { ReceptionPage } from './pages/ReceptionPage';
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="/consign" element={<ConsignPage />} />
         <Route path="/appointments" element={<ProtectedRoute allowedRoles={['Customer']}><AppointmentsPage /></ProtectedRoute>} />
         <Route path="/my-consignments" element={<ProtectedRoute allowedRoles={['Customer']}><ConsignmentTrackingPage /></ProtectedRoute>} />
+        <Route path="/my-withdrawals" element={<ProtectedRoute allowedRoles={['Customer']}><CustomerEarlyWithdrawalsPage /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />

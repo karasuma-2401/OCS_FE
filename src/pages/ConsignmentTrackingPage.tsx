@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Package, RotateCcw, Search } from 'lucide-react';
 import { searchMyConsignments, type Consignment, type ConsignmentSearchResponse } from '@/api/consignments';
 import { ConsignmentDetailsModal } from '@/components/customer/ConsignmentDetailsModal';
+import { ConsignmentProductStatusSummary } from '@/components/customer/ConsignmentProductStatus';
 import { Badge, Button, Combobox, DatePicker, EmptyState, ErrorState, Input, PageHeaderCard, Pagination, Skeleton, SkeletonLoading, Table, TableDetailButton, type BadgeVariant, type TableColumn } from '@/components/shared';
 import { nextThirtyDays } from '@/utils/consignmentDateFilters';
 
@@ -57,7 +58,7 @@ export function ConsignmentTrackingPage() {
   const columns: TableColumn<Consignment>[] = [
     { key: 'contractNumber', header: 'Hợp đồng', render: item => <div><p className="font-bold text-brand-highlight">{item.contractNumber}</p><p className="mt-0.5 text-xs text-muted">Ký {date(item.signedAt)}</p></div> },
     { key: 'status', header: 'Trạng thái', render: item => <Badge variant={(contractStatuses[item.status] ?? ['', 'neutral'])[1]}>{(contractStatuses[item.status] ?? [item.status || 'Chưa có thông tin'])[0]}</Badge> },
-    { key: 'products', header: 'Sản phẩm', render: item => <span className="font-semibold text-ink">{item.products.length} món</span> },
+    { key: 'products', header: 'Sản phẩm / trạng thái', render: item => <div><span className="font-semibold text-ink">{item.products.length} món</span><ConsignmentProductStatusSummary products={item.products} /></div> },
     { key: 'endsAt', header: 'Hết hạn', render: item => date(item.endsAt), cellClassName: 'whitespace-nowrap' },
     { key: 'estimatedPayout', header: 'Dự kiến nhận', render: item => <strong className="whitespace-nowrap text-brand-highlight">{money(item.estimatedPayout)}</strong> },
     { key: 'settledAmount', header: 'Đã quyết toán', render: item => <strong className="whitespace-nowrap text-state-success-strong">{money(item.settledAmount)}</strong> },

@@ -31,6 +31,9 @@ export interface VietQrPaymentModalProps {
   onPaymentSuccess?: (session: VietQrPaymentSession) => void;
   onSessionUpdate?: (session: VietQrPaymentSession) => void;
   pollIntervalMs?: number;
+  paymentApi?: Pick<typeof posPaymentsApi, 'initiateVietQr' | 'getVietQrStatus'> & Partial<Pick<typeof posPaymentsApi, 'simulateVietQrWebhook'>>;
+  paymentTitle?: string;
+  documentLabel?: string;
 }
 
 const DEFAULT_POLL_INTERVAL_MS = 1500;
@@ -106,6 +109,9 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
   onPaymentSuccess,
   onSessionUpdate,
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
+  paymentApi = posPaymentsApi,
+  paymentTitle = 'Thanh toán VietQR',
+  documentLabel = 'hóa đơn',
 }) => {
   const [session, setSession] = useState<VietQrPaymentSession | null>(null);
   const [initializing, setInitializing] = useState(false);
@@ -158,20 +164,20 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
       setInitializing(true);
       setError(null);
       try {
-        const data = await posPaymentsApi.initiateVietQr(saleInvoiceId, forceNew);
+        const data = await paymentApi.initiateVietQr(saleInvoiceId, forceNew);
         syncSessionState(data);
       } catch (err) {
         setError(
           extractApiErrorMessage(
             err,
-            'Không thể khởi tạo mã thanh toán VietQR cho hóa đơn này. Vui lòng thử lại.',
+            `Không thể khởi tạo mã thanh toán VietQR cho ${documentLabel} này. Vui lòng thử lại.`,
           ),
         );
       } finally {
         setInitializing(false);
       }
     },
-    [saleInvoiceId, syncSessionState],
+    [saleInvoiceId, syncSessionState, paymentApi, documentLabel],
   );
 
   const checkPaymentStatus = useCallback(
@@ -182,7 +188,8 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
         setError(null);
       }
       try {
-        const updated = await posPaymentsApi.getVietQrStatus(session.transactionId, signal);
+        const updated = await paymentApi.getVietQrStatus(session.transactionId, signal);
+        if (signal?.aborted) return;
         syncSessionState(updated);
       } catch (err) {
         if (signal?.aborted) return;
@@ -200,15 +207,15 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
         }
       }
     },
-    [session?.transactionId, syncSessionState],
+    [session?.transactionId, syncSessionState, paymentApi],
   );
 
   const handleSimulateBankWebhook = useCallback(async () => {
-    if (!session?.transactionId) return;
+    if (!session?.transactionId || !paymentApi.simulateVietQrWebhook) return;
     setSimulatingWebhook(true);
     setError(null);
     try {
-      const updated = await posPaymentsApi.simulateVietQrWebhook(session.transactionId);
+      const updated = await paymentApi.simulateVietQrWebhook(session.transactionId);
       syncSessionState(updated);
     } catch (err) {
       setError(
@@ -220,7 +227,7 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
     } finally {
       setSimulatingWebhook(false);
     }
-  }, [session?.transactionId, syncSessionState]);
+  }, [session?.transactionId, syncSessionState, paymentApi]);
 
   // Initialize or reload QR session on open with a valid saleInvoiceId
   useEffect(() => {
@@ -360,7 +367,7 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
             <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand-pink-light text-brand-highlight">
               <QrCode className="size-4.5" aria-hidden="true" />
             </div>
-            <span className="text-base font-extrabold text-ink">Thanh toán VietQR</span>
+            <span className="text-base font-extrabold text-ink">{paymentTitle}</span>
             <span className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-paper px-2 py-0.5 font-mono text-[11px] font-bold text-ink">
               <Receipt className="size-3 text-brand-highlight" aria-hidden="true" />
               {displayInvoiceNumber}
@@ -371,7 +378,7 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
           /* Read-only Webhook verification: Thu ngân không thể tự bấm xác nhận đã nhận chuyển khoản */
           <div className="flex w-full flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              {!isPaid && session && (
+              {!isPaid && session && paymentApi.simulateVietQrWebhook && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -457,7 +464,7 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
                       <strong className="font-mono font-bold text-emerald-950">
                         {formatVndCurrency(displayAmount)}
                       </strong>{' '}
-                      cho hóa đơn{' '}
+                      cho {documentLabel}{' '}
                       <strong className="font-mono font-bold text-emerald-950">
                         {displayInvoiceNumber}
                       </strong>
@@ -532,7 +539,7 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
                   {!qrImageError && session.qrCodeUrl ? (
                     <img
                       src={session.qrCodeUrl}
-                      alt={`Mã VietQR cho hóa đơn ${session.invoiceNumber}`}
+                      alt={`Mã VietQR cho ${documentLabel} ${session.invoiceNumber}`}
                       className={`h-full w-full object-contain transition duration-200 ${
                         isExpiredOrFailed ? 'opacity-20 blur-[2px]' : 'group-hover:scale-[1.02]'
                       }`}
@@ -716,7 +723,7 @@ export const VietQrPaymentModal: React.FC<VietQrPaymentModalProps> = ({
               {!qrImageError && session.qrCodeUrl ? (
                 <img
                   src={session.qrCodeUrl}
-                  alt={`Mã VietQR cho hóa đơn ${session.invoiceNumber}`}
+                  alt={`Mã VietQR cho ${documentLabel} ${session.invoiceNumber}`}
                   className="h-full w-full object-contain"
                 />
               ) : (
