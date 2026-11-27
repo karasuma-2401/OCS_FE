@@ -61,7 +61,6 @@ import {
   type InventoryQuickFilter,
 } from "@/components/shop/inventory/InventorySummaryStrip";
 import {
-  approvalStatuses,
   inventoryErrorText,
   saleStatuses,
   sortOptions,
@@ -107,7 +106,6 @@ export function InventoryManagement() {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
-  const [approval, setApproval] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [sourceType, setSourceType] = useState("");
   const [sort, setSort] = useState("newest");
@@ -182,7 +180,7 @@ export function InventoryManagement() {
   const canManageLocations = hasPermission("products.locations.manage");
 
   const hasFilters = Boolean(
-    query || status || approval || locationFilter || sourceType,
+    query || status || locationFilter || sourceType,
   );
 
   // Debounce live search nhẹ 300ms khi gõ
@@ -240,7 +238,6 @@ export function InventoryManagement() {
           pageSize: 20,
           q: query || undefined,
           status: status || undefined,
-          approval: approval || undefined,
           locationId:
             locationFilter && !isUnassigned ? locationFilter : undefined,
           unassignedLocation: isUnassigned || undefined,
@@ -281,7 +278,6 @@ export function InventoryManagement() {
     page,
     query,
     status,
-    approval,
     locationFilter,
     sourceType,
     sort,
@@ -452,7 +448,6 @@ export function InventoryManagement() {
     setSearch("");
     setQuery("");
     setStatus("");
-    setApproval("");
     setLocationFilter("");
     setSourceType("");
     setSort("newest");
@@ -476,38 +471,33 @@ export function InventoryManagement() {
     setSelectedId(null);
     if (filter === "all") {
       setStatus("");
-      setApproval("");
       setLocationFilter("");
-    } else if (filter === "pendingApproval") {
+    } else if (filter === "pendingProcessing") {
       setStatus("PendingProcessing");
-      setApproval("Pending");
       setLocationFilter("");
     } else if (filter === "unassigned") {
       setStatus("");
-      setApproval("");
       setLocationFilter(UNASSIGNED_LOCATION_VALUE);
     } else if (filter === "onSale") {
       setStatus("OnSale");
-      setApproval("");
       setLocationFilter("");
     } else if (filter === "expired") {
       setStatus("Expired");
-      setApproval("");
       setLocationFilter("");
     }
   }
 
   const activeQuickFilter = useMemo<InventoryQuickFilter | null>(() => {
     if (query || sourceType) return null;
-    if (!status && !approval && !locationFilter) return "all";
-    if (status === "PendingProcessing" && approval === "Pending" && !locationFilter)
-      return "pendingApproval";
-    if (!status && !approval && locationFilter === UNASSIGNED_LOCATION_VALUE)
+    if (!status && !locationFilter) return "all";
+    if (status === "PendingProcessing" && !locationFilter)
+      return "pendingProcessing";
+    if (!status && locationFilter === UNASSIGNED_LOCATION_VALUE)
       return "unassigned";
-    if (status === "OnSale" && !approval && !locationFilter) return "onSale";
-    if (status === "Expired" && !approval && !locationFilter) return "expired";
+    if (status === "OnSale" && !locationFilter) return "onSale";
+    if (status === "Expired" && !locationFilter) return "expired";
     return null;
-  }, [query, sourceType, status, approval, locationFilter]);
+  }, [query, sourceType, status, locationFilter]);
 
   function copyBarcode(barcode: string, id: string) {
     void navigator.clipboard?.writeText(barcode);
@@ -631,18 +621,19 @@ export function InventoryManagement() {
         titleId="inventory-title"
         icon={<PackageSearch size={24} aria-hidden="true" />}
         title="Sản phẩm & kho"
-        description="Theo dõi trạng thái, xếp vị trí kệ kho, xét duyệt và in tem barcode."
+        description="Theo dõi trạng thái, xếp vị trí kệ kho, mở bán và in tem barcode."
         actions={
           <>
             <Button
               variant="outline"
               size="md"
               startIcon={<Warehouse size={16} aria-hidden="true" />}
+              className="border-brand-lavender bg-white enabled:hover:border-brand-highlight"
               onClick={() => setLocationDrawerOpen(true)}
             >
               Vị trí kho ({locations.length})
               {(summary?.unassignedLocationCount ?? 0) > 0 && (
-                <span className="ml-1 rounded-full bg-state-warning-soft px-2 py-0.5 text-[11px] font-bold text-state-warning-strong">
+                <span className="ml-2 inline-flex items-center rounded-full border border-state-warning-border bg-state-warning-muted px-2 py-0.5 align-middle text-xs font-bold text-state-warning-strong">
                   {summary?.unassignedLocationCount} chưa xếp
                 </span>
               )}
@@ -830,8 +821,8 @@ export function InventoryManagement() {
               </Button>
             </form>
 
-            {/* Bộ lọc 5 cột */}
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {/* Bộ lọc 4 cột */}
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Combobox
                 label="Trạng thái bán"
                 value={status}
@@ -844,23 +835,6 @@ export function InventoryManagement() {
                 options={[
                   { value: "", label: "Tất cả trạng thái" },
                   ...saleStatuses.map((value) => ({
-                    value,
-                    label: statusLabel(value),
-                  })),
-                ]}
-              />
-              <Combobox
-                label="Trạng thái duyệt"
-                value={approval}
-                onChange={(value) => {
-                  setApproval(value);
-                  setPage(1);
-                  setHighlightedId(null);
-                  setSelectedId(null);
-                }}
-                options={[
-                  { value: "", label: "Tất cả trạng thái" },
-                  ...approvalStatuses.map((value) => ({
                     value,
                     label: statusLabel(value),
                   })),
@@ -945,21 +919,6 @@ export function InventoryManagement() {
                     className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-brand-pink/40 bg-white px-2.5 py-0.5 text-xs font-medium text-brand-ink transition hover:border-brand-pink hover:bg-brand-pink-surface"
                   >
                     <span>Trạng thái: {statusLabel(status)}</span>
-                    <X size={12} aria-hidden="true" />
-                  </button>
-                )}
-                {approval && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setApproval("");
-                      setPage(1);
-                      setHighlightedId(null);
-                      setSelectedId(null);
-                    }}
-                    className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-brand-pink/40 bg-white px-2.5 py-0.5 text-xs font-medium text-brand-ink transition hover:border-brand-pink hover:bg-brand-pink-surface"
-                  >
-                    <span>Duyệt: {statusLabel(approval)}</span>
                     <X size={12} aria-hidden="true" />
                   </button>
                 )}
@@ -1161,11 +1120,8 @@ export function InventoryManagement() {
                               )}
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                              <Badge variant={statusBadgeVariant(item.approvalStatus)}>
-                                {statusLabel(item.approvalStatus)}
-                              </Badge>
                               <Badge variant={statusBadgeVariant(item.status)}>
-                                {statusLabel(item.status)}
+                                {item.approvalStatus === "Rejected" ? "Từ chối tiếp nhận · " : ""}{statusLabel(item.status)}
                               </Badge>
                             </div>
                             <div className="mt-auto pt-3">
@@ -1249,9 +1205,6 @@ export function InventoryManagement() {
                           </th>
                           <th scope="col" className="px-3 py-3">
                             Vị trí
-                          </th>
-                          <th scope="col" className="px-3 py-3">
-                            Duyệt
                           </th>
                           <th scope="col" className="px-3 py-3">
                             Trạng thái
@@ -1383,20 +1336,10 @@ export function InventoryManagement() {
                               </td>
                               <td className="px-3 py-3.5">
                                 <Badge
-                                  variant={statusBadgeVariant(
-                                    item.approvalStatus,
-                                  )}
-                                  className="whitespace-nowrap"
-                                >
-                                  {statusLabel(item.approvalStatus)}
-                                </Badge>
-                              </td>
-                              <td className="px-3 py-3.5">
-                                <Badge
                                   variant={statusBadgeVariant(item.status)}
                                   className="whitespace-nowrap"
                                 >
-                                  {statusLabel(item.status)}
+                                  {item.approvalStatus === "Rejected" ? "Từ chối tiếp nhận · " : ""}{statusLabel(item.status)}
                                 </Badge>
                               </td>
                               <td
@@ -1474,15 +1417,8 @@ export function InventoryManagement() {
                               {item.barcode} · {item.brand}
                             </p>
                             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                              <Badge
-                                variant={statusBadgeVariant(
-                                  item.approvalStatus,
-                                )}
-                              >
-                                {statusLabel(item.approvalStatus)}
-                              </Badge>
                               <Badge variant={statusBadgeVariant(item.status)}>
-                                {statusLabel(item.status)}
+                                {item.approvalStatus === "Rejected" ? "Từ chối tiếp nhận · " : ""}{statusLabel(item.status)}
                               </Badge>
                             </div>
                             <p className="mt-2 text-xs text-text-secondary">
@@ -1534,7 +1470,6 @@ export function InventoryManagement() {
             detailError={detailError}
             busy={busy}
             locations={locations}
-            canApprove={hasPermission("products.approve")}
             canCreate={hasPermission("products.create")}
             canOffer={canOffer}
             canEditLocation={canEditLocation}
@@ -1722,7 +1657,7 @@ export function InventoryManagement() {
         }
       >
         <p className="text-sm text-text-secondary">
-          Hệ thống sẽ đưa các sản phẩm đủ điều kiện (đã duyệt, đã xếp vị trí
+          Hệ thống sẽ đưa các sản phẩm đủ điều kiện (đã xếp vị trí
           kho, nguồn hàng còn hiệu lực) sang trạng thái{" "}
           <strong>Đang bán</strong>. Các sản phẩm chưa đủ điều kiện sẽ được liệt
           kê riêng để bạn bổ sung sau.
