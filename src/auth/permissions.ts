@@ -67,6 +67,7 @@ export const screenOrder: ShopNavId[] = [
 export const screenRequirements: Partial<Record<ShopNavId, string>> = {
   accounts: 'accounts.read',
   consignment: 'appointments.staff.read',
+  reports: 'reports.read',
   settings: 'permissions.manage',
 };
 

@@ -13,6 +13,7 @@ import { StaffEarlyWithdrawalsPage } from '@/pages/EarlyWithdrawalsPage';
 import { BuyoutManagement } from '@/components/shop/BuyoutManagement';
 import { IncidentManagement } from '@/components/shop/IncidentManagement';
 import { SettlementManagement } from '@/components/shop/SettlementManagement';
+import { ReportsDashboard } from '@/components/shop/ReportsDashboard';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { PosPage } from '@/components/shop/pos/PosPage';
 import { screenByPath, screenOrder, screenPaths, screenPermissions, screenRequirements, type ShopNavId } from '@/auth/permissions';
@@ -135,7 +136,7 @@ export const ShopDashboardPage: React.FC<ShopDashboardPageProps> = ({ initialTab
         {activeTab !== 'consignment' && <h1 className="sr-only">{currentTabInfo.title}</h1>}
 
         {logoutError && <p role="alert" className="mb-4 text-sm text-red-700">Không thể đăng xuất. Vui lòng thử lại.</p>}
-        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'withdrawals' ? <StaffEarlyWithdrawalsPage /> : activeTab === 'expiry' ? <ExpiryProcessingPage /> : activeTab === 'buyout' ? <BuyoutManagement /> : activeTab === 'pos' ? <PosPage /> : activeTab === 'settings' ? <FunctionPermissions /> : activeTab === 'incidents' ? <IncidentManagement /> : activeTab === 'settlement' ? <SettlementManagement /> : <>
+        {activeTab === 'accounts' ? <AccountManagement /> : activeTab === 'consignment' ? <AppointmentManagement /> : activeTab === 'inventory' ? <InventoryManagement /> : activeTab === 'withdrawals' ? <StaffEarlyWithdrawalsPage /> : activeTab === 'expiry' ? <ExpiryProcessingPage /> : activeTab === 'buyout' ? <BuyoutManagement /> : activeTab === 'pos' ? <PosPage /> : activeTab === 'settings' ? <FunctionPermissions /> : activeTab === 'incidents' ? <IncidentManagement /> : activeTab === 'settlement' ? <SettlementManagement /> : activeTab === 'reports' ? <ReportsDashboard /> : <>
           <PageHeaderCard
             icon={activeTab === 'customers' ? <Users size={24} aria-hidden="true" /> : <BarChart3 size={24} aria-hidden="true" />}
             title={currentTabInfo.title}
