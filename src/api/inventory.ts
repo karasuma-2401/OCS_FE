@@ -4,6 +4,7 @@ import type { PagedResponse } from './products';
 export interface InventoryLocation { id: string; code: string; name: string; productCount?: number }
 export interface InventorySummary {
   totalCount: number;
+  pendingProcessingCount: number;
   pendingApprovalCount: number;
   readyToOfferCount: number;
   unassignedLocationCount: number;

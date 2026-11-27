@@ -80,9 +80,9 @@ export function InventoryEditModal({ product, locations, canEditDetails, canEdit
       </form>}
       <section className="space-y-3 border-t border-border pt-5">
         <h3 className="font-semibold text-brand-ink">Trạng thái bán</h3>
-        <p className="text-sm text-text-secondary">Hiện tại: {current.status === 'PendingProcessing' ? 'Chờ xử lý' : current.status === 'OnSale' ? 'Đang bán' : current.status} · {current.approvalStatus === 'Approved' ? 'Đã duyệt' : 'Chưa duyệt'}</p>
-        {current.status === 'PendingProcessing' && current.approvalStatus === 'Approved' && canOffer && <Button variant="outline" disabled={stale || !current.location} loading={busy} onClick={() => setConfirmAction('offer')}>Đưa lên bán</Button>}
-        <p className="text-xs leading-5 text-text-secondary">Cần duyệt và xếp vị trí trước khi đưa lên bán. Trạng thái đã bán hoặc đã trả được cập nhật qua nghiệp vụ tương ứng.</p>
+        <p className="text-sm text-text-secondary">Hiện tại: {current.status === 'PendingProcessing' ? 'Chờ xử lý' : current.status === 'OnSale' ? 'Đang bán' : current.status}</p>
+        {current.status === 'PendingProcessing' && current.approvalStatus !== 'Rejected' && canOffer && <Button variant="outline" disabled={stale || !current.location} loading={busy} onClick={() => setConfirmAction('offer')}>Đưa lên bán</Button>}
+        <p className="text-xs leading-5 text-text-secondary">Cần xếp vị trí và có nguồn hàng hợp lệ trước khi đưa lên bán; không cần quản lý duyệt kho. Trạng thái đã bán hoặc đã trả được cập nhật qua nghiệp vụ tương ứng.</p>
       </section>
       {current.sourceType === 'Consignment' && <p className="text-xs leading-5 text-text-secondary">Giá ký gửi vẫn theo thỏa thuận. Hợp đồng đã tạo không tự thay đổi khi sửa thông tin trong kho.</p>}
     </div>

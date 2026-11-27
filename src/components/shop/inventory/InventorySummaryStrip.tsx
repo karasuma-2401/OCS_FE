@@ -4,8 +4,7 @@ import { ShopSummaryStrip, type ShopSummaryCard } from "../ShopSummaryStrip";
 
 export type InventoryQuickFilter =
   | "all"
-  | "pendingApproval"
-  | "readyToOffer"
+  | "pendingProcessing"
   | "unassigned"
   | "onSale"
   | "expired";
@@ -28,10 +27,10 @@ export function InventorySummaryStrip({ summary, loading, activeQuickFilter, onS
       tone: "bg-brand-pink-light text-brand-highlight",
     },
     {
-      id: "pendingApproval",
-      label: "Chờ duyệt",
-      value: summary?.pendingApprovalCount,
-      hint: "Cần kiểm tra giá & duyệt",
+      id: "pendingProcessing",
+      label: "Chờ xử lý",
+      value: summary?.pendingProcessingCount,
+      hint: "Xếp vị trí và đưa lên bán",
       icon: Clock3,
       tone: "bg-state-warning-soft text-state-warning",
     },

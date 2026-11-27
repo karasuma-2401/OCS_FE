@@ -170,28 +170,29 @@ export function InventoryLocationDrawer({
         <div className="grid gap-2.5 sm:grid-cols-2">
           <button
             type="button"
+            aria-pressed={selectedLocationId === UNASSIGNED_LOCATION_VALUE}
             onClick={() => {
               onSelectLocation(UNASSIGNED_LOCATION_VALUE);
               resetAndClose();
             }}
-            className={`group flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-3.5 text-left transition-all duration-150 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-brand-highlight motion-reduce:transition-none ${
+            className={`group flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-3.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-highlight motion-reduce:transition-none ${
               selectedLocationId === UNASSIGNED_LOCATION_VALUE
-                ? "border-brand-highlight/60 bg-brand-pink-surface shadow-xs"
-                : "border-dashed border-state-warning-border bg-state-warning-soft/50 hover:border-state-warning hover:shadow-xs"
+                ? "border-brand-highlight bg-brand-pink-surface"
+                : "border-brand-lavender bg-white hover:border-brand-highlight hover:bg-surface-active"
             }`}
           >
             <div className="flex min-w-0 items-center gap-3">
-              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-state-warning-muted text-state-warning-strong transition-transform duration-150 group-hover:scale-105 motion-reduce:transition-none">
+              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-state-warning-muted text-state-warning-strong">
                 <MapPinOff size={17} aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <p className="font-bold text-brand-ink">Chưa xếp vị trí</p>
-                <p className="text-xs text-text-secondary">
+                <p className="font-semibold text-brand-ink">Chưa xếp vị trí</p>
+                <p className="mt-0.5 text-[13px] leading-5 text-text-secondary">
                   Bấm để lọc các món cần xếp kệ
                 </p>
               </div>
             </div>
-            <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-bold tabular-nums text-state-warning-strong shadow-xs">
+            <span className="shrink-0 rounded-full bg-state-warning-muted px-2.5 py-1 text-sm font-semibold tabular-nums text-state-warning-strong">
               {unassignedCount.toLocaleString("vi-VN")} món
             </span>
           </button>

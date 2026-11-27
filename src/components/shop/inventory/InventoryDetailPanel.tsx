@@ -3,15 +3,14 @@ import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   Check,
-  CheckCircle2,
   ChevronDown,
   Clock3,
   Copy,
   Edit3,
   ImageOff,
   MapPin,
+  MoreHorizontal,
   Printer,
-  RotateCcw,
   Tag,
   ZoomIn,
 } from "lucide-react";
@@ -26,6 +25,7 @@ import { screenPaths } from "@/auth/permissions";
 import {
   Badge,
   Button,
+  type ButtonProps,
   Combobox,
   DetailPanel,
   ErrorState,
@@ -51,7 +51,6 @@ interface InventoryDetailPanelProps {
   detailError: string;
   busy: boolean;
   locations: InventoryLocation[];
-  canApprove: boolean;
   canCreate: boolean;
   canOffer: boolean;
   canEditLocation: boolean;
@@ -68,6 +67,27 @@ interface InventoryDetailPanelProps {
   onCopiedBarcode: (barcode: string) => void;
 }
 
+function QuickActionButton({ label, className = "", ...props }: ButtonProps & { label: string }) {
+  return (
+    <div className={`group relative min-w-0 ${className}`}>
+      <Button
+        {...props}
+        variant="outline"
+        size="sm"
+        aria-label={label}
+        title={label}
+        className="min-h-9 w-full gap-1.5 px-2 text-xs"
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-brand-ink px-2.5 py-1.5 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export function InventoryDetailPanel({
   panelRef,
   selectedId,
@@ -76,7 +96,6 @@ export function InventoryDetailPanel({
   detailError,
   busy,
   locations,
-  canApprove,
   canCreate,
   canOffer,
   canEditLocation,
@@ -91,8 +110,6 @@ export function InventoryDetailPanel({
 }: InventoryDetailPanelProps) {
   const navigate = useNavigate();
   const [quickLocationId, setQuickLocationId] = useState("");
-  const [verifiedPrice, setVerifiedPrice] = useState("");
-  const [evidence, setEvidence] = useState("");
   const [newPrice, setNewPrice] = useState("");
   const [priceReason, setPriceReason] = useState("");
   const [copied, setCopied] = useState(false);
@@ -105,8 +122,6 @@ export function InventoryDetailPanel({
 
   useEffect(() => {
     setQuickLocationId(product?.location?.id ?? "");
-    setVerifiedPrice("");
-    setEvidence("");
     setNewPrice("");
     setPriceReason("");
     setConfirmKind(null);
@@ -131,12 +146,8 @@ export function InventoryDetailPanel({
   const canEditActive =
     product &&
     (product.status === "PendingProcessing" || product.status === "OnSale");
-
-  const step1Done = product?.approvalStatus === "Approved";
-  const step2Done = Boolean(product?.location);
-  const step3Done = product?.status === "OnSale";
-  const completedSteps = [step1Done, step2Done, step3Done].filter(Boolean).length;
-  const progressWidth = `${Math.round((completedSteps / 3) * 100)}%`;
+  const showEditAction = Boolean(canEditActive && (canCreate || canEditLocation));
+  const showIncidentAction = product?.status === "OnSale" && canReportIncident;
 
   return (
     <>
@@ -227,106 +238,103 @@ export function InventoryDetailPanel({
 
               {/* Badges + Hành động chính */}
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={statusBadgeVariant(product.approvalStatus)}>
-                  {statusLabel(product.approvalStatus)}
-                </Badge>
+                {product.approvalStatus === "Rejected" && <Badge variant="danger">Từ chối tiếp nhận</Badge>}
                 <Badge variant={statusBadgeVariant(product.status)}>
                   {statusLabel(product.status)}
                 </Badge>
                 <Badge variant="neutral">Mới {product.conditionPercentage}%</Badge>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  startIcon={<Printer size={15} aria-hidden="true" />}
-                  onClick={() =>
-                    navigate(
-                      `/shop/inventory/barcode?q=${encodeURIComponent(product.barcode)}`,
-                    )
-                  }
+              <div className="@container">
+                <div
+                  role="group"
+                  aria-label="Thao tác sản phẩm"
+                  className={`grid gap-2 ${
+                    showIncidentAction
+                      ? showEditAction
+                        ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.5rem] @[320px]:grid-cols-3"
+                        : "grid-cols-[minmax(0,1fr)_2.5rem] @[320px]:grid-cols-2"
+                      : showEditAction ? "grid-cols-2" : "grid-cols-1"
+                  }`}
                 >
-                  In barcode
-                </Button>
-                {product.status === "OnSale" && canReportIncident && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    startIcon={<AlertTriangle size={15} aria-hidden="true" />}
+                  <QuickActionButton
+                    label="In barcode"
+                    startIcon={<Printer size={14} className="shrink-0" aria-hidden="true" />}
                     onClick={() =>
                       navigate(
-                        `${screenPaths.incidents}/new?barcode=${encodeURIComponent(product.barcode)}`,
+                        `/shop/inventory/barcode?q=${encodeURIComponent(product.barcode)}`,
                       )
                     }
                   >
-                    Báo cáo sự cố
-                  </Button>
-                )}
-                {canEditActive && (canCreate || canEditLocation) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    startIcon={<Edit3 size={15} aria-hidden="true" />}
-                    onClick={onOpenEditModal}
-                  >
-                    Sửa chi tiết
-                  </Button>
-                )}
-              </div>
-
-              {/* Thanh tiến trình 3 bước cho sản phẩm đang xử lý / mở bán */}
-              {(product.status === "PendingProcessing" ||
-                product.status === "OnSale") && (
-                <div className="rounded-xl border border-brand-lavender/40 bg-brand-pink-surface/50 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-brand-highlight">
-                      Tiến trình lên kệ
-                    </p>
-                    <span className="text-[11px] font-bold tabular-nums text-brand-highlight">
-                      {completedSteps}/3 bước
-                    </span>
-                  </div>
-                  <div
-                    aria-hidden="true"
-                    className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white"
-                  >
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-brand-pink to-state-success-solid transition-[width] duration-500 ease-out motion-reduce:transition-none"
-                      style={{ width: progressWidth }}
-                    />
-                  </div>
-                  <div className="mt-2.5 grid grid-cols-3 gap-1.5 text-xs">
-                    {[
-                      { num: 1, label: "Duyệt", done: step1Done },
-                      { num: 2, label: "Xếp kệ", done: step2Done },
-                      { num: 3, label: "Mở bán", done: step3Done },
-                    ].map((step) => (
-                      <div
-                        key={step.num}
-                        className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 font-semibold transition-colors duration-200 ${
-                          step.done
-                            ? "bg-state-success-soft text-state-success-strong"
-                            : "bg-white text-text-secondary"
-                        }`}
+                    Barcode
+                  </QuickActionButton>
+                  {showIncidentAction && (
+                    <QuickActionButton
+                      label="Báo cáo sự cố"
+                      className="hidden @[320px]:block"
+                      startIcon={<AlertTriangle size={14} className="shrink-0" aria-hidden="true" />}
+                      onClick={() =>
+                        navigate(
+                          `${screenPaths.incidents}/new?barcode=${encodeURIComponent(product.barcode)}`,
+                        )
+                      }
+                    >
+                      Sự cố
+                    </QuickActionButton>
+                  )}
+                  {showEditAction && (
+                    <QuickActionButton
+                      label="Sửa chi tiết"
+                      startIcon={<Edit3 size={14} className="shrink-0" aria-hidden="true" />}
+                      onClick={onOpenEditModal}
+                    >
+                      Chỉnh sửa
+                    </QuickActionButton>
+                  )}
+                  {showIncidentAction && (
+                    <details
+                      className="relative @[320px]:hidden"
+                      onBlur={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          event.currentTarget.open = false;
+                          event.currentTarget.querySelector("summary")?.focus();
+                        }
+                      }}
+                    >
+                      <summary
+                        aria-label="Thao tác khác"
+                        aria-disabled={detailLoading || busy || undefined}
+                        title="Thao tác khác"
+                        onClick={(event) => {
+                          if (detailLoading || busy) event.preventDefault();
+                        }}
+                        className="flex min-h-9 cursor-pointer list-none items-center justify-center rounded-xl border border-brand-lavender/60 bg-paper text-brand-ink transition-colors hover:bg-brand-pink-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-pink-focus aria-disabled:cursor-not-allowed aria-disabled:opacity-55 [&::-webkit-details-marker]:hidden"
                       >
-                        {step.done ? (
-                          <CheckCircle2
-                            size={14}
-                            className="shrink-0 animate-inv-pop"
-                            aria-hidden="true"
-                          />
-                        ) : (
-                          <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-surface-dashboard text-[10px] font-bold text-muted">
-                            {step.num}
-                          </span>
-                        )}
-                        <span className="truncate">{step.label}</span>
+                        <MoreHorizontal size={16} aria-hidden="true" />
+                      </summary>
+                      <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-xl border border-border bg-paper p-1.5 shadow-lg">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start px-2"
+                          startIcon={<AlertTriangle size={14} className="shrink-0" aria-hidden="true" />}
+                          onClick={(event) => {
+                            const disclosure = event.currentTarget.closest("details");
+                            if (disclosure) disclosure.open = false;
+                            navigate(`${screenPaths.incidents}/new?barcode=${encodeURIComponent(product.barcode)}`);
+                          }}
+                        >
+                          Báo cáo sự cố
+                        </Button>
                       </div>
-                    ))}
-                  </div>
+                    </details>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* Xếp vị trí nhanh ngay trong Detail Panel */}
               {canEditActive && canEditLocation && (
@@ -395,132 +403,15 @@ export function InventoryDetailPanel({
                 </form>
               )}
 
-              {/* Xét duyệt sản phẩm */}
-              {product.approvalStatus === "Pending" &&
-                product.status === "PendingProcessing" &&
-                canApprove && (
-                  <div className="rounded-xl border border-state-warning-border bg-state-warning-soft/50 p-4">
-                    <h4 className="font-bold text-brand-ink">
-                      Xét duyệt sản phẩm
-                    </h4>
-                    {product.sourceType === "Consignment" && (
-                      <div className="mt-2 space-y-3">
-                        <p className="text-xs leading-5 text-text-secondary">
-                          Đối chiếu giá với hợp đồng đã thỏa thuận trước khi
-                          duyệt.
-                        </p>
-                        {detail.agreedListedPrice != null && (
-                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs">
-                            <span className="text-text-secondary">
-                              Giá hợp đồng:{" "}
-                              <strong className="tabular-nums text-brand-ink">
-                                {formatVndPrice(detail.agreedListedPrice)}
-                              </strong>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setVerifiedPrice(
-                                  String(detail.agreedListedPrice),
-                                );
-                                if (!evidence && product.sourceReference) {
-                                  setEvidence(
-                                    `Hợp đồng ${product.sourceReference}`,
-                                  );
-                                }
-                              }}
-                              className="font-bold text-brand-highlight hover:underline"
-                            >
-                              Điền theo hợp đồng
-                            </button>
-                          </div>
-                        )}
-                        <Input
-                          label="Giá đã đối chiếu"
-                          type="number"
-                          inputMode="decimal"
-                          min="0"
-                          step="0.01"
-                          value={verifiedPrice}
-                          onChange={(e) => setVerifiedPrice(e.target.value)}
-                          placeholder={
-                            detail.agreedListedPrice != null
-                              ? String(detail.agreedListedPrice)
-                              : "Nhập giá niêm yết"
-                          }
-                        />
-                        <Input
-                          label="Bằng chứng thỏa thuận"
-                          value={evidence}
-                          maxLength={1000}
-                          onChange={(e) => setEvidence(e.target.value)}
-                          placeholder={
-                            product.sourceReference
-                              ? `Ví dụ: Hợp đồng ${product.sourceReference}`
-                              : "Mã hợp đồng và thông tin đối chiếu"
-                          }
-                        />
-                      </div>
-                    )}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        loading={busy}
-                        disabled={
-                          product.sourceType === "Consignment" &&
-                          (!verifiedPrice || !evidence.trim())
-                        }
-                        onClick={() =>
-                          void onRunAction(
-                            () =>
-                              inventoryApi.review(
-                                product.id,
-                                product.version,
-                                true,
-                                undefined,
-                                product.sourceType === "Consignment"
-                                  ? Number(verifiedPrice)
-                                  : undefined,
-                                evidence.trim() || undefined,
-                              ),
-                            "Đã duyệt sản phẩm.",
-                          )
-                        }
-                      >
-                        Duyệt sản phẩm
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-              {product.approvalStatus === "Rejected" &&
-                product.status === "PendingProcessing" &&
-                canCreate && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    startIcon={<RotateCcw size={15} aria-hidden="true" />}
-                    onClick={() =>
-                      void onRunAction(
-                        () =>
-                          inventoryApi.resubmit(product.id, product.version),
-                        "Đã gửi duyệt lại.",
-                      )
-                    }
-                  >
-                    Gửi duyệt lại
-                  </Button>
-                )}
-
               {/* Đưa lên bán */}
-              {product.approvalStatus === "Approved" &&
+              {product.approvalStatus !== "Rejected" &&
                 product.status === "PendingProcessing" &&
                 canOffer && (
                   <div className="rounded-xl border border-brand-lavender/60 bg-brand-pink-surface p-4">
                     <p className="text-sm font-medium text-brand-ink">
                       {product.location
-                        ? `Sản phẩm đã duyệt tại kệ ${product.location.code}. Sẵn sàng đưa lên bán!`
-                        : "Sản phẩm đã được duyệt. Vui lòng xếp vị trí kho ở trên trước khi đưa lên bán."}
+                        ? `Sản phẩm tại kệ ${product.location.code}. Sẵn sàng đưa lên bán!`
+                        : "Vui lòng xếp vị trí kho ở trên trước khi đưa lên bán."}
                     </p>
                     <Button
                       size="sm"
