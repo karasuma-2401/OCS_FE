@@ -21,11 +21,13 @@ export interface ConsignmentProductDetail extends ConsignmentProduct {
   condition: string | null;
   imageUrls: string[];
   expiryProcessingType: string | null; expiryProcessingStatus: string | null; collectionDeadline: string | null;
+  earlyWithdrawalFeeRate?: number | null;
 }
 export interface Consignment {
   contractId: string; contractNumber: string; appointmentId: string | null;
   signedAt: string; endsAt: string; status: string; expiryHandling: string;
   expiryProcessingType: string | null; expiryProcessingStatus: string | null; collectionDeadline: string | null;
+  earlyWithdrawalFeeRate?: number | null;
   products: ConsignmentProduct[]; estimatedPayout: number | null; settledAmount: number;
   contractDocument: {
     fileName: string;

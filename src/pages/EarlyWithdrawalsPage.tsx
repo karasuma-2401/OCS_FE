@@ -98,7 +98,7 @@ export function CustomerEarlyWithdrawalsPage() {
   ];
   return <div className="landing-container mx-auto w-[min(calc(100%_-_5rem),1320px)] space-y-5 py-8 max-[850px]:w-[min(calc(100%_-_2.5rem),1320px)] sm:py-12 [&_h2]:!mt-0 [&_h2]:!text-lg [&_h2]:!tracking-normal">
     <h1 className="sr-only">Rút hàng sớm</h1>
-    <PageHeaderCard icon={<PackageMinus size={24} />} title="Rút hàng sớm" description="Phí rút mỗi món bằng giá niêm yết nhân với tỷ lệ hoa hồng của món trên hợp đồng." />
+    <PageHeaderCard icon={<PackageMinus size={24} />} title="Rút hàng sớm" description="Phí rút mỗi món bằng giá niêm yết nhân với tỷ lệ phí rút sớm áp dụng trên hợp đồng." />
     {notice && <AlertBanner variant="success" message={notice} onClose={() => setNotice('')} />}
     <div role="tablist" aria-label="Rút hàng và theo dõi yêu cầu" className="grid grid-cols-2 gap-2 rounded-2xl border border-brand-lavender/40 bg-white p-2 shadow-sm">
       {([{ id: 'withdraw', label: 'Rút hàng', icon: PackageMinus }, { id: 'requests', label: 'Theo dõi yêu cầu muốn rút', icon: ClipboardList }] as const).map(({ id, label, icon: Icon }) => <Button key={id} id={`withdrawal-tab-${id}`} role="tab" aria-selected={tab === id} aria-controls={`withdrawal-panel-${id}`} tabIndex={tab === id ? 0 : -1} variant={tab === id ? 'primary' : 'ghost'} className="min-h-12 whitespace-normal px-2 sm:px-4" startIcon={<Icon size={18} className="shrink-0" aria-hidden="true" />} onClick={() => setTab(id)} onKeyDown={event => {

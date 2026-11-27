@@ -116,7 +116,7 @@ export function ContractIntakePage() {
             const now = new Date();
             const pad = (n: number) => String(n).padStart(2, '0');
             const toLocal = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-            const days = currentTemplate.defaultTermDays || 60;
+            const days = catalog.defaultTermDays ?? currentTemplate.defaultTermDays ?? 30;
             const ends = new Date(now.getTime() + days * 86400000);
             setSignedAt(cur => cur || toLocal(now));
             setEndsAt(cur => cur || toLocal(ends));
@@ -212,7 +212,7 @@ export function ContractIntakePage() {
     setError(''); setSaving(true); setPreviewing(isPreview);
     try {
       const customerDetails = customer ? { email: customer.email || '', identityNumber: customer.identityNumber || '', address: customer.address || '', bankCode: customer.bankCode || '', bankAccountNumber: customer.bankAccountNumber || '', bankAccountHolderName: customer.bankAccountHolderName || '' } : undefined;
-      const request = { ...(appointmentId ? { appointmentId } : customer ? { customerId: customer.id, requestId } : { guest: { ...guest, email: guest.email || '' }, saveCustomer, requestId }), customerDetails, signedAt: start.toISOString(), endsAt: end.toISOString(), expiryHandling, products, templateVersion: template?.version, termsRequestId: termsRequest?.status === 'Approved' ? termsRequest.id : undefined, signature: signature || undefined };
+      const request = { ...(appointmentId ? { appointmentId } : customer ? { customerId: customer.id, requestId } : { guest: { ...guest, email: guest.email || '' }, saveCustomer, requestId }), customerDetails, signedAt: start.toISOString(), endsAt: end.toISOString(), expiryHandling, earlyWithdrawalFeeRate: options?.defaultEarlyWithdrawalFeeRate ?? null, products, templateVersion: template?.version, termsRequestId: termsRequest?.status === 'Approved' ? termsRequest.id : undefined, signature: signature || undefined };
       if (isPreview) {
         const terms = await previewContractWeb(request);
         if (mounted.current) setPreviewTerms(terms);
@@ -266,7 +266,7 @@ export function ContractIntakePage() {
             <p className="mt-3 text-xs text-gray-600">Sản phẩm mới ở trạng thái chờ xử lý, chưa tự đưa lên bán.</p>
           </section>
           <section><h2 className="text-lg font-bold">Thời hạn hợp đồng</h2><div className="mt-3 grid gap-4 sm:grid-cols-2"><label className="text-sm font-semibold">Ngày và giờ ký *<input required type="datetime-local" className={control} value={signedAt} onChange={e => setSignedAt(e.target.value)} /></label><label className="text-sm font-semibold">Ngày và giờ kết thúc *<input required type="datetime-local" className={control} value={endsAt} onChange={e => setEndsAt(e.target.value)} /></label><label className="text-sm font-semibold">Xử lý khi hết hạn *<select className={control} value={expiryHandling} onChange={e => setExpiryHandling(e.target.value as 'Return' | 'Donate')}><option value="Return">Trả lại khách hàng</option><option value="Donate">Quyên góp</option></select></label></div></section>
-          <p className="text-sm text-muted">Phí rút hàng sớm bằng giá niêm yết nhân với tỷ lệ hoa hồng đã thỏa thuận của từng sản phẩm trên hợp đồng.</p>
+          <p className="text-sm text-muted">Phí rút hàng sớm bằng giá niêm yết nhân với tỷ lệ phí rút sớm ({options?.defaultEarlyWithdrawalFeeRate ?? 10}%) được áp dụng trên hợp đồng.</p>
           <ContractTermsSection draftKey={appointmentId || requestId} customerPhone={(customer ? customer.phoneNumber : guest.phoneNumber) || ''} onChange={(item, ready) => { setTermsRequest(item); setTermsReady(ready); if (item?.status === 'Approved' && lastApprovedTerms.current !== item.id) { lastApprovedTerms.current = item.id; if (signatureRef.current) setSignatureNotice('Điều khoản đã thay đổi. Hãy xem lại và ký lại.'); setSignature(null); } }} />
           {templateChanged && <button type="button" className="mt-2 text-sm font-semibold text-pink-700 underline" onClick={() => { void getIntakeTemplate().then(next => { setTemplate(next); setTemplateChanged(false); setError('Đã tải mẫu mới, hãy xem lại hợp đồng trước khi tạo.'); }).catch(() => setError('Không thể tải mẫu mới.')); }}>Tải mẫu mới</button>}
           <ContractSignature value={signature} onChange={value => { setSignature(value); if (value) setSignatureNotice(''); }} disabled={saving || readingSignature} onReadingChange={setReadingSignature} />

@@ -38,7 +38,7 @@ export interface ContractEmployee { fullName: string; phoneNumber: string; jobTi
 export interface ContractImage { contentType: string; data: string }
 export interface ContractProduct { name: string; barcode: string; size: string; description: string; conditionPercentage: number; listedPrice: number | null; agreedCommissionRate: number | null; brandId: string; categoryId: string; storageLocationId: string | null; images: ContractImage[] }
 export interface ContractOption { id: string; name: string; commissionRate: number | null }
-export interface ContractOptions { brands: ContractOption[]; categories: ContractOption[]; locations: ContractOption[] }
+export interface ContractOptions { brands: ContractOption[]; categories: ContractOption[]; locations: ContractOption[]; defaultTermDays?: number; defaultEarlyWithdrawalFeeRate?: number }
 export interface ContractListItem { id: string; contractNumber: string; customerName: string | null; signedAt: string; hasPdf: boolean; status?: string }
 export interface ContractDetailProduct {
   id: string;
