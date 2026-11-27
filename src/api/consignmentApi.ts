@@ -1,4 +1,5 @@
 import { apiClient, resolveImageUrl } from './client';
+import type { CommissionTierRates } from './systemConfig';
 import type {
   CreateReceptionRequest,
   ReceptionContractResult,
@@ -126,18 +127,18 @@ export const REJECTION_REASONS = [
   'Lý do khác (ghi rõ bên dưới)',
 ];
 
-export function getTierDefaultCommissionRate(tier?: BrandTierType): number {
+export function getTierDefaultCommissionRate(tier?: BrandTierType, tiers?: CommissionTierRates): number {
   switch (tier) {
     case 'Luxury':
-      return 20;
+      return tiers?.luxury ?? 20;
     case 'Commercial':
-      return 15;
+      return tiers?.commercial ?? 15;
     case 'LocalBrand':
-      return 12;
+      return tiers?.localBrand ?? 12;
     case 'NoBrand':
-      return 10;
+      return tiers?.noBrand ?? 10;
     default:
-      return 15;
+      return tiers?.commercial ?? 15;
   }
 }
 
@@ -147,6 +148,8 @@ export interface ReceptionTemplate {
   headerText: string;
   footerText: string;
   defaultTerms: string;
+  effectiveTerms?: string;
+  earlyWithdrawalFeeRate?: number;
   version: string;
   defaultTermDays?: number;
   defaultExpiryHandling?: 'Return' | 'Donate';
@@ -170,10 +173,7 @@ export const consignmentApi = {
           id: b.id,
           name: b.name,
           tier: b.tier,
-          defaultCommissionRate:
-            Number(b.defaultCommissionRate) > 0
-              ? Number(b.defaultCommissionRate)
-              : getTierDefaultCommissionRate(b.tier),
+          defaultCommissionRate: Number(b.defaultCommissionRate) > 0 ? Number(b.defaultCommissionRate) : 0,
           isActive: b.isActive,
         }));
       return fetched;

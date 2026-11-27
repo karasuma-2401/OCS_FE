@@ -255,6 +255,7 @@ export interface CreateReceptionRequest {
   actualItemCount: number;
   expiryHandling: ExpiryHandlingType;
   termDays?: number;
+  earlyWithdrawalFeeRate?: number;
   note?: string;
   items: Array<{
     name: string;

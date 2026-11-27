@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { findContractCustomer, getContractCustomer, updateContractCustomer, type ContractCustomer, type ContractImage } from '@/api/contracts';
+import { systemConfigApi, type CommissionTierRates } from '@/api/systemConfig';
 import { parseProblemDetails } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
 import { Badge, Button, Card, Combobox, Input, Select } from '@/components/shared';
@@ -129,6 +130,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
   const [signature, setSignature] = useState<ContractImage | null>(null);
   const [readingSignature, setReadingSignature] = useState(false);
   const [receptionTemplate, setReceptionTemplate] = useState<ReceptionTemplate | null>(null);
+  const [tierRates, setTierRates] = useState<CommissionTierRates | undefined>(undefined);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [lookingUpCustomer, setLookingUpCustomer] = useState(false);
   const [customerMessage, setCustomerMessage] = useState('');
@@ -186,7 +188,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
 
   const handleTermDaysChange = (value: number, syncInput = true) => {
     if (Number.isNaN(value)) return;
-    const clamped = Math.max(1, Math.min(60, Math.round(value)));
+    const clamped = Math.max(1, Math.min(365, Math.round(value)));
     setTermDays(clamped);
     if (syncInput) {
       setTermDaysInput(String(clamped));
@@ -278,26 +280,26 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
     setDraftSaveSuccess(false);
     const initialCommission = 20;
     setCommissionShop(initialCommission);
-    setTermDays(60);
-    setTermDaysInput('60');
+    setTermDays(30);
+    setTermDaysInput('30');
     setItems([]);
 
     const loadAndInit = async () => {
       try {
-        const [fetchedCats, fetchedBrands, fetchedTemplate] = await Promise.all([
+        const [fetchedCats, fetchedBrands, sysConfig, fetchedTemplate] = await Promise.all([
           consignmentApi.getCategories(),
           consignmentApi.getBrands(),
+          systemConfigApi.defaults(),
           consignmentApi.getReceptionTemplate().catch(() => null),
         ]);
         if (!cancelled) {
           setCategories(fetchedCats);
           setBrands(fetchedBrands);
+          setTermDays(sysConfig.consignmentDurationDays);
+          setTermDaysInput(String(sysConfig.consignmentDurationDays));
+          setTierRates(sysConfig.commissionTierRates);
           if (fetchedTemplate) {
             setReceptionTemplate(fetchedTemplate);
-            if (fetchedTemplate.defaultTermDays) {
-              setTermDays(fetchedTemplate.defaultTermDays);
-              setTermDaysInput(String(fetchedTemplate.defaultTermDays));
-            }
             if (fetchedTemplate.defaultExpiryHandling === 'Donate' || fetchedTemplate.defaultExpiryHandling === 'Return') {
               setExpiryHandling(fetchedTemplate.defaultExpiryHandling);
             }
@@ -305,7 +307,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
         }
         if (!cancelled && (!fetchedCats.length || !fetchedBrands.length)) setApiError('Chưa có danh mục hoặc thương hiệu đang hoạt động. Vui lòng cập nhật danh mục trước khi tiếp nhận.');
       } catch {
-        if (!cancelled) { setCategories([]); setBrands([]); setApiError('Không thể tải danh mục hoặc thương hiệu. Vui lòng tải lại trang trước khi tiếp nhận.'); }
+        if (!cancelled) { setCategories([]); setBrands([]); setApiError('Không thể tải cấu hình thời hạn ký gửi, danh mục hoặc thương hiệu. Vui lòng tải lại trang trước khi tiếp nhận.'); }
       }
 
       if (cancelled) return;
@@ -410,7 +412,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
           it.commissionRate ??
           ((matchedBrand?.defaultCommissionRate ?? 0) > 0
             ? matchedBrand!.defaultCommissionRate
-            : getTierDefaultCommissionRate(matchedBrand?.tier));
+            : getTierDefaultCommissionRate(matchedBrand?.tier, tierRates));
         return {
           id: it.id || crypto.randomUUID(),
           name: it.name,
@@ -469,7 +471,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
             i.commissionRate ??
             (itemBrand.defaultCommissionRate > 0
               ? itemBrand.defaultCommissionRate
-              : getTierDefaultCommissionRate(itemBrand.tier));
+              : getTierDefaultCommissionRate(itemBrand.tier, tierRates));
           return {
             name: i.name,
             categoryId: i.categoryId || '00000000-0000-0000-0000-000000000000',
@@ -536,7 +538,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
       itemForm.commissionRate ??
       (brandObj && brandObj.defaultCommissionRate > 0
         ? brandObj.defaultCommissionRate
-        : getTierDefaultCommissionRate(brandObj?.tier));
+        : getTierDefaultCommissionRate(brandObj?.tier, tierRates));
 
     const payout = Math.round(
       itemForm.listedPrice * (intakeType === 'buyout' ? 0.5 : (100 - resolvedRate) / 100),
@@ -769,6 +771,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
         intakeType: intakeType === 'buyout' ? ('Buyout' as const) : ('Consignment' as const),
         signature: signature!,
         templateVersion: receptionTemplate?.version,
+        earlyWithdrawalFeeRate: intakeType === 'consignment' ? receptionTemplate?.earlyWithdrawalFeeRate : undefined,
         customerInfo: {
           fullName: cleanName,
           phoneNumber: cleanPhone,
@@ -785,7 +788,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
             i.commissionRate ??
             (itemBrand.defaultCommissionRate > 0
               ? itemBrand.defaultCommissionRate
-              : getTierDefaultCommissionRate(itemBrand.tier));
+              : getTierDefaultCommissionRate(itemBrand.tier, tierRates));
           return {
             name: i.name,
             categoryId: i.categoryId || '00000000-0000-0000-0000-000000000000',
@@ -1044,7 +1047,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
                 label="Thời hạn (ngày)"
                 type="number"
                 min={1}
-                max={60}
+                max={365}
                 value={termDaysInput}
                 onChange={event => {
                   setTermDaysInput(event.target.value);
@@ -1195,7 +1198,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
                 onChange={value => {
                   const brand = brands.find(b => b.id === value);
                   if (brand) {
-                    const rate = brand.defaultCommissionRate > 0 ? brand.defaultCommissionRate : getTierDefaultCommissionRate(brand.tier);
+                    const rate = brand.defaultCommissionRate > 0 ? brand.defaultCommissionRate : getTierDefaultCommissionRate(brand.tier, tierRates);
                     setItemForm(prev => ({
                       ...prev,
                       brandId: brand.id,
@@ -1598,7 +1601,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
           items={items}
           commissionShop={commissionShop}
           signature={signature}
-          terms={receptionTemplate?.defaultTerms}
+          terms={receptionTemplate?.effectiveTerms || receptionTemplate?.defaultTerms}
           note={batchNote}
           template={receptionTemplate}
           customerDetails={{ email: customerEmail, identity: customerExtra.identityNumber, address: customerExtra.address, bankCode: customerExtra.bankCode, bankAccount: customerExtra.bankAccountNumber, bankHolder: customerExtra.bankAccountHolderName }}
@@ -1667,7 +1670,7 @@ export const ConsignmentReceptionModal: React.FC<ConsignmentReceptionModalProps>
                   agreedCommissionRate: intakeType === 'consignment' ? it.commissionRate : 0,
                   customerPayout: it.customerPayout,
                 }))}
-                terms={receptionTemplate?.defaultTerms || (intakeType === 'buyout' ? BUYOUT_RECEPTION_TERMS : undefined)}
+                terms={intakeType === 'buyout' ? BUYOUT_RECEPTION_TERMS : (receptionTemplate?.effectiveTerms || receptionTemplate?.defaultTerms)}
                 batchNote={batchNote || null}
                 isDraftPreview={true}
                 signatureNode={
