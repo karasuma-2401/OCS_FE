@@ -1072,8 +1072,27 @@ export function SettlementManagement() {
             </div>
             {selected.rejectionReason && <AlertBanner variant="warning" message={'Từ chối bởi ' + (selected.rejectedByName || 'quản lý') + ' lúc ' + dateTime(selected.rejectedAt) + ': ' + selected.rejectionReason} />}
             {selected.proofUrl && <div><h3 className="mb-2 text-sm font-bold text-ink">Chứng từ giải ngân</h3><PayoutProof payoutId={selected.id} /></div>}
-            {selected.status === 'Transferred' && <AlertBanner variant="info" icon={<FileCheck2 size={17} />} message="Đang chờ khách xác nhận; tự hoàn tất sau 48 giờ." />}
-            {selected.status === 'Completed' && <AlertBanner variant="success" message={'Hoàn tất lúc ' + dateTime(selected.completedAt)} />}
+            {selected.status === 'Transferred' && (
+              <AlertBanner
+                variant="info"
+                icon={<FileCheck2 size={17} />}
+                message={
+                  selected.autoConfirmAt
+                    ? `Đang chờ khách xác nhận; tự động hoàn tất lúc ${dateTime(selected.autoConfirmAt)} nếu không có khiếu nại đang mở.`
+                    : 'Đang chờ khách xác nhận; tự động hoàn tất theo thời hạn cấu hình nếu không có khiếu nại đang mở.'
+                }
+              />
+            )}
+            {selected.status === 'Completed' && (
+              <AlertBanner
+                variant="success"
+                message={
+                  selected.customerConfirmedAt
+                    ? `Khách đã xác nhận nhận tiền lúc ${dateTime(selected.customerConfirmedAt)}.`
+                    : `Tự động hoàn tất lúc ${dateTime(selected.completedAt)}.`
+                }
+              />
+            )}
             {canManage && selected.status === 'Pending' && (
               <div className="flex flex-wrap gap-2 border-t border-border pt-4">
                 <Button variant="outline" onClick={() => setAction('fee')}>Sửa phí dịch vụ</Button>

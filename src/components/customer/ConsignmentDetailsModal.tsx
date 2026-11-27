@@ -186,8 +186,8 @@ function CustomerPayouts({ contractId }: { contractId: string }) {
         <div className="mt-2 flex justify-between text-sm font-bold text-brand-ink"><span>Tổng chi</span><span>{money(payout.totalAmount)}</span></div>
         {payout.proofUrl && <PayoutProofImage payoutId={payout.id} />}
         {payout.bankTransactionReference && <p className="mt-2 text-xs text-muted">Mã giao dịch: {payout.bankTransactionReference}</p>}
-        {payout.status === 'Transferred' && <AlertBanner variant="info" className="mt-3" message={<><p>Cửa hàng đã chuyển khoản lúc {payout.transferredAt ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(payout.transferredAt)) : '—'}. Vui lòng kiểm tra tài khoản.</p><Button className="mt-2" size="sm" onClick={() => void confirm(payout)} loading={busyId === payout.id}>Tôi đã nhận tiền</Button></>} />}
-        {payout.status === 'Completed' && <AlertBanner variant="success" compact className="mt-3" message={payout.customerConfirmedAt ? 'Bạn đã xác nhận nhận khoản tiền này.' : 'Đợt giải ngân tự hoàn tất sau 48 giờ.'} />}
+        {payout.status === 'Transferred' && <AlertBanner variant="info" className="mt-3" message={<><p>Cửa hàng đã chuyển khoản lúc {payout.transferredAt ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(payout.transferredAt)) : '—'}. Vui lòng kiểm tra tài khoản.{payout.autoConfirmAt ? ` Hệ thống sẽ tự động xác nhận hoàn tất lúc ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(payout.autoConfirmAt))} nếu không có khiếu nại đang mở.` : ''}</p><Button className="mt-2" size="sm" onClick={() => void confirm(payout)} loading={busyId === payout.id}>Tôi đã nhận tiền</Button></>} />}
+        {payout.status === 'Completed' && <AlertBanner variant="success" compact className="mt-3" message={payout.customerConfirmedAt ? 'Bạn đã xác nhận nhận khoản tiền này.' : 'Đợt giải ngân đã tự động xác nhận hoàn tất theo thời hạn quy định.'} />}
       </article>)}</div>}
   </Card>;
 }
