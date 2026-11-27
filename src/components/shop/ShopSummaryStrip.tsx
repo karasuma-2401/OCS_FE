@@ -6,6 +6,7 @@ export interface ShopSummaryCard<T extends string = string> {
   id: T;
   label: string;
   value: number | undefined;
+  formatValue?: (value: number) => string;
   hint: string;
   icon: LucideIcon;
   tone: string;
@@ -70,11 +71,21 @@ function useAnimatedNumber(target: number | undefined, durationMs = 520) {
   return display;
 }
 
-function KpiCounter({ value }: { value: number | undefined }) {
+function KpiCounter({
+  value,
+  formatValue,
+}: {
+  value: number | undefined;
+  formatValue?: (value: number) => string;
+}) {
   const animated = useAnimatedNumber(value);
   return (
     <p className="mt-1.5 text-2xl font-bold tabular-nums text-brand-ink">
-      {animated !== undefined ? animated.toLocaleString("vi-VN") : "—"}
+      {animated !== undefined
+        ? formatValue
+          ? formatValue(animated)
+          : animated.toLocaleString("vi-VN")
+        : "—"}
     </p>
   );
 }
@@ -197,7 +208,7 @@ export function ShopSummaryStrip<T extends string>({
                       <Icon size={15} aria-hidden="true" />
                     </span>
                   </div>
-                  <KpiCounter value={card.value} />
+                  <KpiCounter value={card.value} formatValue={card.formatValue} />
                   <p className="mt-1 truncate text-[11px] text-muted">
                     {card.hint}
                   </p>
