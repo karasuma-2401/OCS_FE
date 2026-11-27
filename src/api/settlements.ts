@@ -58,6 +58,7 @@ export interface Payout {
   status: 'Pending' | 'Approved' | 'Transferred' | 'Completed' | 'Rejected'; proofUrl: string | null;
   bankTransactionReference: string | null; createdAt: string; approvedAt: string | null;
   transferredAt: string | null; customerConfirmedAt: string | null; completedAt: string | null;
+  autoConfirmAt?: string | null;
   lines: SettlementLine[]; createdByEmployeeId: string | null; approvedByEmployeeId: string | null;
   rejectedByEmployeeId: string | null; rejectedAt: string | null; rejectionReason: string | null;
   createdByName: string | null; approvedByName: string | null; rejectedByName: string | null;
